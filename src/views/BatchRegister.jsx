@@ -1,6 +1,10 @@
 import { useState } from "react";
 import axiosClient from "../axios-client";
-import { Users, Plus, Minus, Upload } from "lucide-react";
+import { Users, Plus, Minus, Upload, FileSpreadsheet } from "lucide-react";
+import Card from "../components/ui/Card";
+import Input from "../components/ui/Input";
+import Select from "../components/ui/Select";
+import Button from "../components/ui/Button";
 
 export default function BatchRegister({ onSuccess, onCancel }) {
     // Shared Attributes
@@ -10,7 +14,7 @@ export default function BatchRegister({ onSuccess, onCancel }) {
 
     // Dynamic Student List
     const [students, setStudents] = useState([
-        { name: "", student_id: "" }
+        { name: "" }
     ]);
 
     const [loading, setLoading] = useState(false);
@@ -21,7 +25,7 @@ export default function BatchRegister({ onSuccess, onCancel }) {
     ];
 
     const addRow = () => {
-        setStudents([...students, { name: "", student_id: "" }]);
+        setStudents([...students, { name: "" }]);
     };
 
     const removeRow = (index) => {
@@ -45,9 +49,9 @@ export default function BatchRegister({ onSuccess, onCancel }) {
         }
 
         // Validate all students have data
-        const validStudents = students.filter(s => s.name && s.student_id);
+        const validStudents = students.filter(s => s.name.trim());
         if (validStudents.length === 0) {
-            alert("Please add at least one student with Name and ID.");
+            alert("Please add at least one student with a name.");
             return;
         }
 
@@ -77,82 +81,85 @@ export default function BatchRegister({ onSuccess, onCancel }) {
     };
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-purple-600">
-                <Users /> Batch Register Students
-            </h2>
+        <Card>
+            <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                    <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg">
+                        <FileSpreadsheet size={24} />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-800">Batch Registration</h2>
+                        <p className="text-xs text-slate-500">Register multiple students at once</p>
+                    </div>
+                </div>
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-6">
                 {/* SHARED ATTRIBUTES */}
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                    <div className="text-sm font-bold text-purple-700 mb-2">📋 Class Block Details (Shared)</div>
-                    <div className="grid grid-cols-3 gap-3">
-                        <select
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Class Details (Applied to all)</div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Select
+                            label="Course"
                             value={course}
                             onChange={e => setCourse(e.target.value)}
-                            className="border p-2 rounded outline-none focus:ring-2 focus:ring-purple-500"
+                            options={courses}
+                            placeholder="Select Course"
                             required
-                        >
-                            <option value="" disabled>Course</option>
-                            {courses.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        />
 
-                        <select
+                        <Select
+                            label="Year Level"
                             value={yearLevel}
                             onChange={e => setYearLevel(e.target.value)}
-                            className="border p-2 rounded outline-none focus:ring-2 focus:ring-purple-500"
+                            placeholder="Select Year"
                             required
                         >
-                            <option value="" disabled>Year</option>
                             <option value="1">1st Year</option>
                             <option value="2">2nd Year</option>
                             <option value="3">3rd Year</option>
                             <option value="4">4th Year</option>
-                        </select>
+                        </Select>
 
-                        <input
+                        <Input
+                            label="Section"
                             value={section}
                             onChange={e => setSection(e.target.value)}
-                            placeholder="Section (e.g. A)"
-                            className="border p-2 rounded outline-none focus:ring-2 focus:ring-purple-500"
+                            placeholder="e.g. A"
                             required
                         />
                     </div>
                 </div>
 
                 {/* STUDENT LIST */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <div className="text-sm font-bold text-gray-700">👨‍🎓 Students ({students.length})</div>
-                        <button
+                        <div className="text-sm font-bold text-slate-700">Students List ({students.length})</div>
+                        <Button
                             type="button"
                             onClick={addRow}
-                            className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 flex items-center gap-1"
+                            variant="secondary"
+                            className="py-1 text-xs"
+                            icon={Plus}
                         >
-                            <Plus size={16} /> Add Row
-                        </button>
+                            Add Row
+                        </Button>
                     </div>
 
-                    <div className="max-h-64 overflow-y-auto space-y-2 border rounded p-2">
+                    <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
                         {students.map((student, index) => (
-                            <div key={index} className="flex gap-2 items-center">
-                                <span className="text-xs text-gray-400 w-6">{index + 1}.</span>
-                                <input
+                            <div key={index} className="flex gap-3 items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
+                                <span className="text-xs font-bold text-slate-400 w-6 text-center">{index + 1}.</span>
+                                <Input
                                     value={student.name}
                                     onChange={e => updateStudent(index, "name", e.target.value)}
                                     placeholder="Student Name"
-                                    className="flex-1 border p-2 rounded outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                />
-                                <input
-                                    value={student.student_id}
-                                    onChange={e => updateStudent(index, "student_id", e.target.value)}
-                                    placeholder="Student ID"
-                                    className="w-32 border p-2 rounded outline-none focus:ring-2 focus:ring-purple-500 text-sm font-mono"
+                                    className="flex-1 text-sm mb-0"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => removeRow(index)}
-                                    className="text-red-500 hover:text-red-700 p-1"
+                                    className="text-slate-400 hover:text-red-500 p-2 transition"
                                     disabled={students.length === 1}
                                 >
                                     <Minus size={18} />
@@ -164,10 +171,10 @@ export default function BatchRegister({ onSuccess, onCancel }) {
 
                 {/* RESULT MESSAGE */}
                 {result && (
-                    <div className={`p-3 rounded text-sm ${result.registered > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                    <div className={`p-4 rounded-lg text-sm border ${result.registered > 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                         <div className="font-bold">{result.message}</div>
                         {result.errors && result.errors.length > 0 && (
-                            <ul className="mt-1 list-disc list-inside text-xs">
+                            <ul className="mt-1 list-disc list-inside text-xs opacity-80">
                                 {result.errors.map((err, i) => <li key={i}>{err}</li>)}
                             </ul>
                         )}
@@ -175,23 +182,25 @@ export default function BatchRegister({ onSuccess, onCancel }) {
                 )}
 
                 {/* ACTIONS */}
-                <div className="flex gap-2">
-                    <button
+                <div className="flex gap-3 pt-2">
+                    <Button
                         type="submit"
                         disabled={loading}
-                        className="flex-1 bg-purple-600 text-white py-2 rounded font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"
+                        className="flex-1"
+                        icon={Upload}
                     >
-                        <Upload size={18} /> {loading ? 'Registering...' : 'Register All'}
-                    </button>
-                    <button
+                        {loading ? 'Processing...' : 'Register All Students'}
+                    </Button>
+                    <Button
                         type="button"
                         onClick={onCancel}
-                        className="flex-1 bg-gray-200 text-gray-700 py-2 rounded font-bold hover:bg-gray-300 transition"
+                        variant="ghost"
+                        className="flex-1"
                     >
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </form>
-        </div>
+        </Card>
     );
 }

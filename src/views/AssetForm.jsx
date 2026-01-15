@@ -4,7 +4,6 @@ import axiosClient from "../axios-client";
 export default function AssetForm({ book, onClose, onSuccess }) {
   const [asset, setAsset] = useState({
     book_title_id: book.id,
-    asset_code: "",
     building: "Main Library",
     aisle: "",
     shelf: ""
@@ -13,14 +12,14 @@ export default function AssetForm({ book, onClose, onSuccess }) {
   const onSubmit = (ev) => {
     ev.preventDefault();
     axiosClient.post("/books/asset", asset)
-      .then(() => {
-        alert("Physical copy added successfully!");
+      .then((res) => {
+        alert(`Physical copy added! Barcode: ${res.data.asset_code}`);
         onSuccess(); // Refresh the list
         onClose();   // Close the popup
       })
       .catch(err => {
         console.error(err);
-        alert("Error! Accession code might already exist.");
+        alert("Error adding book copy.");
       });
   };
 
@@ -29,37 +28,28 @@ export default function AssetForm({ book, onClose, onSuccess }) {
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <h2 className="text-xl font-bold mb-2 text-gray-800">Add Physical Copy</h2>
         <p className="text-sm text-gray-500 mb-4">Adding copy for: <span className="font-bold text-blue-600">{book.title}</span></p>
-        
+
         <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Accession Code (Barcode)</label>
-            <input 
-              value={asset.asset_code}
-              onChange={e => setAsset({...asset, asset_code: e.target.value})}
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
-              placeholder="e.g. LIB-2025-001"
-              required 
-            />
-          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Aisle</label>
-              <input 
+              <input
                 value={asset.aisle}
-                onChange={e => setAsset({...asset, aisle: e.target.value})}
-                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                onChange={e => setAsset({ ...asset, aisle: e.target.value })}
+                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="A-1"
-                required 
+                required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Shelf</label>
-              <input 
+              <input
                 value={asset.shelf}
-                onChange={e => setAsset({...asset, shelf: e.target.value})}
-                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" 
+                onChange={e => setAsset({ ...asset, shelf: e.target.value })}
+                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
                 placeholder="Top"
-                required 
+                required
               />
             </div>
           </div>
