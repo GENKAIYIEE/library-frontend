@@ -5,6 +5,8 @@ import Circulation from "./views/Circulation";
 import History from "./views/History";
 import Dashboard from "./views/Dashboard";
 import Students from "./views/Students";
+import Reports from "./views/Reports";
+import DepartmentAnalytics from "./views/DepartmentAnalytics";
 
 export default function App() {
   const token = localStorage.getItem("ACCESS_TOKEN");
@@ -24,7 +26,7 @@ export default function App() {
   // IF LOGGED IN -> SHOW MAIN LAYOUT
   return (
     <div className="min-h-screen bg-gray-100 flex">
-      
+
       {/* SIDEBAR */}
       <aside className="w-64 bg-white shadow-md flex flex-col">
         <div className="p-6 border-b">
@@ -33,45 +35,61 @@ export default function App() {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          
-          {/* HISTORY LOGS */}
-          <button 
-             onClick={() => setActiveTab("history")}
-             className={`w-full text-left px-4 py-2 rounded ${activeTab === 'history' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-             📜 History Logs
-          </button>
-
-          {/* CIRCULATION */}
-          <button 
-            onClick={() => setActiveTab("circulation")}
-            className={`w-full text-left px-4 py-2 rounded ${activeTab === 'circulation' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
-          >
-            🔄 Circulation
-          </button>
 
           {/* DASHBOARD */}
-          <button 
+          <button
             onClick={() => setActiveTab("dashboard")}
             className={`w-full text-left px-4 py-2 rounded ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             📊 Dashboard
           </button>
 
+          {/* CIRCULATION */}
+          <button
+            onClick={() => setActiveTab("circulation")}
+            className={`w-full text-left px-4 py-2 rounded ${activeTab === 'circulation' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            🔄 Circulation
+          </button>
+
           {/* BOOK INVENTORY */}
-          <button 
+          <button
             onClick={() => setActiveTab("books")}
             className={`w-full text-left px-4 py-2 rounded ${activeTab === 'books' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             📚 Book Inventory
           </button>
 
-          {/* STUDENT LIST (Added Here!) */}
-          <button 
+          {/* STUDENT LIST */}
+          <button
             onClick={() => setActiveTab("students")}
             className={`w-full text-left px-4 py-2 rounded ${activeTab === 'students' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
           >
             🎓 Student List
+          </button>
+
+          {/* HISTORY LOGS */}
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`w-full text-left px-4 py-2 rounded ${activeTab === 'history' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            📜 History Logs
+          </button>
+
+          {/* REPORTS (NEW) */}
+          <button
+            onClick={() => setActiveTab("reports")}
+            className={`w-full text-left px-4 py-2 rounded ${activeTab === 'reports' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            📈 Reports
+          </button>
+
+          {/* DEPARTMENT ANALYTICS (NEW) */}
+          <button
+            onClick={() => setActiveTab("department-analytics")}
+            className={`w-full text-left px-4 py-2 rounded ${activeTab === 'department-analytics' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600 hover:bg-gray-50'}`}
+          >
+            📊 Dept. Analytics
           </button>
 
         </nav>
@@ -82,7 +100,7 @@ export default function App() {
             Logout
           </button>
         </div>
-      </aside> 
+      </aside>
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 p-8 overflow-auto h-screen">
@@ -91,6 +109,8 @@ export default function App() {
         {activeTab === 'books' && <Books />}
         {activeTab === 'circulation' && <Circulation />}
         {activeTab === 'history' && <History />}
+        {activeTab === 'reports' && <Reports />}
+        {activeTab === 'department-analytics' && <DepartmentAnalytics />}
       </main>
     </div>
   );

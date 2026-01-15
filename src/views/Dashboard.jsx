@@ -11,7 +11,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Fetch the numbers from Laravel
-    axiosClient.get("/dashboard-stats")
+    axiosClient.get("/dashboard/stats")
       .then(({ data }) => {
         setStats(data);
       })
@@ -24,7 +24,7 @@ export default function Dashboard() {
 
       {/* STAT CARDS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        
+
         {/* Card 1: Total Titles */}
         <div className="bg-white p-6 rounded-lg shadow border-l-4 border-blue-500">
           <div className="text-gray-500 text-sm font-bold uppercase mb-1">Total Titles</div>
