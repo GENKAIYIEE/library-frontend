@@ -1,0 +1,94 @@
+import React, { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+
+export default function FloatingSelect({
+    label,
+    value,
+    onChange,
+    options = [],
+    children,
+    required = false,
+    className = '',
+    error,
+    disabled = false,
+    name,
+    id
+}) {
+    const [isFocused, setIsFocused] = useState(false);
+    const isFloating = isFocused || value;
+
+    return (
+        <div className={`relative ${className}`}>
+            {/* Select Field */}
+            <div className="relative">
+                <select
+                    value={value}
+                    onChange={onChange}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    required={required}
+                    disabled={disabled}
+                    name={name}
+                    id={id || name}
+                    className={`
+                        peer w-full px-4 py-4 pt-6 pr-12
+                        bg-gray-50 border-2 rounded-xl
+                        text-gray-800 font-medium
+                        outline-none transition-all duration-200
+                        hover:bg-white
+                        appearance-none cursor-pointer
+                        disabled:opacity-50 disabled:cursor-not-allowed
+                        ${!value ? 'text-transparent' : ''}
+                        ${error
+                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
+                            : 'border-gray-200 focus:border-primary-600 focus:ring-4 focus:ring-primary-100'
+                        }
+                    `}
+                >
+                    <option value="" disabled></option>
+                    {children}
+                    {options.map(opt => (
+                        <option key={opt.value || opt} value={opt.value || opt}>
+                            {opt.label || opt}
+                        </option>
+                    ))}
+                </select>
+
+                {/* Floating Label */}
+                <label
+                    className={`
+                        absolute left-4 transition-all duration-200 pointer-events-none
+                        ${isFloating
+                            ? 'top-2 text-xs font-bold'
+                            : 'top-1/2 -translate-y-1/2 text-sm font-medium'
+                        }
+                        ${error
+                            ? 'text-red-500'
+                            : isFloating
+                                ? 'text-primary-600'
+                                : 'text-gray-500'
+                        }
+                    `}
+                >
+                    {label} {required && <span className="text-red-500">*</span>}
+                </label>
+
+                {/* Chevron Icon */}
+                <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${error ? 'text-red-400' : isFocused ? 'text-primary-600' : 'text-gray-400'
+                    }`}>
+                    <ChevronDown size={20} className={`transition-transform duration-200 ${isFocused ? 'rotate-180' : ''}`} />
+                </div>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="flex items-center gap-1.5 mt-2 text-red-600">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-medium">{error}</span>
+                </div>
+            )}
+        </div>
+    );
+}

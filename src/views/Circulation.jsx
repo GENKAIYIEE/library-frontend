@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../axios-client";
 import PaymentModal from "./PaymentModal";
-import BarcodeInput from "../components/BarcodeInput";
 import BookScanModal from "../components/BookScanModal";
+import BookNotFoundModal from "../components/BookNotFoundModal";
 import CameraScanner from "../components/CameraScanner";
-import { Search, ChevronDown, User, Book, Scan, ToggleLeft, ToggleRight, Camera } from "lucide-react";
+import { Search, ChevronDown, User, Book, Scan, Camera } from "lucide-react";
 
-export default function Circulation() {
+export default function Circulation({ onNavigateToBooks }) {
   // STATE FOR BORROWING
   const [studentId, setStudentId] = useState("");
   const [borrowBookCode, setBorrowBookCode] = useState("");
@@ -43,10 +43,13 @@ export default function Circulation() {
   const [selectedStudentCourse, setSelectedStudentCourse] = useState("");
 
   // SCANNER MODE STATE
-  const [scannerMode, setScannerMode] = useState(false);
   const [scannedBook, setScannedBook] = useState(null);
   const [showScanModal, setShowScanModal] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
+
+  // BOOK NOT FOUND MODAL STATE
+  const [showNotFoundModal, setShowNotFoundModal] = useState(false);
+  const [notFoundBarcode, setNotFoundBarcode] = useState("");
 
   // Fetch data on component mount
   useEffect(() => {
@@ -239,14 +242,26 @@ export default function Circulation() {
       setScannedBook(result);
       setShowScanModal(true);
     } else {
-      setError(`❌ ${result.message}`);
+      // Show Book Not Found modal with the scanned barcode
+      const scannedBarcode = result.asset_code || result.scanned_code || "";
+      setNotFoundBarcode(scannedBarcode);
+      setShowNotFoundModal(true);
+    }
+  };
+
+  // Handle registering a new book from the Not Found modal
+  const handleRegisterBook = (barcode) => {
+    setShowNotFoundModal(false);
+    setNotFoundBarcode("");
+    // Navigate to Books page with the barcode to pre-fill
+    if (onNavigateToBooks) {
+      onNavigateToBooks(barcode);
     }
   };
 
   const handleScanBorrow = (assetCode) => {
     setShowScanModal(false);
     setBorrowBookCode(assetCode);
-    setScannerMode(false);
     setMessage(`📚 Book selected: ${scannedBook.title}. Select a student to complete the loan.`);
   };
 
@@ -280,67 +295,64 @@ export default function Circulation() {
       });
   };
 
-  return (
-    <div className="space-y-6">
+  // Handle adding a physical copy for a book that exists but has no copies
+  const handleAddCopy = (book) => {
+    setShowScanModal(false);
+    setScannedBook(null);
+    // Navigate to Books page - the book title already exists, they just need to add a copy
+    // Show a message to guide the user
+    setMessage(`📦 "${book.title}" needs a physical copy. Go to Book Inventory → find the book → click "+ Copy" to add a physical copy.`);
+  };
 
-      {/* SCANNER MODE HEADER */}
-      <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-xl shadow-lg">
+  return (
+    <div className="space-y-6 bg-gray-50 -m-8 p-8 min-h-screen">
+
+      {/* SCANNER MODE HEADER - Deep Navy Blue Gradient */}
+      <div className="bg-gradient-to-r from-primary-700 via-primary-600 to-primary-700 text-white p-6 rounded-2xl shadow-xl border border-primary-500/20">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Scan size={28} />
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-white/10 rounded-xl backdrop-blur-sm">
+              <Scan size={32} className="text-white" />
+            </div>
             <div>
-              <h2 className="text-lg font-bold">Quick Scan Mode</h2>
-              <p className="text-sm text-white/80">Scan book barcode or QR code for instant lookup</p>
+              <h2 className="text-xl font-bold tracking-tight">Quick Scan Mode</h2>
+              <p className="text-sm text-white/70">Scan book barcode or QR code for instant lookup</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {/* Camera Scanner Button */}
             <button
               onClick={() => setShowCameraScanner(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition bg-green-500 hover:bg-green-600 text-white"
+              className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-all bg-white text-primary-600 hover:bg-white/90 hover:scale-105 shadow-lg"
             >
               <Camera size={20} />
-              📷 Camera Scan
-            </button>
-            {/* Text Scanner Toggle */}
-            <button
-              onClick={() => setScannerMode(!scannerMode)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition ${scannerMode
-                ? 'bg-white text-indigo-600'
-                : 'bg-white/20 hover:bg-white/30'
-                }`}
-            >
-              {scannerMode ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
-              {scannerMode ? 'Text Mode ON' : 'Text Input'}
+              Camera Scan
             </button>
           </div>
         </div>
-
-        {/* Scanner Input (shown when enabled) */}
-        {scannerMode && (
-          <div className="mt-4">
-            <BarcodeInput
-              onResult={handleScanResult}
-              placeholder="Scan book barcode or type manually..."
-              autoFocus={true}
-            />
-          </div>
-        )}
       </div>
 
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-        {/* LEFT SIDE: BORROW */}
-        <div className="bg-white p-6 rounded-lg shadow border-t-4 border-blue-500">
-          <h2 className="text-xl font-bold mb-4 text-gray-800">📖 Borrow Book</h2>
-          <form onSubmit={handleBorrow} className="space-y-4">
+        {/* LEFT SIDE: BORROW - Elevated White Card */}
+        <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-100">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-primary-50 rounded-xl">
+              <Book size={24} className="text-primary-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Borrow Book</h2>
+              <p className="text-sm text-gray-500">Issue a book to a student</p>
+            </div>
+          </div>
+          <form onSubmit={handleBorrow} className="space-y-5">
 
-            {/* STUDENT DROPDOWN */}
+            {/* STUDENT DROPDOWN - Modernized Input */}
             <div className="relative">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Select Student</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Select Student</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <User className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary-400" size={18} />
                 <input
                   type="text"
                   value={studentId || studentSearchQuery}
@@ -350,12 +362,12 @@ export default function Circulation() {
                     setShowStudentDropdown(true);
                   }}
                   onFocus={() => setShowStudentDropdown(true)}
-                  className="w-full pl-10 pr-10 border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-12 pr-12 border-2 border-gray-200 p-3 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-600 outline-none transition-all bg-gray-50 hover:bg-white"
                   placeholder="Search by name or student ID..."
                   required
                 />
                 <ChevronDown
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer hover:text-primary-600 transition"
                   size={18}
                   onClick={() => setShowStudentDropdown(!showStudentDropdown)}
                 />
@@ -415,11 +427,11 @@ export default function Circulation() {
               </div>
             )}
 
-            {/* AVAILABLE BOOKS DROPDOWN */}
+            {/* AVAILABLE BOOKS DROPDOWN - Modernized Input */}
             <div className="relative">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Select Available Book</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Select Available Book</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary-400" size={18} />
                 <input
                   type="text"
                   value={borrowBookCode || bookSearchQuery}
@@ -429,12 +441,12 @@ export default function Circulation() {
                     setShowBookDropdown(true);
                   }}
                   onFocus={() => setShowBookDropdown(true)}
-                  className="w-full pl-10 pr-10 border p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full pl-12 pr-12 border-2 border-gray-200 p-3 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-600 outline-none transition-all bg-gray-50 hover:bg-white"
                   placeholder="Search by barcode, title, or author..."
                   required
                 />
                 <ChevronDown
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer hover:text-primary-600 transition"
                   size={18}
                   onClick={() => setShowBookDropdown(!showBookDropdown)}
                 />
@@ -475,33 +487,43 @@ export default function Circulation() {
               )}
             </div>
 
-            <div className="text-xs text-gray-500 bg-blue-50 p-2 rounded flex justify-between">
-              <span>👤 {filteredStudents.length} students</span>
-              <span>📚 {filteredBooks.length} available books</span>
+            {/* Stats Row */}
+            <div className="flex items-center justify-between text-xs text-gray-500 bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <span className="flex items-center gap-1"><User size={14} /> {filteredStudents.length} students</span>
+              <span className="flex items-center gap-1"><Book size={14} /> {filteredBooks.length} available</span>
             </div>
 
+            {/* Confirm Loan Button - Full Width, High Contrast Dark Blue */}
             <button
               disabled={clearance && !clearance.is_cleared}
-              className={`w-full py-2 rounded font-bold transition ${clearance && !clearance.is_cleared
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
+              className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-200 transform ${clearance && !clearance.is_cleared
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-primary-600 text-white hover:bg-primary-700 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] shadow-md shadow-primary-200'
                 }`}
             >
-              {clearance && !clearance.is_cleared ? '🚫 Borrowing Blocked' : 'Confirm Loan'}
+              {clearance && !clearance.is_cleared ? '🚫 Borrowing Blocked' : '✓ Confirm Loan'}
             </button>
           </form>
         </div>
 
-        {/* RIGHT SIDE: RETURN */}
-        <div className="bg-white p-6 rounded-lg shadow border-t-4 border-green-500">
-          <h2 className="text-xl font-bold mb-4 text-gray-800">↩️ Return Book</h2>
-          <form onSubmit={handleReturn} className="space-y-4">
+        {/* RIGHT SIDE: RETURN - Elevated White Card */}
+        <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-100">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-3 bg-emerald-50 rounded-xl">
+              <Book size={24} className="text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-800">Return Book</h2>
+              <p className="text-sm text-gray-500">Process a book return</p>
+            </div>
+          </div>
+          <form onSubmit={handleReturn} className="space-y-5">
 
-            {/* BORROWED BOOKS DROPDOWN */}
+            {/* BORROWED BOOKS DROPDOWN - Modernized Input */}
             <div className="relative">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Select Borrowed Book</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Select Borrowed Book</label>
               <div className="relative">
-                <Book className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <Book className="absolute left-4 top-1/2 transform -translate-y-1/2 text-emerald-400" size={18} />
                 <input
                   type="text"
                   value={returnBookCode || returnSearchQuery}
@@ -511,12 +533,12 @@ export default function Circulation() {
                     setShowReturnDropdown(true);
                   }}
                   onFocus={() => setShowReturnDropdown(true)}
-                  className="w-full pl-10 pr-10 border p-2 rounded focus:ring-2 focus:ring-green-500 outline-none"
+                  className="w-full pl-12 pr-12 border-2 border-gray-200 p-3 rounded-xl focus:ring-4 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all bg-gray-50 hover:bg-white"
                   placeholder="Search by barcode, title, or borrower..."
                   required
                 />
                 <ChevronDown
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer"
+                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer hover:text-emerald-600 transition"
                   size={18}
                   onClick={() => setShowReturnDropdown(!showReturnDropdown)}
                 />
@@ -558,17 +580,19 @@ export default function Circulation() {
               )}
             </div>
 
-            <div className="text-xs text-gray-500 bg-green-50 p-2 rounded">
-              📖 {borrowedBooks.length} book{borrowedBooks.length !== 1 ? 's' : ''} currently borrowed
+            {/* Stats Row with Status Badge */}
+            <div className="flex items-center justify-between text-xs bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <span className="text-gray-500">📖 {borrowedBooks.length} book{borrowedBooks.length !== 1 ? 's' : ''} borrowed</span>
               {borrowedBooks.filter(b => b.is_overdue).length > 0 && (
-                <span className="text-red-600 font-bold ml-2">
-                  ({borrowedBooks.filter(b => b.is_overdue).length} overdue)
+                <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full font-bold border border-red-200">
+                  {borrowedBooks.filter(b => b.is_overdue).length} Overdue
                 </span>
               )}
             </div>
 
-            <button className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 font-bold transition">
-              Mark as Returned
+            {/* Mark as Returned Button - Full Width, Success Green */}
+            <button className="w-full bg-emerald-600 text-white py-4 rounded-xl hover:bg-emerald-700 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] font-bold text-lg transition-all duration-200 transform shadow-md shadow-emerald-200">
+              ✓ Mark as Returned
             </button>
           </form>
         </div>
@@ -606,6 +630,7 @@ export default function Circulation() {
           book={scannedBook}
           onBorrow={handleScanBorrow}
           onReturn={handleScanReturn}
+          onAddCopy={handleAddCopy}
           onClose={() => {
             setShowScanModal(false);
             setScannedBook(null);
@@ -618,6 +643,18 @@ export default function Circulation() {
         <CameraScanner
           onResult={handleScanResult}
           onClose={() => setShowCameraScanner(false)}
+        />
+      )}
+
+      {/* BOOK NOT FOUND MODAL */}
+      {showNotFoundModal && (
+        <BookNotFoundModal
+          scannedCode={notFoundBarcode}
+          onRegister={handleRegisterBook}
+          onClose={() => {
+            setShowNotFoundModal(false);
+            setNotFoundBarcode("");
+          }}
         />
       )}
     </div>

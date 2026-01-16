@@ -7,19 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Institutional Dark Blue Theme - Primary Color Palette
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
+          50: '#eef3ff',   // Very light blue tint
+          100: '#dce6ff',  // Light blue tint
+          200: '#b9cdff',  // Lighter blue
+          300: '#85a8ff',  // Light blue
+          400: '#4a7aff',  // Medium blue
+          500: '#1a4dc1',  // Darker blue
+          600: '#00008B',  // MAIN: Dark Blue (Institutional)
+          700: '#000070',  // Darker shade
+          800: '#000058',  // Even darker
+          900: '#000040',  // Very dark
+          950: '#000028',  // Darkest
         },
+        // Institution secondary colors
+        institution: {
+          dark: '#00008B',     // Main Dark Blue
+          light: '#f0f4f8',    // Light gray for backgrounds
+          white: '#ffffff',    // Pure white
+          text: '#1e293b',     // Dark gray for text
+        }
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

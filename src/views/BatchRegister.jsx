@@ -1,9 +1,8 @@
 import { useState } from "react";
 import axiosClient from "../axios-client";
-import { Users, Plus, Minus, Upload, FileSpreadsheet } from "lucide-react";
-import Card from "../components/ui/Card";
-import Input from "../components/ui/Input";
-import Select from "../components/ui/Select";
+import { Users, Plus, Minus, Upload, FileSpreadsheet, User, Hash, GraduationCap } from "lucide-react";
+import FloatingInput from "../components/ui/FloatingInput";
+import FloatingSelect from "../components/ui/FloatingSelect";
 import Button from "../components/ui/Button";
 
 export default function BatchRegister({ onSuccess, onCancel }) {
@@ -19,10 +18,6 @@ export default function BatchRegister({ onSuccess, onCancel }) {
 
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
-
-    const courses = [
-        "BSIT", "BSED", "BEED", "Maritime", "BSHM", "BS Criminology", "BSBA", "BS Tourism"
-    ];
 
     const addRow = () => {
         setStudents([...students, { name: "" }]);
@@ -81,51 +76,59 @@ export default function BatchRegister({ onSuccess, onCancel }) {
     };
 
     return (
-        <Card>
-            <div className="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-3">
-                    <div className="bg-emerald-50 text-emerald-600 p-2 rounded-lg">
-                        <FileSpreadsheet size={24} />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-slate-800">Batch Registration</h2>
-                        <p className="text-xs text-slate-500">Register multiple students at once</p>
-                    </div>
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4 flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-lg">
+                    <FileSpreadsheet className="text-white" size={22} />
+                </div>
+                <div>
+                    <h2 className="text-lg font-bold text-white">Batch Registration</h2>
+                    <p className="text-white/70 text-sm">Register multiple students at once</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
                 {/* SHARED ATTRIBUTES */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Class Details (Applied to all)</div>
+                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+                        <GraduationCap size={14} />
+                        Class Details (Applied to all)
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Select
+                        <FloatingSelect
                             label="Course"
                             value={course}
                             onChange={e => setCourse(e.target.value)}
-                            options={courses}
-                            placeholder="Select Course"
                             required
-                        />
+                        >
+                            <option value="BSIT">BSIT</option>
+                            <option value="BSED">BSED</option>
+                            <option value="BEED">BEED</option>
+                            <option value="Maritime">Maritime</option>
+                            <option value="BSHM">BSHM</option>
+                            <option value="BS Criminology">BS Criminology</option>
+                            <option value="BSBA">BSBA</option>
+                            <option value="BS Tourism">BS Tourism</option>
+                        </FloatingSelect>
 
-                        <Select
+                        <FloatingSelect
                             label="Year Level"
                             value={yearLevel}
                             onChange={e => setYearLevel(e.target.value)}
-                            placeholder="Select Year"
                             required
                         >
                             <option value="1">1st Year</option>
                             <option value="2">2nd Year</option>
                             <option value="3">3rd Year</option>
                             <option value="4">4th Year</option>
-                        </Select>
+                        </FloatingSelect>
 
-                        <Input
+                        <FloatingInput
                             label="Section"
                             value={section}
                             onChange={e => setSection(e.target.value)}
-                            placeholder="e.g. A"
+                            icon={Hash}
                             required
                         />
                     </div>
@@ -134,32 +137,37 @@ export default function BatchRegister({ onSuccess, onCancel }) {
                 {/* STUDENT LIST */}
                 <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                        <div className="text-sm font-bold text-slate-700">Students List ({students.length})</div>
+                        <div className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                            <Users size={16} />
+                            Students List ({students.length})
+                        </div>
                         <Button
                             type="button"
                             onClick={addRow}
                             variant="secondary"
-                            className="py-1 text-xs"
+                            className="py-2 text-xs"
                             icon={Plus}
                         >
                             Add Row
                         </Button>
                     </div>
 
-                    <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50">
+                    <div className="max-h-80 overflow-y-auto space-y-2 border-2 border-gray-200 rounded-xl p-4 bg-gray-50">
                         {students.map((student, index) => (
-                            <div key={index} className="flex gap-3 items-center bg-white p-2 rounded-lg border border-slate-100 shadow-sm">
-                                <span className="text-xs font-bold text-slate-400 w-6 text-center">{index + 1}.</span>
-                                <Input
-                                    value={student.name}
-                                    onChange={e => updateStudent(index, "name", e.target.value)}
-                                    placeholder="Student Name"
-                                    className="flex-1 text-sm mb-0"
-                                />
+                            <div key={index} className="flex gap-3 items-center bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                                <span className="text-sm font-bold text-gray-400 w-8 text-center">{index + 1}.</span>
+                                <div className="flex-1">
+                                    <FloatingInput
+                                        value={student.name}
+                                        onChange={e => updateStudent(index, "name", e.target.value)}
+                                        label="Student Name"
+                                        icon={User}
+                                    />
+                                </div>
                                 <button
                                     type="button"
                                     onClick={() => removeRow(index)}
-                                    className="text-slate-400 hover:text-red-500 p-2 transition"
+                                    className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition"
                                     disabled={students.length === 1}
                                 >
                                     <Minus size={18} />
@@ -171,10 +179,10 @@ export default function BatchRegister({ onSuccess, onCancel }) {
 
                 {/* RESULT MESSAGE */}
                 {result && (
-                    <div className={`p-4 rounded-lg text-sm border ${result.registered > 0 ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                    <div className={`p-4 rounded-xl text-sm border-2 ${result.registered > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                         <div className="font-bold">{result.message}</div>
                         {result.errors && result.errors.length > 0 && (
-                            <ul className="mt-1 list-disc list-inside text-xs opacity-80">
+                            <ul className="mt-2 list-disc list-inside text-xs opacity-80">
                                 {result.errors.map((err, i) => <li key={i}>{err}</li>)}
                             </ul>
                         )}
@@ -185,22 +193,24 @@ export default function BatchRegister({ onSuccess, onCancel }) {
                 <div className="flex gap-3 pt-2">
                     <Button
                         type="submit"
-                        disabled={loading}
-                        className="flex-1"
+                        variant="success"
+                        loading={loading}
+                        fullWidth
                         icon={Upload}
                     >
-                        {loading ? 'Processing...' : 'Register All Students'}
+                        Register All Students
                     </Button>
                     <Button
                         type="button"
                         onClick={onCancel}
-                        variant="ghost"
-                        className="flex-1"
+                        variant="outline"
+                        fullWidth
                     >
                         Cancel
                     </Button>
                 </div>
             </form>
-        </Card>
+        </div>
     );
 }
+

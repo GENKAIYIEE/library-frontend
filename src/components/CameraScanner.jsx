@@ -18,22 +18,61 @@ export default function CameraScanner({ onResult, onClose }) {
     const [lastScanned, setLastScanned] = useState(null);
     const scannerRef = useRef(null);
     const html5QrcodeRef = useRef(null);
+    const isMounted = useRef(true);
+    const videoRef = useRef(null); // Reference to the actual video element
 
     useEffect(() => {
+        isMounted.current = true;
+
+        // GLOBAL ERROR SUPPRESSION for html5-qrcode
+        // The library throws an uncaught error when we force-kill the camera stream.
+        // We suppress it here to prevent it from cluttering the console or triggering crash reporters.
+        const suppressCameraErrors = (event) => {
+            if (event && event.message && (
+                event.message.includes("RenderedCameraImpl") ||
+                event.message.includes("onabort")
+            )) {
+                event.preventDefault();
+                event.stopPropagation();
+                // console.debug("Suppressed camera library error");
+                return true;
+            }
+        };
+        window.addEventListener('error', suppressCameraErrors);
+
         // Initialize scanner on mount
         startScanner();
 
+        // POLL for video element to capture it for cleanup
+        const videoPoll = setInterval(() => {
+            const video = document.querySelector('#camera-scanner-region video');
+            if (video) {
+                videoRef.current = video;
+            }
+        }, 500);
+
         // Cleanup on unmount
         return () => {
+            isMounted.current = false;
+            clearInterval(videoPoll);
+            window.removeEventListener('error', suppressCameraErrors);
             stopScanner();
         };
     }, []);
 
     const startScanner = async () => {
+        if (!isMounted.current) return;
+
         setError(null);
         setIsLoading(true);
 
         try {
+            // Ensure any previous instance is cleared
+            if (html5QrcodeRef.current) {
+                await stopScanner();
+            }
+
+            // Create new instance
             const html5Qrcode = new Html5Qrcode("camera-scanner-region");
             html5QrcodeRef.current = html5Qrcode;
 
@@ -44,15 +83,29 @@ export default function CameraScanner({ onResult, onClose }) {
             };
 
             await html5Qrcode.start(
-                { facingMode: "environment" }, // Prefer back camera
+                { facingMode: "environment" },
                 config,
                 onScanSuccess,
                 onScanFailure
             );
 
-            setIsScanning(true);
-            setIsLoading(false);
+            if (isMounted.current) {
+                setIsScanning(true);
+                setIsLoading(false);
+
+                // Immediately try to find video element
+                setTimeout(() => {
+                    const video = document.querySelector('#camera-scanner-region video');
+                    if (video) videoRef.current = video;
+                }, 100);
+            } else {
+                // If unmounted during start, stop immediately
+                stopScanner();
+            }
+
         } catch (err) {
+            if (!isMounted.current) return;
+
             console.error("Camera error:", err);
 
             // Show user-friendly error messages
@@ -76,18 +129,90 @@ export default function CameraScanner({ onResult, onClose }) {
 
 
     const stopScanner = async () => {
-        if (html5QrcodeRef.current && html5QrcodeRef.current.isScanning) {
-            try {
-                await html5QrcodeRef.current.stop();
-                await html5QrcodeRef.current.clear();
-            } catch (err) {
-                console.error("Error stopping scanner:", err);
+        // 1. Try to stop using the library standard way FIRST
+        // This is important to let the library clean up its internal state 
+        // before we rip the stream out from under it.
+        try {
+            if (html5QrcodeRef.current) {
+                const scanner = html5QrcodeRef.current;
+
+                try {
+                    // Attempt to pause first to stop processing
+                    if (scanner.isScanning) {
+                        try { await scanner.pause(true); } catch (e) { }
+                        await scanner.stop();
+                    }
+                } catch (stopErr) {
+                    console.warn("Scanner stop warning:", stopErr);
+                }
+
+                try {
+                    await scanner.clear();
+                } catch (clearErr) {
+                    console.warn("Scanner clear warning:", clearErr);
+                }
             }
+        } catch (err) {
+            console.error("Error stopping scanner instances:", err);
         }
-        setIsScanning(false);
+
+        // 2. STOP CAPTURED VIDEO REF (The "Nuclear Option")
+        // We do this AFTER library stop attempts to minimize "onabort" errors
+        try {
+            if (videoRef.current) {
+                // CRITICAL: Remove library's listeners specific to this error
+                videoRef.current.onabort = null;
+                videoRef.current.onerror = null;
+
+                if (videoRef.current.srcObject) {
+                    const tracks = videoRef.current.srcObject.getTracks();
+                    tracks.forEach(track => {
+                        try {
+                            track.stop();
+                            // console.log("Stopped track on captured video ref:", track.label);
+                        } catch (e) { console.warn("Track stop failed", e); }
+                    });
+                    videoRef.current.srcObject = null;
+                }
+            }
+        } catch (refErr) {
+            console.warn("Ref capture stop failed:", refErr);
+        }
+
+        // 3. GLOBAL CLEANUP
+        try {
+            const allVideoElements = document.querySelectorAll('video');
+            allVideoElements.forEach(video => {
+                // CRITICAL: Remove library's listeners
+                video.onabort = null;
+                video.onerror = null;
+
+                if (video.srcObject) {
+                    const tracks = video.srcObject.getTracks();
+                    tracks.forEach(track => {
+                        try {
+                            track.stop();
+                            // console.log("Stopped track on global video element:", track.label);
+                        } catch (e) {
+                            console.warn("Global track stop error", e);
+                        }
+                    });
+                    video.srcObject = null;
+                }
+            });
+        } catch (manualErr) {
+            console.warn("Global stream cleanup failed:", manualErr);
+        }
+
+        if (isMounted.current) {
+            setIsScanning(false);
+        }
+        html5QrcodeRef.current = null;
     };
 
     const onScanSuccess = async (decodedText, decodedResult) => {
+        if (!isMounted.current) return;
+
         // Avoid duplicate scans of the same code
         if (lastScanned === decodedText) return;
         setLastScanned(decodedText);
@@ -99,44 +224,52 @@ export default function CameraScanner({ onResult, onClose }) {
 
         // Pause scanner while processing
         if (html5QrcodeRef.current) {
-            await html5QrcodeRef.current.pause(true);
+            try {
+                await html5QrcodeRef.current.pause(true);
+            } catch (e) { console.warn("Pause failed", e); }
         }
 
-        setIsLoading(true);
+        if (isMounted.current) setIsLoading(true);
 
         try {
             // Look up the scanned barcode
             const response = await axiosClient.get(`/books/lookup/${encodeURIComponent(decodedText)}`);
             const data = response.data;
 
-            if (onResult) {
+            if (isMounted.current && onResult) {
                 onResult(data);
             }
 
             // Close scanner on successful scan
-            stopScanner();
-            if (onClose) onClose();
+            await stopScanner();
+            if (isMounted.current && onClose) onClose();
 
         } catch (error) {
             const errorData = error.response?.data || { found: false, message: "Book not found" };
 
-            if (onResult) {
+            if (isMounted.current && onResult) {
                 onResult(errorData);
             }
 
             // Resume scanning after a short delay for failed lookups
-            setTimeout(async () => {
-                setLastScanned(null);
-                if (html5QrcodeRef.current) {
-                    try {
-                        await html5QrcodeRef.current.resume();
-                    } catch (e) {
-                        console.error("Resume error:", e);
+            if (isMounted.current) {
+                setTimeout(async () => {
+                    if (!isMounted.current) return;
+                    setLastScanned(null);
+                    if (html5QrcodeRef.current) {
+                        try {
+                            await html5QrcodeRef.current.resume();
+                        } catch (e) {
+                            console.error("Resume error:", e);
+
+                            // If resume fails, it might be stopped, try to restart or handle
+                            // But usually, if it fails here, we just let it be.
+                        }
                     }
-                }
-            }, 2000);
+                }, 2000);
+            }
         } finally {
-            setIsLoading(false);
+            if (isMounted.current) setIsLoading(false);
         }
     };
 
@@ -162,8 +295,8 @@ export default function CameraScanner({ onResult, onClose }) {
                     <p className="text-sm text-white/70">Point camera at QR code or barcode</p>
                 </div>
                 <button
-                    onClick={() => {
-                        stopScanner();
+                    onClick={async () => {
+                        await stopScanner();
                         if (onClose) onClose();
                     }}
                     className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition"
