@@ -32,8 +32,8 @@ export default function Dashboard() {
     // Initial fetch
     fetchData();
 
-    // Poll every 5 seconds (reduced from 1s to avoid 429 Too Many Requests)
-    const interval = setInterval(fetchData, 5000);
+    // Poll every 30 seconds (reduced from 5s to avoid 429 Too Many Requests)
+    const interval = setInterval(fetchData, 30000);
 
     return () => clearInterval(interval);
   }, []);

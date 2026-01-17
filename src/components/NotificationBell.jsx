@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, Check, X } from "lucide-react";
 import axiosClient from "../axios-client";
 
@@ -7,14 +7,65 @@ export default function NotificationBell() {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef(null);
 
+    // Refs to prevent duplicate requests and manage polling
+    const isFetchingRef = useRef(false);
+    const pollIntervalRef = useRef(null);
+    const backoffDelayRef = useRef(30000); // Start with 30 seconds
+
     const unreadCount = notifications.length;
 
-    useEffect(() => {
-        fetchNotifications();
-        // Poll every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000);
-        return () => clearInterval(interval);
+    const fetchNotifications = useCallback(() => {
+        // Prevent duplicate requests
+        if (isFetchingRef.current) {
+            return;
+        }
+
+        isFetchingRef.current = true;
+
+        axiosClient.get('/notifications')
+            .then(({ data }) => {
+                setNotifications(data);
+                // Reset backoff on success
+                backoffDelayRef.current = 30000;
+            })
+            .catch(err => {
+                // On 429 error, increase backoff delay
+                if (err.response?.status === 429) {
+                    backoffDelayRef.current = Math.min(backoffDelayRef.current * 2, 300000); // Max 5 minutes
+                    console.warn(`Rate limited. Backing off to ${backoffDelayRef.current / 1000}s`);
+                } else {
+                    console.error("Failed to fetch notifications", err);
+                }
+            })
+            .finally(() => {
+                isFetchingRef.current = false;
+            });
     }, []);
+
+    useEffect(() => {
+        // Delay initial fetch slightly to avoid race conditions on mount
+        const initialTimeout = setTimeout(() => {
+            fetchNotifications();
+        }, 500);
+
+        // Set up polling with dynamic interval
+        const setupPolling = () => {
+            pollIntervalRef.current = setInterval(() => {
+                fetchNotifications();
+            }, backoffDelayRef.current);
+        };
+
+        // Start polling after initial fetch
+        const pollTimeout = setTimeout(setupPolling, 1000);
+
+        return () => {
+            clearTimeout(initialTimeout);
+            clearTimeout(pollTimeout);
+            if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current);
+            }
+        };
+    }, [fetchNotifications]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -25,13 +76,7 @@ export default function NotificationBell() {
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [dropdownRef]);
-
-    const fetchNotifications = () => {
-        axiosClient.get('/notifications')
-            .then(({ data }) => setNotifications(data))
-            .catch(err => console.error("Failed to fetch notifications", err));
-    };
+    }, []);
 
     const markAsRead = (id, event) => {
         event.stopPropagation();

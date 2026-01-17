@@ -12,8 +12,8 @@ export default function Leaderboard() {
     useEffect(() => {
         fetchLeaderboard();
 
-        // Poll every 5 seconds
-        const interval = setInterval(fetchLeaderboard, 5000);
+        // Poll every 60 seconds (reduced from 5s to avoid 429 Too Many Requests)
+        const interval = setInterval(fetchLeaderboard, 60000);
         return () => clearInterval(interval);
     }, []);
 
