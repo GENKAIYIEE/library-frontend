@@ -21,6 +21,8 @@ import {
   Clock
 } from "lucide-react";
 
+import NotificationBell from "./components/NotificationBell";
+
 // Digital Clock Component
 function DigitalClock() {
   const [time, setTime] = useState(new Date());
@@ -66,7 +68,14 @@ function DigitalClock() {
   );
 }
 
+import PublicCatalog from "./views/PublicCatalog";
+
 export default function App() {
+  // PUBLIC KIOSK ROUTE - Bypass Auth
+  if (window.location.pathname === '/catalog') {
+    return <PublicCatalog />;
+  }
+
   const token = localStorage.getItem("ACCESS_TOKEN");
   const userName = localStorage.getItem("USER_NAME");
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -120,10 +129,11 @@ export default function App() {
           <div className="bg-white p-2.5 rounded-lg shadow-sm">
             <Library size={24} className="text-primary-600" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white leading-none">PCLU Library</h1>
-            <p className="text-xs text-white/70 mt-1 font-medium">Management System</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold text-white leading-none truncate">PCLU Library</h1>
+            <p className="text-xs text-white/70 mt-1 font-medium truncate">Management System</p>
           </div>
+          <NotificationBell />
         </div>
 
         {/* Digital Clock */}
@@ -132,7 +142,7 @@ export default function App() {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto no-scrollbar">
           <div className="px-4 py-2 text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 mt-2">Main Menu</div>
           <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
           <NavItem id="circulation" label="Circulation" icon={Repeat} />
@@ -143,6 +153,17 @@ export default function App() {
           <NavItem id="history" label="History Logs" icon={HistoryIcon} />
           <NavItem id="reports" label="Reports" icon={FileBarChart} />
           <NavItem id="department-analytics" label="Dept. Analytics" icon={PieChart} />
+
+          <div className="px-4 py-2 text-xs font-semibold text-white/50 uppercase tracking-wider mb-2 mt-6">Public Access</div>
+          <a
+            href="/catalog"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-white/80 hover:bg-white/10 hover:text-white transition-all duration-200"
+          >
+            <BookOpen size={20} strokeWidth={2} />
+            Student Kiosk
+          </a>
         </nav>
 
         {/* User Profile & Logout */}

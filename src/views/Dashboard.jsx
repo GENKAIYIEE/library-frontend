@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import axiosClient from "../axios-client";
 import StatCard from "../components/StatCard";
 import Leaderboard from "../components/Leaderboard";
+import MonthlyTrendChart from "../components/charts/MonthlyTrendChart";
+import CategoryPieChart from "../components/charts/CategoryPieChart";
 import { BookOpen, Copy, Repeat, Users, LayoutDashboard } from "lucide-react";
 
 export default function Dashboard() {
@@ -30,8 +32,8 @@ export default function Dashboard() {
     // Initial fetch
     fetchData();
 
-    // Poll every 1 second for "Real-Time" feel
-    const interval = setInterval(fetchData, 1000);
+    // Poll every 5 seconds (reduced from 1s to avoid 429 Too Many Requests)
+    const interval = setInterval(fetchData, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -80,6 +82,22 @@ export default function Dashboard() {
           description="Total registered students"
         />
       </div>
+
+      {/* Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* Monthly Trends */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">30-Day Borrowing Activity</h3>
+          <MonthlyTrendChart />
+        </div>
+
+        {/* Category Popularity */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Popular Categories</h3>
+          <CategoryPieChart />
+        </div>
+      </div>
+
 
       {/* RECENTLY AVAILABLE BOOKS GRID */}
       <div>

@@ -9,3 +9,14 @@
         @apply font-sans text-slate-800 bg-slate-50 antialiased;
     }
 }
+
+@layer utilities {
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}

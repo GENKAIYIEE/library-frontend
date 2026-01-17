@@ -44,10 +44,10 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   useEffect(() => {
     getBooks();
 
-    // Poll every 1 second for real-time inventory updates
+    // Poll every 5 seconds (reduced from 1s)
     const interval = setInterval(() => {
       getBooks(true); // Silent update
-    }, 1000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
