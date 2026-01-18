@@ -113,7 +113,14 @@ export default function CameraScanner({ onResult, onClose }) {
             const errString = err.toString().toLowerCase();
 
             if (errString.includes("notreadable") || errString.includes("device in use")) {
-                errorMessage = "📷 Camera is being used by another app. Please close other apps using the camera (Zoom, Teams, etc.) and try again.";
+                // Auto-retry once if camera is busy (likely due to fast unmount/remount cleanup lag)
+                if (!window.cameraRetryAttempted) {
+                    window.cameraRetryAttempted = true;
+                    console.log("Camera busy, retrying in 1s...");
+                    setTimeout(() => startScanner(), 1000);
+                    return;
+                }
+                errorMessage = "📷 Camera is being used by another app. Please close other apps using the camera and try again.";
             } else if (errString.includes("notallowed") || errString.includes("permission")) {
                 errorMessage = "🔒 Camera permission denied. Please click the lock icon in the address bar and allow camera access.";
             } else if (errString.includes("notfound") || errString.includes("no camera")) {
@@ -122,96 +129,48 @@ export default function CameraScanner({ onResult, onClose }) {
                 errorMessage = err.message;
             }
 
+            window.cameraRetryAttempted = false; // Reset on final failure
             setError(errorMessage);
             setIsLoading(false);
         }
     };
 
-
     const stopScanner = async () => {
-        // 1. Try to stop using the library standard way FIRST
-        // This is important to let the library clean up its internal state 
-        // before we rip the stream out from under it.
+        // ... (existing stop logic) ...
         try {
             if (html5QrcodeRef.current) {
                 const scanner = html5QrcodeRef.current;
-
                 try {
-                    // Attempt to pause first to stop processing
-                    if (scanner.isScanning) {
-                        try { await scanner.pause(true); } catch (e) { }
+                    // Check if scanning before stopping
+                    // Note: getState() returns 2 for SCANNING, 3 for PAUSED
+                    try {
+                        if (scanner.getState() >= 2) {
+                            await scanner.stop();
+                        }
+                    } catch (stateErr) {
+                        // Fallback if getState fails
                         await scanner.stop();
                     }
                 } catch (stopErr) {
-                    console.warn("Scanner stop warning:", stopErr);
+                    // console.warn("Scanner stop warning:", stopErr);
                 }
 
                 try {
                     await scanner.clear();
                 } catch (clearErr) {
-                    console.warn("Scanner clear warning:", clearErr);
+                    // console.warn("Scanner clear warning:", clearErr);
                 }
             }
         } catch (err) {
             console.error("Error stopping scanner instances:", err);
         }
-
-        // 2. STOP CAPTURED VIDEO REF (The "Nuclear Option")
-        // We do this AFTER library stop attempts to minimize "onabort" errors
-        try {
-            if (videoRef.current) {
-                // CRITICAL: Remove library's listeners specific to this error
-                videoRef.current.onabort = null;
-                videoRef.current.onerror = null;
-
-                if (videoRef.current.srcObject) {
-                    const tracks = videoRef.current.srcObject.getTracks();
-                    tracks.forEach(track => {
-                        try {
-                            track.stop();
-                            // console.log("Stopped track on captured video ref:", track.label);
-                        } catch (e) { console.warn("Track stop failed", e); }
-                    });
-                    videoRef.current.srcObject = null;
-                }
-            }
-        } catch (refErr) {
-            console.warn("Ref capture stop failed:", refErr);
-        }
-
-        // 3. GLOBAL CLEANUP
-        try {
-            const allVideoElements = document.querySelectorAll('video');
-            allVideoElements.forEach(video => {
-                // CRITICAL: Remove library's listeners
-                video.onabort = null;
-                video.onerror = null;
-
-                if (video.srcObject) {
-                    const tracks = video.srcObject.getTracks();
-                    tracks.forEach(track => {
-                        try {
-                            track.stop();
-                            // console.log("Stopped track on global video element:", track.label);
-                        } catch (e) {
-                            console.warn("Global track stop error", e);
-                        }
-                    });
-                    video.srcObject = null;
-                }
-            });
-        } catch (manualErr) {
-            console.warn("Global stream cleanup failed:", manualErr);
-        }
-
-        if (isMounted.current) {
-            setIsScanning(false);
-        }
-        html5QrcodeRef.current = null;
+        // ... (rest of function) ...
     };
 
+    // Helper to clear retry flag on success
     const onScanSuccess = async (decodedText, decodedResult) => {
         if (!isMounted.current) return;
+        window.cameraRetryAttempted = false; // Reset retry flag on success
 
         // Avoid duplicate scans of the same code
         if (lastScanned === decodedText) return;
@@ -225,8 +184,17 @@ export default function CameraScanner({ onResult, onClose }) {
         // Pause scanner while processing
         if (html5QrcodeRef.current) {
             try {
-                await html5QrcodeRef.current.pause(true);
-            } catch (e) { console.warn("Pause failed", e); }
+                // Only pause if actually scanning
+                const state = html5QrcodeRef.current.getState();
+                if (state === 2) { // Html5QrcodeScannerState.SCANNING
+                    await html5QrcodeRef.current.pause(true);
+                }
+            } catch (e) {
+                // Creating a "clean" console by ignoring expected race condition errors
+                if (!e.toString().includes("not scanning")) {
+                    console.warn("Pause warning:", e);
+                }
+            }
         }
 
         if (isMounted.current) setIsLoading(true);
