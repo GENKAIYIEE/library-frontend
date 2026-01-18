@@ -30,15 +30,15 @@ export default function FloatingSelect({
                     disabled={disabled}
                     name={name}
                     id={id || name}
+                    style={{ color: value ? '#000000' : 'transparent', backgroundColor: '#ffffff' }}
                     className={`
                         peer w-full px-4 py-4 pt-6 pr-12
                         bg-white border-2 rounded-xl
-                        text-gray-900 font-semibold
+                        font-semibold
                         outline-none transition-all duration-200
                         hover:bg-white
                         appearance-none cursor-pointer
                         disabled:opacity-50 disabled:cursor-not-allowed
-                        ${!value ? 'text-transparent' : ''}
                         ${error
                             ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
                             : 'border-gray-200 focus:border-primary-600 focus:ring-4 focus:ring-primary-100'
@@ -48,7 +48,12 @@ export default function FloatingSelect({
                     <option value="" disabled></option>
                     {children}
                     {options.map(opt => (
-                        <option key={opt.value || opt} value={opt.value || opt} className="bg-white text-gray-900 py-2">
+                        <option
+                            key={opt.value || opt}
+                            value={opt.value || opt}
+                            style={{ color: '#000000', backgroundColor: '#ffffff' }}
+                            className="py-2"
+                        >
                             {opt.label || opt}
                         </option>
                     ))}

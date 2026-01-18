@@ -1,9 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
 import axiosClient from "../axios-client";
+import Swal from "sweetalert2";
 import {
   Trash2, UserPlus, Users, ToggleLeft, Search,
   ChevronDown, ChevronRight, GraduationCap, Layers,
-  Maximize2, Minimize2, User, BookOpen, Hash, Award, X
+  Maximize2, Minimize2, User, BookOpen, Hash, Award, X, Pencil
 } from "lucide-react";
 import BatchRegister from "./BatchRegister";
 import Button from "../components/ui/Button";
@@ -41,6 +42,9 @@ export default function Students() {
   // Achievement Modal state
   const [viewingBadges, setViewingBadges] = useState(null);
 
+  // Edit mode state
+  const [editingStudent, setEditingStudent] = useState(null);
+
   // Collapsed courses state
   const [collapsedCourses, setCollapsedCourses] = useState({});
 
@@ -65,28 +69,81 @@ export default function Students() {
       return;
     }
 
-    axiosClient.post("/students", {
+    const studentData = {
       name,
       course,
       year_level: parseInt(yearLevel),
       section
-    })
-      .then((res) => {
-        alert(`Student Registered! ID: ${res.data.student_id}`);
-        setName("");
-        setcourse("");
-        setYearLevel("");
-        setSection("");
-        getStudents();
-      })
-      .catch(err => {
-        alert(err.response?.data?.message || "Error registering student.");
-      });
+    };
+
+    if (editingStudent) {
+      // UPDATE MODE - modify existing student
+      axiosClient.put(`/students/${editingStudent.id}`, studentData)
+        .then(() => {
+          alert(`Student updated successfully!`);
+          cancelEdit();
+          getStudents();
+        })
+        .catch(err => {
+          alert(err.response?.data?.message || "Error updating student.");
+        });
+    } else {
+      // CREATE MODE - register new student
+      axiosClient.post("/students", studentData)
+        .then((res) => {
+          alert(`Student Registered! ID: ${res.data.student_id}`);
+          setName("");
+          setcourse("");
+          setYearLevel("");
+          setSection("");
+          getStudents();
+        })
+        .catch(err => {
+          alert(err.response?.data?.message || "Error registering student.");
+        });
+    }
   };
 
-  const onDelete = (id) => {
-    if (!window.confirm("Are you sure you want to delete this student?")) return;
-    axiosClient.delete(`/students/${id}`).then(() => getStudents());
+  // Edit handler - populate form with student data
+  const onEdit = (student) => {
+    setEditingStudent(student);
+    setName(student.name);
+    setcourse(student.course || "");
+    setYearLevel(student.year_level ? String(student.year_level) : "");
+    setSection(student.section || "");
+  };
+
+  // Cancel edit - clear form and exit edit mode
+  const cancelEdit = () => {
+    setEditingStudent(null);
+    setName("");
+    setcourse("");
+    setYearLevel("");
+    setSection("");
+  };
+
+  const onDelete = (id, studentName) => {
+    Swal.fire({
+      title: 'Delete Student?',
+      text: `Are you sure you want to delete "${studentName || 'this student'}"? This cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete!',
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        axiosClient.delete(`/students/${id}`)
+          .then(() => {
+            Swal.fire('Deleted!', 'The student has been removed.', 'success');
+            getStudents();
+          })
+          .catch((err) => {
+            Swal.fire('Error!', err.response?.data?.message || 'Failed to delete student.', 'error');
+          });
+      }
+    });
   }
 
   // Filter students by search term
@@ -219,7 +276,14 @@ export default function Students() {
                           <Award size={16} />
                         </button>
                         <button
-                          onClick={() => onDelete(student.id)}
+                          onClick={() => onEdit(student)}
+                          className="text-slate-400 hover:text-primary-500 hover:bg-primary-50 p-2 rounded-lg transition"
+                          title="Edit Student"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => onDelete(student.id, student.name)}
                           className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition"
                           title="Delete Student"
                         >
@@ -267,18 +331,35 @@ export default function Students() {
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-primary-600 rounded-xl shadow">
-                  <UserPlus size={20} className="text-white" />
+                <div className={`p-3 ${editingStudent ? 'bg-amber-500' : 'bg-primary-600'} rounded-xl shadow`}>
+                  {editingStudent ? <Pencil size={20} className="text-white" /> : <UserPlus size={20} className="text-white" />}
                 </div>
-                <h2 className="text-lg font-bold text-gray-800">Register Student</h2>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">
+                    {editingStudent ? 'Edit Student' : 'Register Student'}
+                  </h2>
+                  {editingStudent && (
+                    <p className="text-xs text-amber-600">Editing: {editingStudent.student_id}</p>
+                  )}
+                </div>
               </div>
-              <Button
-                onClick={() => setBatchMode(true)}
-                variant="secondary"
-                className="text-xs px-3 py-2"
-              >
-                <ToggleLeft size={16} /> Batch
-              </Button>
+              {editingStudent ? (
+                <Button
+                  onClick={cancelEdit}
+                  variant="outline"
+                  className="text-xs px-3 py-2"
+                >
+                  <X size={16} /> Cancel
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setBatchMode(true)}
+                  variant="secondary"
+                  className="text-xs px-3 py-2"
+                >
+                  <ToggleLeft size={16} /> Batch
+                </Button>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -330,8 +411,8 @@ export default function Students() {
                 />
               </div>
 
-              <Button type="submit" variant="form" fullWidth className="mt-2">
-                Register Student
+              <Button type="submit" variant={editingStudent ? 'primary' : 'form'} fullWidth className="mt-2">
+                {editingStudent ? 'Update Student' : 'Register Student'}
               </Button>
             </form>
           </div>

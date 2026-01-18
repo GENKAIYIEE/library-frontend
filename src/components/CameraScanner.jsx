@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import { Camera, CameraOff, Loader2, AlertTriangle, RotateCcw } from "lucide-react";
+import { Camera, CameraOff, Loader2, AlertTriangle, RotateCcw, Keyboard } from "lucide-react";
 import axiosClient from "../axios-client";
 
 /**
@@ -67,6 +67,19 @@ export default function CameraScanner({ onResult, onClose }) {
         setIsLoading(true);
 
         try {
+            // EXPERIMENTAL: Explicitly request permission first to trigger browser prompt reliably
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                // We just needed the permission, stop the stream immediately
+                stream.getTracks().forEach(track => track.stop());
+            } catch (permErr) {
+                // If permission denied here, we catch it early
+                if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
+                    throw new Error("permission_denied");
+                }
+                // Other errors (like NotFoundError) will be caught later or below
+            }
+
             // Ensure any previous instance is cleared
             if (html5QrcodeRef.current) {
                 await stopScanner();
@@ -82,12 +95,24 @@ export default function CameraScanner({ onResult, onClose }) {
                 aspectRatio: 1.0,
             };
 
-            await html5Qrcode.start(
-                { facingMode: "environment" },
-                config,
-                onScanSuccess,
-                onScanFailure
-            );
+            // Attempt 1: Try environment camera (rear)
+            try {
+                await html5Qrcode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                );
+            } catch (startErr) {
+                console.warn("Retrying with default camera...", startErr);
+                // Attempt 2: Fallback to any available camera (user/front)
+                await html5Qrcode.start(
+                    { facingMode: "user" },
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                );
+            }
 
             if (isMounted.current) {
                 setIsScanning(true);
@@ -112,7 +137,9 @@ export default function CameraScanner({ onResult, onClose }) {
             let errorMessage = "Failed to start camera.";
             const errString = err.toString().toLowerCase();
 
-            if (errString.includes("notreadable") || errString.includes("device in use")) {
+            if (err.message === "permission_denied" || errString.includes("notallowed") || errString.includes("permission")) {
+                errorMessage = "🔒 Camera permission denied. Please click the lock icon in the address bar and allow camera access.";
+            } else if (errString.includes("notreadable") || errString.includes("device in use")) {
                 // Auto-retry once if camera is busy (likely due to fast unmount/remount cleanup lag)
                 if (!window.cameraRetryAttempted) {
                     window.cameraRetryAttempted = true;
@@ -121,8 +148,6 @@ export default function CameraScanner({ onResult, onClose }) {
                     return;
                 }
                 errorMessage = "📷 Camera is being used by another app. Please close other apps using the camera and try again.";
-            } else if (errString.includes("notallowed") || errString.includes("permission")) {
-                errorMessage = "🔒 Camera permission denied. Please click the lock icon in the address bar and allow camera access.";
             } else if (errString.includes("notfound") || errString.includes("no camera")) {
                 errorMessage = "❌ No camera found. Please connect a camera and try again.";
             } else if (err.message) {
@@ -314,13 +339,24 @@ export default function CameraScanner({ onResult, onClose }) {
                         <div className="text-center text-white">
                             <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
                             <p className="text-sm mb-4">{error}</p>
-                            <button
-                                onClick={handleRetry}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition mx-auto"
-                            >
-                                <RotateCcw size={18} />
-                                Try Again
-                            </button>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={handleRetry}
+                                    className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition w-full"
+                                >
+                                    <RotateCcw size={18} />
+                                    Try Again
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (onClose) onClose();
+                                    }}
+                                    className="flex items-center justify-center gap-2 px-6 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition w-full"
+                                >
+                                    <Keyboard size={18} />
+                                    Enter Code Manually
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

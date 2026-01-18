@@ -197,6 +197,11 @@ export default function Circulation({ onNavigateToBooks }) {
     setMessage(null);
     setError(null);
 
+    // Get book info for success message
+    const bookInfo = borrowedBooks.find(b => b.asset_code === returnBookCode);
+    const bookTitle = bookInfo?.title || 'Unknown';
+    const assetCode = returnBookCode;
+
     axiosClient.post("/return", {
       asset_code: returnBookCode
     })
@@ -216,9 +221,9 @@ export default function Circulation({ onNavigateToBooks }) {
                 setShowPaymentModal(true);
               }
             });
-          setMessage(`⚠️ Book returned with Late Fee: ₱${data.penalty}.00 (${data.days_late} days late)`);
+          setMessage(`⚠️ Book "${bookTitle}" (${assetCode}) returned with Late Fee: ₱${data.penalty}.00 (${data.days_late} days late)`);
         } else {
-          setMessage("✅ Success! Book returned and is now available.");
+          setMessage(`✅ Success! Book "${bookTitle}" (${assetCode}) has been returned and is now available.`);
         }
         fetchAvailableBooks();
         fetchBorrowedBooks();
@@ -228,7 +233,7 @@ export default function Circulation({ onNavigateToBooks }) {
         if (response && response.status === 422) {
           setError(response.data.message);
         } else {
-          setError("Error returning book. Check the barcode.");
+          setError(`Error returning book ${assetCode}. Check the barcode.`);
         }
       });
   };
@@ -257,17 +262,21 @@ export default function Circulation({ onNavigateToBooks }) {
     switch (scanMode) {
       case 'borrow':
         // BORROW MODE: Book must be 'available' to borrow
+        // Action: Pre-fill the borrow form with the scanned Book ID
         if (!result.found) {
           // Book not in database
           setNotFoundBarcode(scannedBarcode);
           setShowNotFoundModal(true);
+          setShowCameraScanner(false);
         } else if (result.status === 'available') {
-          // ✅ SUCCESS: Book is available, proceed to borrow flow
-          setScannedBook(result);
-          setShowScanModal(true);
+          // ✅ SUCCESS: Book is available, pre-fill the borrow form
+          setShowCameraScanner(false);
+          setBorrowBookCode(result.asset_code);
+          setScannedBook(result); // Store for reference
+          setMessage(`📚 Book "${result.title}" (${result.asset_code}) selected. Now select a student to complete the loan.`);
         } else if (result.status === 'borrowed') {
           // ❌ ERROR: Book is already checked out
-          setError("❌ Cannot borrow. This book is already out.");
+          setError(`❌ Cannot borrow. Book "${result.title}" (${result.asset_code}) is currently borrowed.`);
           setShowCameraScanner(false);
         } else {
           // Unknown status
@@ -278,16 +287,19 @@ export default function Circulation({ onNavigateToBooks }) {
 
       case 'return':
         // RETURN MODE: Book must be 'borrowed' to return
+        // Action: Direct database update - mark as returned immediately
         if (!result.found) {
           // Book not in database
           setNotFoundBarcode(scannedBarcode);
           setShowNotFoundModal(true);
+          setShowCameraScanner(false);
         } else if (result.status === 'borrowed') {
-          // ✅ SUCCESS: Book is borrowed, proceed to return
-          handleScanReturn(result.asset_code);
+          // ✅ SUCCESS: Book is borrowed, process return directly
+          setShowCameraScanner(false);
+          handleScanReturn(result.asset_code, result.title);
         } else if (result.status === 'available') {
-          // ❌ ERROR: Book is already in the library
-          setError("❌ Cannot return. This book is already in the library.");
+          // ❌ ERROR: Book is not currently borrowed
+          setError(`❌ This book is not currently borrowed. "${result.title}" (${result.asset_code}) is already available in the library.`);
           setShowCameraScanner(false);
         } else {
           // Unknown status
@@ -298,12 +310,13 @@ export default function Circulation({ onNavigateToBooks }) {
 
       case 'register':
         // REGISTER MODE: Book should NOT already exist in database
+        // Action: Redirect to Inventory/Add Book page with pre-filled ISBN/ID
         if (result.found) {
           // ❌ ERROR: Book already exists
           setError(`❌ Book already registered: "${result.title}" (${result.asset_code})`);
           setShowCameraScanner(false);
         } else {
-          // ✅ SUCCESS: Book not found, navigate to register it
+          // ✅ SUCCESS: Book not found, navigate to register page with pre-filled code
           setShowCameraScanner(false);
           if (onNavigateToBooks) {
             onNavigateToBooks(scannedBarcode);
@@ -313,6 +326,7 @@ export default function Circulation({ onNavigateToBooks }) {
 
       default:
         // No mode selected (shouldn't happen), fall back to showing scan modal
+        setShowCameraScanner(false);
         if (result.found) {
           setScannedBook(result);
           setShowScanModal(true);
@@ -342,11 +356,13 @@ export default function Circulation({ onNavigateToBooks }) {
     setMessage(`📚 Book selected: ${scannedBook.title}. Select a student to complete the loan.`);
   };
 
-  const handleScanReturn = (assetCode) => {
+  const handleScanReturn = (assetCode, bookTitle = null) => {
     setShowScanModal(false);
-    // Directly process return
+    // Directly process return - immediate database update
     axiosClient.post("/return", { asset_code: assetCode })
       .then(({ data }) => {
+        const displayTitle = bookTitle || data.title || assetCode;
+
         if (data.penalty > 0) {
           axiosClient.get("/transactions")
             .then(({ data: transactions }) => {
@@ -359,16 +375,16 @@ export default function Circulation({ onNavigateToBooks }) {
                 setShowPaymentModal(true);
               }
             });
-          setMessage(`⚠️ Book returned with Late Fee: ₱${data.penalty}.00 (${data.days_late} days late)`);
+          setMessage(`⚠️ Book "${displayTitle}" (${assetCode}) returned with Late Fee: ₱${data.penalty}.00 (${data.days_late} days late)`);
         } else {
-          setMessage("✅ Success! Book returned and is now available.");
+          setMessage(`✅ Success! Book "${displayTitle}" (${assetCode}) has been returned and is now available.`);
         }
         fetchAvailableBooks();
         fetchBorrowedBooks();
         setScannedBook(null);
       })
       .catch(err => {
-        setError(err.response?.data?.message || "Error returning book.");
+        setError(err.response?.data?.message || `Error returning book ${assetCode}.`);
       });
   };
 

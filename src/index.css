@@ -8,6 +8,18 @@
     body {
         @apply font-sans text-slate-800 bg-slate-50 antialiased;
     }
+
+    /* Ensure dropdown options are always readable */
+    select option {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+        padding: 8px 12px;
+    }
+
+    /* Force select text to be visible when a value is selected */
+    select:not(:invalid) {
+        color: #000000 !important;
+    }
 }
 
 @layer utilities {

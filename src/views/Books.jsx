@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import axiosClient from "../axios-client";
+import Swal from "sweetalert2";
 import BookForm from "./BookForm";
 import AssetForm from "./AssetForm";
 import {
@@ -79,13 +80,27 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
 
   // DELETE FUNCTION
   const onDelete = (book) => {
-    if (!window.confirm(`Are you sure you want to delete "${book.title}"?`)) {
-      return;
-    }
-    axiosClient.delete(`/books/${book.id}`)
-      .then(() => {
-        getBooks(); // Refresh list
-      });
+    Swal.fire({
+      title: 'Delete Book?',
+      text: `Are you sure you want to delete "${book.title}"? This cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        axiosClient.delete(`/books/${book.id}`)
+          .then(() => {
+            Swal.fire('Deleted!', 'The book has been removed.', 'success');
+            getBooks();
+          })
+          .catch((err) => {
+            Swal.fire('Error!', err.response?.data?.message || 'Failed to delete book.', 'error');
+          });
+      }
+    });
   };
 
   // EDIT FUNCTION

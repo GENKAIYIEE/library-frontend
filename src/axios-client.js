@@ -1,7 +1,9 @@
 import axios from "axios";
+import Swal from "sweetalert2";
 
 const axiosClient = axios.create({
   baseURL: "http://127.0.0.1:8000/api", // Your Laravel Backend URL
+  timeout: 15000, // 15 second timeout
 });
 
 axiosClient.interceptors.request.use((config) => {
@@ -15,10 +17,37 @@ axiosClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Handle network errors (server offline, no internet, etc.)
+    if (!error.response) {
+      // Network error - server is unreachable
+      console.error("Network Error:", error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'Connection Error',
+        text: 'Unable to connect to the server. Please check if the backend is running.',
+        confirmButtonColor: '#dc2626'
+      });
+      return Promise.reject(error);
+    }
+
     const { response } = error;
+
+    // Handle specific HTTP error codes
     if (response.status === 401) {
       localStorage.removeItem("ACCESS_TOKEN");
+      // Optionally redirect to login page
+    } else if (response.status === 500) {
+      console.error("Server Error:", response.data);
+      Swal.fire({
+        icon: 'error',
+        title: 'Server Error',
+        text: 'An internal server error occurred. Please try again later.',
+        confirmButtonColor: '#dc2626'
+      });
+    } else if (response.status === 404) {
+      console.error("Not Found:", response.config.url);
     }
+
     throw error;
   }
 );
