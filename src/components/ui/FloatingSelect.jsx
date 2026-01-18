@@ -32,8 +32,8 @@ export default function FloatingSelect({
                     id={id || name}
                     className={`
                         peer w-full px-4 py-4 pt-6 pr-12
-                        bg-gray-50 border-2 rounded-xl
-                        text-gray-800 font-medium
+                        bg-white border-2 rounded-xl
+                        text-gray-900 font-semibold
                         outline-none transition-all duration-200
                         hover:bg-white
                         appearance-none cursor-pointer
@@ -48,7 +48,7 @@ export default function FloatingSelect({
                     <option value="" disabled></option>
                     {children}
                     {options.map(opt => (
-                        <option key={opt.value || opt} value={opt.value || opt}>
+                        <option key={opt.value || opt} value={opt.value || opt} className="bg-white text-gray-900 py-2">
                             {opt.label || opt}
                         </option>
                     ))}
@@ -57,7 +57,7 @@ export default function FloatingSelect({
                 {/* Floating Label */}
                 <label
                     className={`
-                        absolute left-4 transition-all duration-200 pointer-events-none
+                        absolute left-4 transition-all duration-200 pointer-events-none whitespace-nowrap
                         ${isFloating
                             ? 'top-2 text-xs font-bold'
                             : 'top-1/2 -translate-y-1/2 text-sm font-medium'

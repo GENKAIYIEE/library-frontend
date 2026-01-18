@@ -38,10 +38,10 @@ export default function FloatingInput({
                     id={id || name}
                     placeholder=" "
                     className={`
-                        peer w-full px-4 py-4 pt-6 
+                        peer w-full pr-4 py-4 pt-6 
                         ${Icon ? 'pl-12' : 'pl-4'}
-                        bg-gray-50 border-2 rounded-xl
-                        text-gray-800 font-medium
+                        bg-white border-2 rounded-xl
+                        text-gray-900 font-semibold
                         outline-none transition-all duration-200
                         hover:bg-white
                         disabled:opacity-50 disabled:cursor-not-allowed
@@ -55,7 +55,7 @@ export default function FloatingInput({
                 {/* Floating Label */}
                 <label
                     className={`
-                        absolute left-4 transition-all duration-200 pointer-events-none
+                        absolute transition-all duration-200 pointer-events-none truncate max-w-[calc(100%-3rem)]
                         ${Icon ? 'left-12' : 'left-4'}
                         ${isFloating
                             ? 'top-2 text-xs font-bold'

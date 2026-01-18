@@ -95,12 +95,13 @@ export default function BatchRegister({ onSuccess, onCancel }) {
                         <GraduationCap size={14} />
                         Class Details (Applied to all)
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex flex-wrap gap-4">
                         <FloatingSelect
                             label="Course"
                             value={course}
                             onChange={e => setCourse(e.target.value)}
                             required
+                            className="flex-grow min-w-[140px]"
                         >
                             <option value="BSIT">BSIT</option>
                             <option value="BSED">BSED</option>
@@ -117,6 +118,7 @@ export default function BatchRegister({ onSuccess, onCancel }) {
                             value={yearLevel}
                             onChange={e => setYearLevel(e.target.value)}
                             required
+                            className="flex-grow min-w-[140px]"
                         >
                             <option value="1">1st Year</option>
                             <option value="2">2nd Year</option>
@@ -130,6 +132,7 @@ export default function BatchRegister({ onSuccess, onCancel }) {
                             onChange={e => setSection(e.target.value)}
                             icon={Hash}
                             required
+                            className="flex-grow min-w-[140px]"
                         />
                     </div>
                 </div>

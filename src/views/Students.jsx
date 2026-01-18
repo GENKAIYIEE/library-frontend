@@ -306,12 +306,13 @@ export default function Students() {
                 <option value="BS Tourism">BS Tourism</option>
               </FloatingSelect>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-wrap gap-4">
                 <FloatingSelect
                   label="Year Level"
                   value={yearLevel}
                   onChange={e => setYearLevel(e.target.value)}
                   required
+                  className="flex-grow min-w-[140px]"
                 >
                   <option value="1">1st Year</option>
                   <option value="2">2nd Year</option>
@@ -325,6 +326,7 @@ export default function Students() {
                   onChange={e => setSection(e.target.value)}
                   icon={Hash}
                   required
+                  className="flex-grow min-w-[140px]"
                 />
               </div>
 

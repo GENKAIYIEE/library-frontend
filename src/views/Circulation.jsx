@@ -4,6 +4,7 @@ import PaymentModal from "./PaymentModal";
 import BookScanModal from "../components/BookScanModal";
 import BookNotFoundModal from "../components/BookNotFoundModal";
 import CameraScanner from "../components/CameraScanner";
+import ScanModeSelector from "../components/ScanModeSelector";
 import { Search, ChevronDown, User, Book, Scan, Camera } from "lucide-react";
 
 export default function Circulation({ onNavigateToBooks }) {
@@ -46,6 +47,8 @@ export default function Circulation({ onNavigateToBooks }) {
   const [scannedBook, setScannedBook] = useState(null);
   const [showScanModal, setShowScanModal] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
+  const [showModeSelector, setShowModeSelector] = useState(false);
+  const [scanMode, setScanMode] = useState(null); // 'borrow' | 'register' | 'return'
 
   // BOOK NOT FOUND MODAL STATE
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
@@ -236,17 +239,91 @@ export default function Circulation({ onNavigateToBooks }) {
     setPendingTransaction(null);
   };
 
-  // BARCODE SCAN HANDLERS
+  // Handle mode selection from the pre-scan selector
+  const handleModeSelect = (mode) => {
+    setScanMode(mode);
+    setShowModeSelector(false);
+    setShowCameraScanner(true);
+  };
+
+  // BARCODE SCAN HANDLERS - Uses scanMode to determine action with proper validation
   const handleScanResult = (result) => {
-    if (result.found) {
-      setScannedBook(result);
-      setShowScanModal(true);
-    } else {
-      // Show Book Not Found modal with the scanned barcode
-      const scannedBarcode = result.asset_code || result.scanned_code || "";
-      setNotFoundBarcode(scannedBarcode);
-      setShowNotFoundModal(true);
+    const scannedBarcode = result.asset_code || result.scanned_code || "";
+
+    // Clear any previous messages
+    setMessage(null);
+    setError(null);
+
+    switch (scanMode) {
+      case 'borrow':
+        // BORROW MODE: Book must be 'available' to borrow
+        if (!result.found) {
+          // Book not in database
+          setNotFoundBarcode(scannedBarcode);
+          setShowNotFoundModal(true);
+        } else if (result.status === 'available') {
+          // ✅ SUCCESS: Book is available, proceed to borrow flow
+          setScannedBook(result);
+          setShowScanModal(true);
+        } else if (result.status === 'borrowed') {
+          // ❌ ERROR: Book is already checked out
+          setError("❌ Cannot borrow. This book is already out.");
+          setShowCameraScanner(false);
+        } else {
+          // Unknown status
+          setError(`Cannot borrow. Book status: ${result.status || 'unknown'}`);
+          setShowCameraScanner(false);
+        }
+        break;
+
+      case 'return':
+        // RETURN MODE: Book must be 'borrowed' to return
+        if (!result.found) {
+          // Book not in database
+          setNotFoundBarcode(scannedBarcode);
+          setShowNotFoundModal(true);
+        } else if (result.status === 'borrowed') {
+          // ✅ SUCCESS: Book is borrowed, proceed to return
+          handleScanReturn(result.asset_code);
+        } else if (result.status === 'available') {
+          // ❌ ERROR: Book is already in the library
+          setError("❌ Cannot return. This book is already in the library.");
+          setShowCameraScanner(false);
+        } else {
+          // Unknown status
+          setError(`Cannot return. Book status: ${result.status || 'unknown'}`);
+          setShowCameraScanner(false);
+        }
+        break;
+
+      case 'register':
+        // REGISTER MODE: Book should NOT already exist in database
+        if (result.found) {
+          // ❌ ERROR: Book already exists
+          setError(`❌ Book already registered: "${result.title}" (${result.asset_code})`);
+          setShowCameraScanner(false);
+        } else {
+          // ✅ SUCCESS: Book not found, navigate to register it
+          setShowCameraScanner(false);
+          if (onNavigateToBooks) {
+            onNavigateToBooks(scannedBarcode);
+          }
+        }
+        break;
+
+      default:
+        // No mode selected (shouldn't happen), fall back to showing scan modal
+        if (result.found) {
+          setScannedBook(result);
+          setShowScanModal(true);
+        } else {
+          setNotFoundBarcode(scannedBarcode);
+          setShowNotFoundModal(true);
+        }
+        break;
     }
+
+    setScanMode(null);
   };
 
   // Handle registering a new book from the Not Found modal
@@ -322,7 +399,7 @@ export default function Circulation({ onNavigateToBooks }) {
           <div className="flex items-center gap-3">
             {/* Camera Scanner Button */}
             <button
-              onClick={() => setShowCameraScanner(true)}
+              onClick={() => setShowModeSelector(true)}
               className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-all bg-white text-primary-600 hover:bg-white/90 hover:scale-105 shadow-lg"
             >
               <Camera size={20} />
@@ -638,11 +715,22 @@ export default function Circulation({ onNavigateToBooks }) {
         />
       )}
 
+      {/* SCAN MODE SELECTOR */}
+      {showModeSelector && (
+        <ScanModeSelector
+          onSelectMode={handleModeSelect}
+          onClose={() => setShowModeSelector(false)}
+        />
+      )}
+
       {/* CAMERA SCANNER */}
       {showCameraScanner && (
         <CameraScanner
           onResult={handleScanResult}
-          onClose={() => setShowCameraScanner(false)}
+          onClose={() => {
+            setShowCameraScanner(false);
+            setScanMode(null);
+          }}
         />
       )}
 
