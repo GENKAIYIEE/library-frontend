@@ -17,6 +17,9 @@ export default function FloatingSelect({
     const [isFocused, setIsFocused] = useState(false);
     const isFloating = isFocused || value;
 
+    // Blue theme colors
+    const primaryBlue = '#020463';
+
     return (
         <div className={`relative ${className}`}>
             {/* Select Field */}
@@ -30,7 +33,11 @@ export default function FloatingSelect({
                     disabled={disabled}
                     name={name}
                     id={id || name}
-                    style={{ color: value ? '#000000' : 'transparent', backgroundColor: '#ffffff' }}
+                    style={{
+                        color: value ? '#000000' : 'transparent',
+                        backgroundColor: '#ffffff',
+                        borderColor: error ? undefined : (isFocused ? primaryBlue : undefined)
+                    }}
                     className={`
                         peer w-full px-4 py-4 pt-6 pr-12
                         bg-white border-2 rounded-xl
@@ -41,7 +48,7 @@ export default function FloatingSelect({
                         disabled:opacity-50 disabled:cursor-not-allowed
                         ${error
                             ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
-                            : 'border-gray-200 focus:border-primary-600 focus:ring-4 focus:ring-primary-100'
+                            : 'border-gray-200 focus:ring-4'
                         }
                     `}
                 >
@@ -67,21 +74,23 @@ export default function FloatingSelect({
                             ? 'top-2 text-xs font-bold'
                             : 'top-1/2 -translate-y-1/2 text-sm font-medium'
                         }
-                        ${error
-                            ? 'text-red-500'
-                            : isFloating
-                                ? 'text-primary-600'
-                                : 'text-gray-500'
-                        }
                     `}
+                    style={{
+                        color: error ? '#ef4444' : isFloating ? primaryBlue : '#6b7280'
+                    }}
                 >
                     {label} {required && <span className="text-red-500">*</span>}
                 </label>
 
                 {/* Chevron Icon */}
-                <div className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200 ${error ? 'text-red-400' : isFocused ? 'text-primary-600' : 'text-gray-400'
-                    }`}>
-                    <ChevronDown size={20} className={`transition-transform duration-200 ${isFocused ? 'rotate-180' : ''}`} />
+                <div
+                    className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200"
+                    style={{ color: error ? '#ef4444' : isFocused ? primaryBlue : '#9ca3af' }}
+                >
+                    <ChevronDown
+                        size={20}
+                        className={`transition-transform duration-200 ${isFocused ? 'rotate-180' : ''}`}
+                    />
                 </div>
             </div>
 

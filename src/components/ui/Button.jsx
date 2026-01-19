@@ -13,17 +13,46 @@ export default function Button({
 }) {
     const baseStyles = "px-4 py-2.5 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
 
+    // Blue theme color palette
+    const primaryBlue = '#020463';
+    const primaryBlueHover = '#1a1c7a';
+
     const variants = {
-        primary: "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-200 active:scale-[0.98]",
+        // Primary Blue Button
+        primary: `text-white hover:shadow-lg active:scale-[0.98]`,
+        // Form submit button (larger)
+        form: `text-white hover:shadow-xl active:scale-[0.98] py-4 text-base`,
+        // Secondary gray
         secondary: "bg-gray-100 text-gray-700 hover:bg-gray-200",
+        // Danger (keep for delete actions)
         danger: "bg-red-500 text-white hover:bg-red-600 hover:shadow-lg hover:shadow-red-200 active:scale-[0.98]",
+        // Ghost (transparent)
         ghost: "text-gray-600 hover:bg-gray-100",
+        // Outline
         outline: "border-2 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400",
-        success: "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-200 active:scale-[0.98]",
-        form: "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-xl hover:shadow-primary-200 active:scale-[0.98] py-4 text-base"
+        // Success (for batch registration)
+        success: "bg-emerald-600 text-white hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-200 active:scale-[0.98]"
     };
 
     const widthClass = fullWidth ? 'w-full' : '';
+
+    // Apply inline styles for primary/form variants to use exact blue colors
+    const isPrimaryOrForm = variant === 'primary' || variant === 'form';
+    const inlineStyle = isPrimaryOrForm ? {
+        backgroundColor: primaryBlue,
+    } : {};
+
+    const handleMouseEnter = (e) => {
+        if (isPrimaryOrForm && !disabled && !loading) {
+            e.currentTarget.style.backgroundColor = primaryBlueHover;
+        }
+    };
+
+    const handleMouseLeave = (e) => {
+        if (isPrimaryOrForm && !disabled && !loading) {
+            e.currentTarget.style.backgroundColor = primaryBlue;
+        }
+    };
 
     return (
         <button
@@ -31,6 +60,9 @@ export default function Button({
             onClick={onClick}
             disabled={disabled || loading}
             className={`${baseStyles} ${variants[variant]} ${widthClass} ${className}`}
+            style={inlineStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
         >
             {loading ? (
                 <>
@@ -49,4 +81,3 @@ export default function Button({
         </button>
     );
 }
-

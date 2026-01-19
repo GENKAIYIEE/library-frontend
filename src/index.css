@@ -1,24 +1,135 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   BLUE & WHITE THEME - PCLU Library System
+   Primary: #020463 (Dark Blue)
+   Secondary: #ffffff (White)
+   Accent: #1a1c7a (Light Blue - Hover)
+   ============================================ */
+
+:root {
+    --color-primary: #020463;
+    --color-primary-light: #1a1c7a;
+    --color-primary-lighter: #2a2c9a;
+    --color-accent: #4a4cff;
+    --color-white: #ffffff;
+    --color-gray-50: #f8fafc;
+    --color-gray-100: #f1f5f9;
+    --color-gray-200: #e2e8f0;
+    --color-gray-300: #cbd5e1;
+    --color-gray-400: #94a3b8;
+    --color-gray-500: #64748b;
+    --color-gray-600: #475569;
+    --color-gray-700: #334155;
+    --color-gray-800: #1e293b;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+}
+
 @layer base {
     body {
         @apply font-sans text-slate-800 bg-slate-50 antialiased;
+        font-family: 'Inter', system-ui, sans-serif;
     }
 
-    /* Ensure dropdown options are always readable */
+    /* ===== DROPDOWN STYLING ===== */
     select option {
         color: #000000 !important;
         background-color: #ffffff !important;
         padding: 8px 12px;
     }
 
-    /* Force select text to be visible when a value is selected */
     select:not(:invalid) {
         color: #000000 !important;
+    }
+
+    /* ===== FOCUS STATES - Blue Theme ===== */
+    input:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 3px rgba(2, 4, 99, 0.15) !important;
+    }
+
+    /* ===== SCROLLBAR STYLING ===== */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--color-gray-100);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--color-gray-300);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-gray-400);
+    }
+}
+
+@layer components {
+
+    /* ===== PRIMARY BUTTON - Blue Theme ===== */
+    .btn-primary {
+        @apply px-4 py-2.5 rounded-xl font-bold transition-all duration-200;
+        background-color: var(--color-primary);
+        color: var(--color-white);
+    }
+
+    .btn-primary:hover {
+        background-color: var(--color-primary-light);
+        box-shadow: 0 10px 25px -5px rgba(2, 4, 99, 0.3);
+    }
+
+    /* ===== CARD STYLES ===== */
+    .card {
+        @apply bg-white rounded-2xl shadow-lg border border-gray-100;
+    }
+
+    .card-header {
+        @apply p-6 border-b border-gray-100;
+    }
+
+    .card-body {
+        @apply p-6;
+    }
+
+    /* ===== TOAST NOTIFICATIONS ===== */
+    .toast-success {
+        @apply fixed bottom-4 right-4 bg-white border-l-4 border-green-500 shadow-xl rounded-lg p-4 z-50;
+    }
+
+    .toast-error {
+        @apply fixed bottom-4 right-4 bg-white border-l-4 shadow-xl rounded-lg p-4 z-50;
+        border-left-color: var(--color-primary);
+    }
+
+    /* ===== TABLE STYLES ===== */
+    .table-header {
+        @apply bg-slate-50 text-slate-500 uppercase text-xs font-bold tracking-wider;
+    }
+
+    .table-row {
+        @apply hover:bg-slate-50 transition;
+    }
+
+    .table-action-btn {
+        @apply p-2 rounded-lg transition-all duration-200;
+    }
+
+    .table-action-btn:hover {
+        background-color: rgba(2, 4, 99, 0.1);
     }
 }
 
@@ -30,5 +141,70 @@
     .no-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
+    }
+
+    /* ===== BLUE GRADIENTS ===== */
+    .bg-blue-gradient {
+        background: linear-gradient(135deg, #020463 0%, #1a1c7a 100%);
+    }
+
+    .bg-blue-gradient-light {
+        background: linear-gradient(135deg, #1a1c7a 0%, #2a2c9a 100%);
+    }
+
+    /* ===== TEXT UTILITIES ===== */
+    .text-primary-blue {
+        color: var(--color-primary);
+    }
+
+    .text-accent-blue {
+        color: var(--color-accent);
+    }
+
+    /* ===== ANIMATION UTILITIES ===== */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(-100%);
+        }
+
+        to {
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .animate-fadeIn {
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+
+    .animate-slideIn {
+        animation: slideIn 0.3s ease-out forwards;
+    }
+
+    .animate-scaleIn {
+        animation: scaleIn 0.3s ease-out forwards;
     }
 }

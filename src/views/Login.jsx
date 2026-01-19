@@ -1,22 +1,24 @@
 import { useState } from "react";
 import axiosClient from "../axios-client";
-import { Library, Mail, Lock, AlertCircle } from "lucide-react";
+import { Library, User, Lock, AlertCircle } from "lucide-react";
 import FloatingInput from "../components/ui/FloatingInput";
 import Button from "../components/ui/Button";
+import LoginTransition from "../components/LoginTransition";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showTransition, setShowTransition] = useState(false);
 
   const validateForm = () => {
     const errors = {};
-    if (!email) {
-      errors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      errors.email = "Please enter a valid email address";
+    if (!username) {
+      errors.username = "Username is required";
+    } else if (username.length < 3) {
+      errors.username = "Username must be at least 3 characters";
     }
     if (!password) {
       errors.password = "Password is required";
@@ -36,21 +38,22 @@ export default function Login() {
     setLoading(true);
 
     axiosClient.post("/login", {
-      email,
+      username,
       password,
     })
       .then(({ data }) => {
         localStorage.setItem("ACCESS_TOKEN", data.token);
         localStorage.setItem("USER_NAME", data.user.name);
         localStorage.setItem("USER_ROLE", data.user.role);
-        window.location.reload();
+        // Trigger the book opening animation
+        setShowTransition(true);
         setLoading(false);
       })
       .catch((err) => {
         setLoading(false);
         const response = err.response;
         if (response && response.status === 401) {
-          setError("Invalid email or password. Please try again.");
+          setError("Invalid username or password. Please try again.");
         } else {
           setError("Connection error. Please check if the server is running.");
         }
@@ -59,6 +62,11 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800">
+      {/* Book Opening Transition Animation */}
+      {showTransition && (
+        <LoginTransition onFinish={() => window.location.reload()} />
+      )}
+
       {/* Decorative elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
@@ -73,14 +81,14 @@ export default function Login() {
             <Library size={48} className="text-primary-600" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">PCLU Library</h1>
-          <p className="text-white/70 text-sm">Management System</p>
+          <p className="text-white/70 text-sm">Admin Management System</p>
         </div>
 
         {/* Login Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-800">Welcome Back</h2>
-            <p className="text-gray-500 mt-1">Sign in to your account to continue</p>
+            <h2 className="text-2xl font-bold text-gray-800">Admin Login</h2>
+            <p className="text-gray-500 mt-1">Sign in to access the dashboard</p>
           </div>
 
           {/* Global Error Message */}
@@ -96,21 +104,25 @@ export default function Login() {
 
           <form onSubmit={onSubmit} className="space-y-5">
             <FloatingInput
-              label="Email Address"
-              type="email"
-              value={email}
+              label="Username"
+              type="text"
+              name="username"
+              id="username"
+              value={username}
               onChange={(e) => {
-                setEmail(e.target.value);
-                if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: null }));
+                setUsername(e.target.value);
+                if (fieldErrors.username) setFieldErrors(prev => ({ ...prev, username: null }));
               }}
-              icon={Mail}
+              icon={User}
               required
-              error={fieldErrors.email}
+              error={fieldErrors.username}
             />
 
             <FloatingInput
               label="Password"
               type="password"
+              name="password"
+              id="password"
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
@@ -146,4 +158,3 @@ export default function Login() {
     </div>
   );
 }
-
