@@ -16,9 +16,11 @@
     "lucide-react": "^0.562.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
+    "react-barcode": "^1.6.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.11.0",
+    "react-to-print": "^3.2.0",
     "sweetalert2": "^11.26.17"
   },
   "devDependencies": {

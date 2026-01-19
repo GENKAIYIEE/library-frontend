@@ -1,4 +1,4 @@
-import { BookOpen, User, MapPin, Calendar, AlertTriangle, Check, ArrowRight, RotateCcw, Package, PlusCircle } from "lucide-react";
+import { BookOpen, User, MapPin, Calendar, AlertTriangle, Check, ArrowRight, RotateCcw, Package, PlusCircle, Building2, FileText, Globe } from "lucide-react";
 
 /**
  * BookScanModal - Shows scanned book details and action buttons
@@ -10,11 +10,22 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
     const isBorrowed = book.status === 'borrowed';
     const needsPhysicalCopy = book.needs_physical_copy || book.status === 'no_copies';
 
+    // Get image URL
+    const getImageUrl = () => {
+        const imagePath = book.image_path || book.cover_image;
+        if (!imagePath) return null;
+        if (imagePath.startsWith('http')) return imagePath;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || '';
+        return `${baseUrl}/${imagePath}`;
+    };
+
+    const imageUrl = getImageUrl();
+
     // Header background color based on status
     const getHeaderColor = () => {
         if (needsPhysicalCopy) return 'bg-gradient-to-r from-blue-600 to-cyan-600';
-        if (isAvailable) return 'bg-green-500';
-        return 'bg-amber-500';
+        if (isAvailable) return 'bg-gradient-to-r from-green-500 to-emerald-500';
+        return 'bg-gradient-to-r from-amber-500 to-orange-500';
     };
 
     // Header text based on status
@@ -25,9 +36,9 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={onClose}>
             <div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header with status indicator */}
@@ -45,12 +56,52 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
                     </div>
                 </div>
 
-                {/* Book Details */}
+                {/* Book Details with Cover */}
                 <div className="p-6 space-y-4">
-                    {/* Title and Author */}
-                    <div>
-                        <h3 className="text-xl font-bold text-slate-800">{book.title}</h3>
-                        <p className="text-slate-500">by {book.author}</p>
+                    {/* Title, Author and Cover */}
+                    <div className="flex gap-4">
+                        {/* Book Cover */}
+                        <div className="w-24 h-32 flex-shrink-0 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden shadow-md">
+                            {imageUrl ? (
+                                <img
+                                    src={imageUrl}
+                                    alt={book.title}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = 'none';
+                                        e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
+                                    }}
+                                />
+                            ) : null}
+                            <div className={`fallback-icon w-full h-full flex items-center justify-center ${imageUrl ? 'hidden' : 'flex'}`}>
+                                <BookOpen size={32} className="text-gray-400" />
+                            </div>
+                        </div>
+
+                        {/* Title and Author */}
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-xl font-bold text-slate-800 line-clamp-2">{book.title}</h3>
+                            <p className="text-slate-500 mt-1">by {book.author}</p>
+
+                            {/* Publisher and Year */}
+                            {(book.publisher || book.published_year) && (
+                                <div className="mt-2 space-y-1 text-sm text-slate-400">
+                                    {book.publisher && (
+                                        <div className="flex items-center gap-1.5">
+                                            <Building2 size={14} />
+                                            <span className="truncate">{book.publisher}</span>
+                                        </div>
+                                    )}
+                                    {book.published_year && (
+                                        <div className="flex items-center gap-1.5">
+                                            <Calendar size={14} />
+                                            <span>{book.published_year}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Warning for books needing physical copy */}
@@ -80,10 +131,32 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
                         <div className="bg-slate-50 p-3 rounded-lg">
                             <div className="text-slate-400 text-xs uppercase font-bold mb-1">Location</div>
                             <div className="text-slate-700 font-medium flex items-center gap-1">
-                                <MapPin size={14} /> {book.location}
+                                <MapPin size={14} /> {book.location || 'N/A'}
                             </div>
                         </div>
+                        {book.call_number && (
+                            <div className="bg-slate-50 p-3 rounded-lg">
+                                <div className="text-slate-400 text-xs uppercase font-bold mb-1">Call Number</div>
+                                <div className="text-slate-700 font-medium font-mono">{book.call_number}</div>
+                            </div>
+                        )}
+                        {book.language && (
+                            <div className="bg-slate-50 p-3 rounded-lg">
+                                <div className="text-slate-400 text-xs uppercase font-bold mb-1">Language</div>
+                                <div className="text-slate-700 font-medium flex items-center gap-1">
+                                    <Globe size={14} /> {book.language}
+                                </div>
+                            </div>
+                        )}
                     </div>
+
+                    {/* Description */}
+                    {book.description && (
+                        <div className="bg-slate-50 p-3 rounded-lg">
+                            <div className="text-slate-400 text-xs uppercase font-bold mb-1">Description</div>
+                            <div className="text-slate-600 text-sm line-clamp-3">{book.description}</div>
+                        </div>
+                    )}
 
                     {/* Borrower Info (if borrowed) */}
                     {isBorrowed && book.borrower && (
@@ -134,7 +207,7 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
                     {isAvailable && !needsPhysicalCopy && (
                         <button
                             onClick={() => onBorrow(book.asset_code)}
-                            className="flex-1 py-3 px-4 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition flex items-center justify-center gap-2"
+                            className="flex-1 py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold hover:from-green-600 hover:to-emerald-600 transition flex items-center justify-center gap-2"
                         >
                             <ArrowRight size={18} /> Borrow This Book
                         </button>
@@ -143,7 +216,7 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
                     {isBorrowed && (
                         <button
                             onClick={() => onReturn(book.asset_code)}
-                            className="flex-1 py-3 px-4 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition flex items-center justify-center gap-2"
+                            className="flex-1 py-3 px-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold hover:from-amber-600 hover:to-orange-600 transition flex items-center justify-center gap-2"
                         >
                             <RotateCcw size={18} /> Return This Book
                         </button>
@@ -153,4 +226,3 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
         </div>
     );
 }
-

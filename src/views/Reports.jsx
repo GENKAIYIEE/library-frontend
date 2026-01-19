@@ -77,7 +77,8 @@ export default function Reports() {
 
         // Create download link
         const link = document.createElement('a');
-        link.href = `http://127.0.0.1:8000/api/reports/export/${type}?${queryString}`;
+        const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+        link.href = `${baseUrl}/reports/export/${type}?${queryString}`;
         link.setAttribute('download', `report_${type}_${new Date().toISOString().split('T')[0]}.csv`);
 
         // We need to fetch with auth header
@@ -208,26 +209,64 @@ export default function Reports() {
                             <thead className="bg-gray-50 text-gray-600 text-xs font-bold uppercase">
                                 <tr>
                                     <th className="p-4">Rank</th>
-                                    <th className="p-4">Title</th>
-                                    <th className="p-4">Author</th>
+                                    <th className="p-4">Book</th>
                                     <th className="p-4">Category</th>
                                     <th className="p-4 text-right">Times Borrowed</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {mostBorrowed.map((book, index) => (
-                                    <tr key={book.id} className="hover:bg-gray-50 transition">
-                                        <td className="p-4 font-bold text-primary-600">#{index + 1}</td>
-                                        <td className="p-4 font-medium text-gray-800">{book.title}</td>
-                                        <td className="p-4 text-gray-600">{book.author}</td>
-                                        <td className="p-4">
-                                            <span className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-xs font-bold border border-primary-100">{book.category}</span>
-                                        </td>
-                                        <td className="p-4 text-right font-bold text-emerald-600">{book.borrow_count}</td>
-                                    </tr>
-                                ))}
+                                {mostBorrowed.map((book, index) => {
+                                    const imagePath = book.image_path || book.cover_image;
+                                    const imageUrl = imagePath
+                                        ? (imagePath.startsWith('http')
+                                            ? imagePath
+                                            : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''}/${imagePath}`)
+                                        : null;
+
+                                    return (
+                                        <tr key={book.id} className="hover:bg-gray-50 transition">
+                                            <td className="p-4">
+                                                <span className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index < 3 ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                    {index + 1}
+                                                </span>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-3">
+                                                    {/* Book Thumbnail */}
+                                                    <div className="w-10 h-14 bg-gradient-to-br from-gray-100 to-gray-200 rounded overflow-hidden flex-shrink-0 shadow-sm print:hidden">
+                                                        {imageUrl ? (
+                                                            <img
+                                                                src={imageUrl}
+                                                                alt={book.title}
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e) => {
+                                                                    e.target.onerror = null;
+                                                                    e.target.style.display = 'none';
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center">
+                                                                <FileText size={14} className="text-gray-400" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-gray-800">{book.title}</p>
+                                                        <p className="text-sm text-gray-500">{book.author}</p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <span className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-xs font-bold border border-primary-100">{book.category}</span>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <span className="font-bold text-emerald-600 text-lg">{book.borrow_count}</span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                                 {mostBorrowed.length === 0 && (
-                                    <tr><td colSpan="5" className="p-8 text-center text-gray-500">No data for selected period</td></tr>
+                                    <tr><td colSpan="4" className="p-8 text-center text-gray-500">No data for selected period</td></tr>
                                 )}
                             </tbody>
                         </table>

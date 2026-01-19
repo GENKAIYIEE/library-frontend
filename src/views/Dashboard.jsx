@@ -115,50 +115,60 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-            {availableBooks.map((book) => (
-              <div key={book.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col h-full">
-                {/* Book Cover */}
-                <div className="aspect-[2/3] bg-gray-100 relative overflow-hidden">
-                  {book.cover_image ? (
-                    <img
-                      src={book.cover_image}
-                      alt={book.title}
-                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'flex';
-                      }}
-                    />
-                  ) : null}
-                  <div className={`absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-400 ${book.cover_image ? 'hidden' : 'flex'}`}>
-                    <BookOpen size={32} strokeWidth={1.5} />
+            {availableBooks.map((book) => {
+              // Get image URL - handle both image_path (new) and cover_image (legacy)
+              const imagePath = book.image_path || book.cover_image;
+              const imageUrl = imagePath
+                ? (imagePath.startsWith('http')
+                  ? imagePath
+                  : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''}/${imagePath}`)
+                : null;
+
+              return (
+                <div key={book.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col h-full">
+                  {/* Book Cover */}
+                  <div className="aspect-[2/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={book.title}
+                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div className={`fallback-icon absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400 ${imageUrl ? 'hidden' : 'flex'}`}>
+                      <BookOpen size={32} strokeWidth={1.5} />
+                    </div>
+
+                    {/* Badge */}
+                    <div className="absolute top-2 right-2 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
+                      Available
+                    </div>
                   </div>
 
-                  {/* Badge */}
-                  <div className="absolute top-2 right-2 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
-                    Available
+                  {/* Details */}
+                  <div className="p-4 flex flex-col flex-1">
+                    <h4 className="font-bold text-gray-800 text-sm line-clamp-2 leading-tight mb-1" title={book.title}>
+                      {book.title}
+                    </h4>
+                    <p className="text-xs text-gray-500 line-clamp-1 mb-auto">{book.author}</p>
+
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                      <span className="text-[10px] font-semibold text-gray-500 px-2 py-1 bg-gray-100 rounded-full truncate max-w-[60%]">
+                        {book.category}
+                      </span>
+                      <span className="text-[10px] text-emerald-600 font-bold">
+                        {book.available_copies} copies
+                      </span>
+                    </div>
                   </div>
                 </div>
-
-                {/* Details */}
-                <div className="p-4 flex flex-col flex-1">
-                  <h4 className="font-bold text-gray-800 text-sm line-clamp-2 leading-tight mb-1" title={book.title}>
-                    {book.title}
-                  </h4>
-                  <p className="text-xs text-gray-500 line-clamp-1 mb-auto">{book.author}</p>
-
-                  <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
-                    <span className="text-[10px] font-semibold text-gray-500 px-2 py-1 bg-gray-100 rounded-full">
-                      {book.category}
-                    </span>
-                    <span className="text-[10px] text-emerald-600 font-bold">
-                      {book.available_copies} copies
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -112,7 +112,11 @@ export default function Circulation({ onNavigateToBooks }) {
         setAvailableBooks(data);
         setFilteredBooks(data);
       })
-      .catch(() => { });
+      .catch(err => {
+        console.error("Failed to fetch available books:", err);
+        setError("Failed to load available books.");
+      });
+
   };
 
   const fetchBorrowedBooks = () => {

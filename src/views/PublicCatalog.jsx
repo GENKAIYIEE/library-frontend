@@ -13,7 +13,7 @@ export default function PublicCatalog() {
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [selectedBook, setSelectedBook] = useState(null); // For Modal
 
-    const categories = ["All", "Fiction", "Science", "Technology", "History", "Education", "Maritime", "Hospitality"];
+    const categories = ["All", "Fiction", "Science", "Technology", "History", "Education", "Literature", "Reference", "Business", "Arts", "Religion", "Philosophy", "Law", "Medicine", "Engineering", "Maritime", "Hospitality", "Criminology"];
 
     useEffect(() => {
         fetchBooks();
