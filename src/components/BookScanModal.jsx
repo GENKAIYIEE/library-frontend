@@ -1,4 +1,5 @@
 import { BookOpen, User, MapPin, Calendar, AlertTriangle, Check, ArrowRight, RotateCcw, Package, PlusCircle, Building2, FileText, Globe } from "lucide-react";
+import { ASSET_URL } from "../axios-client";
 
 /**
  * BookScanModal - Shows scanned book details and action buttons
@@ -15,8 +16,9 @@ export default function BookScanModal({ book, onBorrow, onReturn, onAddCopy, onC
         const imagePath = book.image_path || book.cover_image;
         if (!imagePath) return null;
         if (imagePath.startsWith('http')) return imagePath;
-        const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || '';
-        return `${baseUrl}/${imagePath}`;
+        if (imagePath.startsWith('http')) return imagePath;
+
+        return `${ASSET_URL}/${imagePath}`;
     };
 
     const imageUrl = getImageUrl();

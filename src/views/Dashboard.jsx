@@ -5,6 +5,7 @@ import Leaderboard from "../components/Leaderboard";
 import MonthlyTrendChart from "../components/charts/MonthlyTrendChart";
 import CategoryPieChart from "../components/charts/CategoryPieChart";
 import { BookOpen, Copy, Repeat, Users, LayoutDashboard } from "lucide-react";
+import Pagination from "../components/ui/Pagination";
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -15,6 +16,8 @@ export default function Dashboard() {
   });
 
   const [availableBooks, setAvailableBooks] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   useEffect(() => {
     const fetchData = () => {
@@ -114,71 +117,79 @@ export default function Dashboard() {
             <p className="text-lg">No books currently available to display.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-            {availableBooks.map((book) => {
-              // Get image URL - handle both image_path (new) and cover_image (legacy)
-              const imagePath = book.image_path || book.cover_image;
-              const imageUrl = imagePath
-                ? (imagePath.startsWith('http')
-                  ? imagePath
-                  : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''}/${imagePath}`)
-                : null;
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+              {availableBooks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((book) => {
+                // Get image URL - handle both image_path (new) and cover_image (legacy)
+                const imagePath = book.image_path || book.cover_image;
+                const imageUrl = imagePath
+                  ? (imagePath.startsWith('http')
+                    ? imagePath
+                    : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''}/${imagePath}`)
+                  : null;
 
-              return (
-                <div key={book.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden flex flex-col h-full">
-                  {/* Book Cover */}
-                  <div className="aspect-[2/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={book.title}
-                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.style.display = 'none';
-                          e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div className={`fallback-icon absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400 ${imageUrl ? 'hidden' : 'flex'}`}>
-                      <BookOpen size={32} strokeWidth={1.5} />
+                return (
+                  <div key={book.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100 overflow-hidden flex flex-col h-full cursor-pointer">
+                    {/* Book Cover */}
+                    <div className="aspect-[2/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={book.title}
+                          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500 will-change-transform"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.style.display = 'none';
+                            e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div className={`fallback-icon absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400 ${imageUrl ? 'hidden' : 'flex'}`}>
+                        <BookOpen size={32} strokeWidth={1.5} />
+                      </div>
+
+                      {/* Badge */}
+                      <div className="absolute top-2 right-2 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
+                        Available
+                      </div>
                     </div>
 
-                    {/* Badge */}
-                    <div className="absolute top-2 right-2 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
-                      Available
+                    {/* Details */}
+                    <div className="p-4 flex flex-col flex-1">
+                      <h4 className="font-bold text-gray-800 text-sm line-clamp-2 leading-tight mb-1" title={book.title}>
+                        {book.title}
+                      </h4>
+                      <p className="text-xs text-gray-500 line-clamp-1 mb-auto">{book.author}</p>
+
+                      <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                        <span className="text-[10px] font-semibold text-gray-500 px-2 py-1 bg-gray-100 rounded-full truncate max-w-[60%]">
+                          {book.category}
+                        </span>
+                        <span className="text-[10px] text-emerald-600 font-bold">
+                          {book.available_copies} copies
+                        </span>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Details */}
-                  <div className="p-4 flex flex-col flex-1">
-                    <h4 className="font-bold text-gray-800 text-sm line-clamp-2 leading-tight mb-1" title={book.title}>
-                      {book.title}
-                    </h4>
-                    <p className="text-xs text-gray-500 line-clamp-1 mb-auto">{book.author}</p>
-
-                    <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
-                      <span className="text-[10px] font-semibold text-gray-500 px-2 py-1 bg-gray-100 rounded-full truncate max-w-[60%]">
-                        {book.category}
-                      </span>
-                      <span className="text-[10px] text-emerald-600 font-bold">
-                        {book.available_copies} copies
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalItems={availableBooks.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* WELCOME SECTION */}
-        <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-2xl shadow-2xl p-5 text-white relative overflow-hidden border border-white/20">
           <div className="relative z-10">
-            <h3 className="text-3xl font-bold mb-3">Welcome Back!</h3>
-            <p className="opacity-80 text-lg mb-6 max-w-md leading-relaxed">
+            <h3 className="text-2xl font-bold mb-2 drop-shadow-md tracking-tight">Welcome Back!</h3>
+            <p className="text-primary-100 text-sm mb-1 max-w-md leading-relaxed font-medium drop-shadow-sm">
               You are logged in as Administrator. Manage your library inventory, track student loans, and generate reports from here.
             </p>
           </div>

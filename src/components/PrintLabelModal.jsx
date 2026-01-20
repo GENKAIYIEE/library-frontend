@@ -121,48 +121,48 @@ export default function PrintLabelModal({ book, asset, onClose }) {
                                     className="print-label-container bg-white border-2 border-dashed border-gray-300 rounded-lg mx-auto page-break-avoid"
                                     style={{ width: '3in', height: '2in', position: 'relative', overflow: 'hidden' }}
                                 >
-                                    {/* Library Header */}
-                                    <div className="bg-[#020463] text-white text-[10px] font-bold text-center py-1 uppercase tracking-wider">
-                                        Property of PCLU Library
-                                    </div>
+                                    {/* Spine Label Layout (2x3 vertical) */}
+                                    <div className="flex flex-col h-full bg-white relative">
 
-                                    <div className="p-3 flex flex-col h-full justify-between">
-                                        {/* Title area */}
-                                        <div className="text-center">
-                                            <div className="font-bold text-sm leading-tight line-clamp-2 h-9 mb-0.5">
-                                                {truncateTitle(book?.title || 'Unknown Title')}
+                                        {/* HEADER: Library Initials */}
+                                        <div className="bg-[#020463] text-white text-[9px] font-bold text-center py-0.5 uppercase tracking-widest leading-none">
+                                            PCLU LIB
+                                        </div>
+
+                                        {/* TOP: Call Number (Most prominent for shelving) */}
+                                        <div className="pt-2 px-2 text-center">
+                                            <div className="font-extrabold text-2xl font-sans text-slate-900 leading-none tracking-tight">
+                                                {book?.call_number ? book.call_number.split(' ')[0] : 'REF'}
                                             </div>
-                                            <div className="text-[10px] text-gray-500 truncate">
-                                                {book?.author || 'Unknown Author'}
+                                            <div className="font-bold text-lg font-sans text-slate-800 leading-tight">
+                                                {book?.call_number ? book.call_number.split(' ').slice(1).join(' ') : '000'}
                                             </div>
                                         </div>
 
-                                        {/* Center Content: QR and Barcode Split */}
-                                        <div className="flex items-center justify-center gap-2 my-1">
-                                            <QRCodeSVG
-                                                value={item.asset_code || barcodeValue}
-                                                size={60}
-                                                level="M"
-                                            />
-                                            <div className="flex flex-col items-center">
-                                                <Barcode
+                                        {/* MIDDLE: QR Code (Scannable) */}
+                                        <div className="flex-1 flex flex-col items-center justify-center py-1">
+                                            <div className="bg-white p-1 rounded-lg border-2 border-slate-900">
+                                                <QRCodeSVG
                                                     value={item.asset_code || barcodeValue}
-                                                    width={1}
-                                                    height={25}
-                                                    fontSize={0}
-                                                    margin={0}
-                                                    displayValue={false}
+                                                    size={80}
+                                                    level="M"
+                                                    bgColor="#FFFFFF"
+                                                    fgColor="#000000"
                                                 />
-                                                <div className="text-[10px] font-mono font-bold mt-0.5 tracking-wider">
-                                                    {item.asset_code || barcodeValue}
-                                                </div>
+                                            </div>
+                                            <div className="text-[10px] font-mono font-bold mt-1 tracking-widest text-slate-600">
+                                                {item.asset_code || barcodeValue}
                                             </div>
                                         </div>
 
-                                        {/* Bottom Info */}
-                                        <div className="flex justify-between items-end text-[9px] text-gray-400 font-medium pt-1 border-t border-gray-100">
-                                            <span>{book?.call_number || 'No Call #'}</span>
-                                            <span>{book?.location || 'General'}</span>
+                                        {/* BOTTOM: Book Metadata */}
+                                        <div className="px-2 pb-2 text-center">
+                                            <div className="font-bold text-[10px] leading-tight line-clamp-2 text-slate-900 mb-0.5">
+                                                {truncateTitle(book?.title || 'Unknown Title', 40).toUpperCase()}
+                                            </div>
+                                            <div className="text-[9px] text-slate-500 truncate leading-none">
+                                                {book?.author ? book.author.split(',')[0] : 'Unknown'}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../axios-client";
 import { DollarSign, CheckCircle, History as HistoryIcon, Search, BookOpen, User } from "lucide-react";
+import Pagination from "../components/ui/Pagination";
 
 export default function History() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const [activeTab, setActiveTab] = useState('all');
 
   const fetchTransactions = () => {
     setLoading(true);
@@ -62,8 +67,30 @@ export default function History() {
     return `${baseUrl}/${imagePath}`;
   };
 
-  // Filter transactions
+  // Filter transactions based on Tabs and Search
   const filteredTransactions = transactions.filter(t => {
+    // 1. apply Tab filter
+    let matchesTab = true;
+    switch (activeTab) {
+      case 'active':
+        matchesTab = !t.returned_at;
+        break;
+      case 'returned':
+        matchesTab = !!t.returned_at;
+        break;
+      case 'unpaid':
+        matchesTab = t.penalty_amount > 0 && t.payment_status === 'pending';
+        break;
+      case 'deleted':
+        matchesTab = !t.book_asset; // Assumes deleted book assets are null in transaction
+        break;
+      default:
+        matchesTab = true;
+    }
+
+    if (!matchesTab) return false;
+
+    // 2. apply Search filter
     const searchLower = searchTerm.toLowerCase();
     const studentName = t.user?.name?.toLowerCase() || '';
     const bookTitle = t.book_asset?.book_title?.title?.toLowerCase() || '';
@@ -73,6 +100,16 @@ export default function History() {
       bookTitle.includes(searchLower) ||
       assetCode.includes(searchLower);
   });
+
+  // Resets page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab]);
+
+  // Pagination Logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentTransactions = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
 
   return (
     <div className="space-y-6 bg-gray-50 -m-8 p-8 min-h-screen">
@@ -100,11 +137,30 @@ export default function History() {
               className="pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none text-sm w-64 bg-white"
             />
           </div>
-
-          <div className="text-sm text-gray-500 bg-white px-4 py-2.5 rounded-xl shadow border border-gray-100">
-            {filteredTransactions.length} records
-          </div>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+        {[
+          { id: 'all', label: 'All Records' },
+          { id: 'active', label: 'Active Loans' },
+          { id: 'returned', label: 'Returned Books' },
+          { id: 'unpaid', label: 'Unpaid Fines' },
+          { id: 'deleted', label: 'Deleted Books' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all
+              ${activeTab === tab.id
+                ? 'bg-primary-600 text-white shadow-md'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       {/* Table Card */}
@@ -143,7 +199,7 @@ export default function History() {
                 </tr>
               )}
 
-              {filteredTransactions.map((t) => {
+              {currentTransactions.map((t) => {
                 const bookTitle = t.book_asset?.book_title;
                 const imagePath = bookTitle?.image_path || bookTitle?.cover_image;
                 const imageUrl = getImageUrl(imagePath);
@@ -235,7 +291,15 @@ export default function History() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Control */}
+        <Pagination
+          currentPage={currentPage}
+          totalItems={filteredTransactions.length}
+          itemsPerPage={itemsPerPage}
+          onPageChange={setCurrentPage}
+        />
       </div>
-    </div>
+    </div >
   );
 }

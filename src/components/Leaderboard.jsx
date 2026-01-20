@@ -106,7 +106,7 @@ export default function Leaderboard() {
 
             {/* Leaderboard List */}
             <div className="p-4 space-y-2">
-                {leaders.map((student, index) => (
+                {leaders.slice(0, 3).map((student, index) => (
                     <div
                         key={student.id}
                         className={`flex items-center gap-4 p-3 rounded-xl border transition-all hover:shadow-md ${getRankStyle(student.rank)}`}
@@ -140,6 +140,8 @@ export default function Leaderboard() {
                     </div>
                 ))}
             </div>
+
+
 
             {/* Footer */}
             <div className="px-6 py-3 bg-gray-50 border-t border-gray-100">

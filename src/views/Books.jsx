@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import axiosClient from "../axios-client";
+import axiosClient, { ASSET_URL } from "../axios-client";
 import Swal from "sweetalert2";
 import BookForm from "./BookForm";
 import AssetForm from "./AssetForm";
@@ -270,7 +270,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                           {/* Book Cover Thumbnail */}
                           {book.image_path ? (
                             <img
-                              src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/${book.image_path}`}
+                              src={`${ASSET_URL}/${book.image_path}`}
                               alt={book.title}
                               className="w-10 h-14 object-cover rounded shadow-sm"
                             />

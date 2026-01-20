@@ -1,9 +1,13 @@
 import axios from "axios";
 import Swal from "sweetalert2";
 
+// Define globally reusable URLs
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+export const ASSET_URL = API_BASE_URL.replace('/api', '');
+
 const axiosClient = axios.create({
-  baseURL: "http://127.0.0.1:8000/api", // Your Laravel Backend URL
-  timeout: 15000, // 15 second timeout
+  baseURL: API_BASE_URL,
+  timeout: 15000,
 });
 
 axiosClient.interceptors.request.use((config) => {

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import axiosClient from "../axios-client";
+import axiosClient, { ASSET_URL } from "../axios-client";
+import Swal from "sweetalert2";
 import {
   Scan, X, BookOpen, User, Tag, Building2, Calendar,
   Hash, FileText, Globe, MapPin, Image, Copy, Upload, Search, Loader2, CheckCircle
@@ -53,7 +54,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
       });
       // Set image preview if book has existing image
       if (bookToEdit.image_path) {
-        setImagePreview(`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/${bookToEdit.image_path}`);
+        setImagePreview(`${ASSET_URL}/${bookToEdit.image_path}`);
       }
     }
   }, [bookToEdit]);
@@ -138,7 +139,27 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
         headers: { "Content-Type": "multipart/form-data" }
       })
         .then((res) => {
-          onSuccess(res.data.book);
+          const newBook = res.data.book;
+          const copiesCreated = res.data.copies_created || 0;
+          const isbn = newBook?.isbn || 'Auto-generated';
+
+          Swal.fire({
+            icon: 'success',
+            title: 'Book Added Successfully!',
+            html: `
+              <div style="text-align: left; padding: 10px 0;">
+                <p><strong>Title:</strong> ${newBook?.title || book.title}</p>
+                <p><strong>ISBN:</strong> <code style="background: #e3e8ee; padding: 2px 8px; border-radius: 4px;">${isbn}</code></p>
+                <p><strong>Physical Copies:</strong> ${copiesCreated}</p>
+                <hr style="margin: 10px 0; border-color: #e5e7eb;">
+                <p style="color: #059669;">✅ Registered for scanner - Ready to borrow!</p>
+              </div>
+            `,
+            confirmButtonColor: '#020463',
+            confirmButtonText: 'Great!'
+          });
+
+          onSuccess(newBook);
           onClose();
         })
         .catch(err => {
@@ -268,24 +289,13 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
 
             {/* ISBN and Category Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="relative">
-                <FloatingInput
-                  label="ISBN"
-                  value={book.isbn}
-                  onChange={e => setBook({ ...book, isbn: e.target.value })}
-                  icon={Hash}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const randomIsbn = Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
-                    setBook({ ...book, isbn: randomIsbn });
-                  }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold rounded-lg shadow-sm hover:shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all z-10 flex items-center gap-1.5"
-                >
-                  <span className="text-xs">✨</span> Generate
-                </button>
-              </div>
+              <FloatingInput
+                label="ISBN (Optional)"
+                value={book.isbn}
+                onChange={e => setBook({ ...book, isbn: e.target.value })}
+                icon={Hash}
+                placeholder={bookToEdit ? "" : "Auto-generated if left blank"}
+              />
               <FloatingSelect
                 label="Category"
                 value={book.category}

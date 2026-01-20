@@ -231,6 +231,7 @@ export default function Circulation({ onNavigateToBooks }) {
         }
         fetchAvailableBooks();
         fetchBorrowedBooks();
+        if (studentId) refreshClearance();
       })
       .catch(err => {
         const response = err.response;
@@ -242,10 +243,21 @@ export default function Circulation({ onNavigateToBooks }) {
       });
   };
 
+  const refreshClearance = (id = studentId) => {
+    if (!id) return;
+
+    axiosClient.get(`/students/${id}/clearance`)
+      .then(({ data }) => {
+        setClearance(data);
+      })
+      .catch(() => { });
+  };
+
   const handlePaymentSuccess = (successMessage) => {
     setMessage(`✅ ${successMessage}`);
     setShowPaymentModal(false);
     setPendingTransaction(null);
+    if (studentId) refreshClearance();
   };
 
   // Handle mode selection from the pre-scan selector
@@ -386,6 +398,7 @@ export default function Circulation({ onNavigateToBooks }) {
         fetchAvailableBooks();
         fetchBorrowedBooks();
         setScannedBook(null);
+        if (studentId) refreshClearance();
       })
       .catch(err => {
         setError(err.response?.data?.message || `Error returning book ${assetCode}.`);
