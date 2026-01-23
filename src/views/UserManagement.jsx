@@ -111,19 +111,19 @@ export default function UserManagement() {
     };
 
     return (
-        <div className="space-y-8 bg-gray-50 -m-8 p-8 min-h-screen">
+        <div className="space-y-8 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
             {/* Page Header */}
             <div className="flex items-center gap-4">
                 <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
                     <UserPlus size={28} className="text-white" />
                 </div>
                 <div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400 mb-1">
                         <span>User Management</span>
                         <ChevronRight size={14} />
-                        <span className="text-primary-600 font-semibold">Add New Account</span>
+                        <span className="text-primary-600 dark:text-primary-400 font-semibold">Add New Account</span>
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800">Create Administrator Account</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create Administrator Account</h2>
                 </div>
             </div>
 
@@ -131,15 +131,15 @@ export default function UserManagement() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Side - Form */}
                 <div className="lg:col-span-2">
-                    <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8 border border-gray-100 dark:border-slate-700">
                         {/* Header */}
-                        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-100">
-                            <div className="p-3 bg-primary-100 rounded-xl">
-                                <Shield size={24} className="text-primary-600" />
+                        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-100 dark:border-slate-700">
+                            <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl">
+                                <Shield size={24} className="text-primary-600 dark:text-primary-400" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-gray-800">New Administrator</h3>
-                                <p className="text-sm text-gray-500">Create a new admin account with system access</p>
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-white">New Administrator</h3>
+                                <p className="text-sm text-gray-500 dark:text-slate-400">Create a new admin account with system access</p>
                             </div>
                         </div>
 
@@ -250,12 +250,12 @@ export default function UserManagement() {
                     </div>
 
                     {/* Password Tips */}
-                    <div className="bg-amber-50 rounded-2xl p-6 border-2 border-amber-200">
-                        <h4 className="font-bold text-amber-800 mb-2 flex items-center gap-2">
+                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-6 border-2 border-amber-200 dark:border-amber-800/50">
+                        <h4 className="font-bold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
                             <Lock size={18} />
                             Password Security Tips
                         </h4>
-                        <ul className="text-sm text-amber-700 space-y-1">
+                        <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
                             <li>• Use the Generate button for a secure password</li>
                             <li>• Minimum 8 characters recommended</li>
                             <li>• Share credentials securely with the user</li>

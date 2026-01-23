@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { useToast } from "../components/ui/Toast";
 import axiosClient, { ASSET_URL } from "../axios-client";
 import Swal from "sweetalert2";
 import BookForm from "./BookForm";
@@ -38,6 +39,7 @@ const CATEGORY_COLORS = {
 const getCategoryColors = (category) => CATEGORY_COLORS[category] || CATEGORY_COLORS.default;
 
 export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
+  const toast = useToast();
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showTitleForm, setShowTitleForm] = useState(false);
@@ -108,11 +110,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       if (result.isConfirmed) {
         axiosClient.delete(`/books/${book.id}`)
           .then(() => {
-            Swal.fire('Deleted!', 'The book has been removed.', 'success');
+            toast.success('The book has been removed.');
             getBooks();
           })
           .catch((err) => {
-            Swal.fire('Error!', err.response?.data?.message || 'Failed to delete book.', 'error');
+            toast.error(err.response?.data?.message || 'Failed to delete book.');
           });
       }
     });
@@ -221,7 +223,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         {/* Category Header */}
         <button
           onClick={() => toggleCategory(category)}
-          className={`w-full ${colors.bg} px-4 py-3 flex items-center justify-between hover:brightness-95 transition-all`}
+          className={`w-full ${colors.bg} dark:bg-slate-800 px-4 py-3 flex items-center justify-between hover:brightness-95 dark:hover:bg-slate-700 transition-all`}
         >
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${colors.bg} border ${colors.border}`}>
@@ -232,8 +234,8 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
               )}
             </div>
             <div className="text-left">
-              <h3 className={`font-bold text-lg ${colors.text}`}>{category}</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className={`font-bold text-lg ${colors.text} dark:text-slate-200`}>{category}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {categoryBooks.length} title{categoryBooks.length !== 1 ? 's' : ''} •
                 {availableCount} available • {totalCopies} total copies
               </p>
@@ -248,23 +250,23 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
 
         {/* Category Books Table */}
         {!isCollapsed && (
-          <div className="overflow-x-auto bg-white">
+          <div className="overflow-x-auto bg-white dark:bg-slate-800">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold tracking-wider">
+              <thead className="bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 uppercase text-xs font-bold tracking-wider">
                 <tr>
-                  <th className="p-4 border-b border-slate-100">Title</th>
-                  <th className="p-4 border-b border-slate-100">Author</th>
-                  <th className="p-4 border-b border-slate-100">Publisher</th>
-                  <th className="p-4 border-b border-slate-100">Call No.</th>
-                  <th className="p-4 border-b border-slate-100 text-center">Status</th>
-                  <th className="p-4 border-b border-slate-100 text-right">Actions</th>
+                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Title</th>
+                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Author</th>
+                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Publisher</th>
+                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Call No.</th>
+                  <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-center">Status</th>
+                  <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                 {categoryBooks.map((book) => {
                   const badge = getStatusBadge(book.available_copies);
                   return (
-                    <tr key={book.id} className="hover:bg-slate-50 transition group">
+                    <tr key={book.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           {/* Book Cover Thumbnail */}
@@ -275,21 +277,21 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                               className="w-10 h-14 object-cover rounded shadow-sm"
                             />
                           ) : (
-                            <div className="w-10 h-14 bg-gray-100 rounded flex items-center justify-center">
-                              <BookOpen size={16} className="text-gray-400" />
+                            <div className="w-10 h-14 bg-gray-100 dark:bg-slate-700 rounded flex items-center justify-center">
+                              <BookOpen size={16} className="text-gray-400 dark:text-gray-500" />
                             </div>
                           )}
                           <div>
-                            <p className="font-semibold text-slate-800">{book.title}</p>
+                            <p className="font-semibold text-slate-800 dark:text-white">{book.title}</p>
                             {book.isbn && (
                               <p className="text-xs text-slate-400 font-mono">{book.isbn}</p>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="p-4 text-slate-600">{book.author}</td>
-                      <td className="p-4 text-slate-500 text-sm">{book.publisher || '-'}</td>
-                      <td className="p-4 font-mono text-xs text-slate-500">{book.call_number || '-'}</td>
+                      <td className="p-4 text-slate-600 dark:text-slate-300">{book.author}</td>
+                      <td className="p-4 text-slate-500 dark:text-slate-400 text-sm">{book.publisher || '-'}</td>
+                      <td className="p-4 font-mono text-xs text-slate-500 dark:text-slate-400">{book.call_number || '-'}</td>
                       <td className="p-4 text-center">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${badge.className}`}>
                           {badge.text}
@@ -313,11 +315,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                             + Copy
                           </button>
                           {/* EDIT BUTTON */}
-                          <button onClick={() => onEdit(book)} className="text-slate-400 hover:text-[#020463] p-2 rounded hover:bg-blue-50 transition" title="Edit">
+                          <button onClick={() => onEdit(book)} className="text-slate-400 hover:text-[#020463] dark:hover:text-blue-400 p-2 rounded hover:bg-blue-50 dark:hover:bg-slate-700 transition" title="Edit">
                             <Edit size={16} />
                           </button>
                           {/* DELETE BUTTON */}
-                          <button onClick={() => onDelete(book)} className="text-slate-400 hover:text-[#020463] p-2 rounded hover:bg-slate-100 transition" title="Delete">
+                          <button onClick={() => onDelete(book)} className="text-slate-400 hover:text-[#020463] dark:hover:text-red-400 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Delete">
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -334,7 +336,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   };
 
   return (
-    <div className="space-y-6 bg-gray-50 -m-8 p-8 min-h-screen">
+    <div className="space-y-6 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
       {/* HEADER & CONTROLS */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
@@ -342,8 +344,8 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
             <BookOpen size={28} className="text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Book Inventory</h2>
-            <p className="text-gray-500 text-sm">Organized by category • {filteredBooks.length} books total</p>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Book Inventory</h2>
+            <p className="text-gray-500 dark:text-slate-400 text-sm">Organized by category • {filteredBooks.length} books total</p>
           </div>
         </div>
 
@@ -367,11 +369,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                   // Expand this category and scroll to it
                   setCollapsedCategories(prev => ({ ...prev, [category]: false }));
                 }}
-                className={`${colors.bg} ${colors.border} border-2 rounded-2xl p-4 text-left hover:brightness-95 transition-all duration-200 hover:shadow-lg`}
+                className={`${colors.bg} dark:bg-slate-800 ${colors.border} dark:border-slate-700 border-2 rounded-2xl p-4 text-left hover:brightness-95 dark:hover:bg-slate-700 transition-all duration-200 hover:shadow-lg`}
               >
-                <div className={`text-xs font-bold ${colors.text} uppercase tracking-wide mb-2`}>{category}</div>
-                <div className="text-3xl font-bold text-gray-800">{totalBooks}</div>
-                <div className="text-xs text-gray-500 mt-1">{available} available</div>
+                <div className={`text-xs font-bold ${colors.text} dark:text-slate-200 uppercase tracking-wide mb-2`}>{category}</div>
+                <div className="text-3xl font-bold text-gray-800 dark:text-white">{totalBooks}</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">{available} available</div>
               </button>
             );
           })}
@@ -379,16 +381,16 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       )}
 
       {/* SEARCH & FILTERS BAR */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-slate-700">
         <div className="flex flex-col md:flex-row gap-4 items-end">
           <div className="flex-1 w-full">
-            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 block">Search Books</label>
+            <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2 block">Search Books</label>
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary-400" size={18} />
               <input
                 type="text"
                 placeholder="Search by Title, Author, ISBN, Category..."
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-primary-100 focus:border-primary-600 outline-none text-sm transition-all bg-gray-50 hover:bg-white"
+                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 outline-none text-sm transition-all bg-gray-50 dark:bg-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-800"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -411,14 +413,14 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
           <div className="flex gap-2">
             <button
               onClick={expandAll}
-              className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+              className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
               title="Expand All Categories"
             >
               <Maximize2 size={16} /> Expand
             </button>
             <button
               onClick={collapseAll}
-              className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+              className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
               title="Collapse All Categories"
             >
               <Minimize2 size={16} /> Collapse
@@ -429,12 +431,12 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
 
       {/* CATEGORY SECTIONS */}
       {loading ? (
-        <div className="bg-white rounded-2xl shadow-lg p-12 text-center text-gray-400 border border-gray-100">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
           <p>Loading inventory...</p>
         </div>
       ) : Object.keys(booksByCategory).length === 0 ? (
-        <div className="bg-white rounded-2xl shadow-lg p-12 text-center text-gray-400 border border-gray-100">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
           <div className="flex flex-col items-center gap-2">
             <Filter size={40} strokeWidth={1.5} />
             <p className="text-lg font-medium">

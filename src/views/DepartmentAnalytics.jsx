@@ -39,7 +39,7 @@ export default function DepartmentAnalytics() {
     };
 
     return (
-        <div className="space-y-6 bg-gray-50 -m-8 p-8 min-h-screen">
+        <div className="space-y-6 bg-gray-50 p-8 min-h-screen">
             {/* Page Header with Filters */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-lg border border-gray-100 gap-4">
                 <div className="flex items-center gap-4">

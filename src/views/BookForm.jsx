@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useToast } from "../components/ui/Toast";
 import axiosClient, { ASSET_URL } from "../axios-client";
 import Swal from "sweetalert2";
 import {
@@ -10,6 +11,7 @@ import FloatingSelect from "../components/ui/FloatingSelect";
 import Button from "../components/ui/Button";
 
 export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcode = "" }) {
+  const toast = useToast();
   // Form is always in 'details' mode now
 
   const [book, setBook] = useState({
@@ -125,13 +127,11 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
         headers: { "Content-Type": "multipart/form-data" }
       })
         .then(() => {
-          onSuccess();
-          onClose();
         })
         .catch(err => {
           setLoading(false);
           console.error(err);
-          alert("Failed to update book");
+          toast.error("Failed to update book");
         });
     } else {
       // CREATE MODE - Barcode auto-generated in backend
@@ -169,9 +169,9 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
           if (response && response.status === 422) {
             const errors = response.data.errors;
             const errorMessages = Object.values(errors).flat().join('\n');
-            alert("Validation Error:\n" + errorMessages);
+            toast.error("Validation Error: " + errorMessages);
           } else {
-            alert("Failed to create book. Please check your network connection or try again.");
+            toast.error("Failed to create book. Please check your network connection.");
           }
         });
     }

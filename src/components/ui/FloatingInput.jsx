@@ -50,14 +50,14 @@ export default function FloatingInput({
                     className={`
                         peer w-full pr-4 py-4 pt-6 
                         ${Icon ? 'pl-12' : 'pl-4'}
-                        bg-white border-2 rounded-xl
-                        text-gray-900 font-semibold
+                        bg-white dark:bg-slate-900 border-2 rounded-xl
+                        text-gray-900 dark:text-white font-semibold
                         outline-none transition-all duration-200
-                        hover:bg-white
+                        hover:bg-white dark:hover:bg-slate-900
                         disabled:opacity-50 disabled:cursor-not-allowed
                         ${error
-                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
-                            : 'border-gray-200 focus:ring-4'
+                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900/30'
+                            : 'border-gray-200 dark:border-slate-700 focus:ring-4'
                         }
                     `}
                     style={!error ? {

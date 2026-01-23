@@ -34,22 +34,21 @@ export default function FloatingSelect({
                     name={name}
                     id={id || name}
                     style={{
-                        color: value ? '#000000' : 'transparent',
-                        backgroundColor: '#ffffff',
                         borderColor: error ? undefined : (isFocused ? primaryBlue : undefined)
                     }}
                     className={`
                         peer w-full px-4 py-4 pt-6 pr-12
-                        bg-white border-2 rounded-xl
-                        font-semibold
+                        bg-white dark:bg-slate-900 border-2 rounded-xl
+                        font-semibold text-gray-900 dark:text-white
                         outline-none transition-all duration-200
-                        hover:bg-white
+                        hover:bg-white dark:hover:bg-slate-900
                         appearance-none cursor-pointer
                         disabled:opacity-50 disabled:cursor-not-allowed
                         ${error
-                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100'
-                            : 'border-gray-200 focus:ring-4'
+                            ? 'border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-100 dark:focus:ring-red-900/30'
+                            : 'border-gray-200 dark:border-slate-700 focus:ring-4'
                         }
+                        ${!value ? 'text-transparent dark:text-transparent' : ''}
                     `}
                 >
                     <option value="" disabled></option>
@@ -58,8 +57,7 @@ export default function FloatingSelect({
                         <option
                             key={opt.value || opt}
                             value={opt.value || opt}
-                            style={{ color: '#000000', backgroundColor: '#ffffff' }}
-                            className="py-2"
+                            className="py-2 bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                         >
                             {opt.label || opt}
                         </option>

@@ -42,15 +42,15 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="space-y-8 bg-gray-50 -m-8 p-8 min-h-screen">
+    <div className="space-y-8 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
       {/* Page Header */}
       <div className="flex items-center gap-4">
         <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
           <LayoutDashboard size={28} className="text-white" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
-          <p className="text-gray-500">Overview of the library inventory and activities.</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
+          <p className="text-gray-500 dark:text-slate-400">Overview of the library inventory and activities.</p>
         </div>
       </div>
 
@@ -89,14 +89,14 @@ export default function Dashboard() {
       {/* Analytics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Monthly Trends */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">30-Day Borrowing Activity</h3>
+        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">30-Day Borrowing Activity</h3>
           <MonthlyTrendChart />
         </div>
 
         {/* Category Popularity */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">Popular Categories</h3>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 p-6">
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Popular Categories</h3>
           <CategoryPieChart />
         </div>
       </div>
@@ -105,14 +105,14 @@ export default function Dashboard() {
       {/* RECENTLY AVAILABLE BOOKS GRID */}
       <div>
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-gray-800">Recently Available Books</h3>
-          <a href="/books" className="text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline transition">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-white">Recently Available Books</h3>
+          <a href="/books" className="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition">
             View All Inventory &rarr;
           </a>
         </div>
 
         {availableBooks.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-12 text-center text-gray-500">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 p-12 text-center text-gray-500 dark:text-slate-400">
             <BookOpen className="mx-auto mb-4 opacity-20" size={56} />
             <p className="text-lg">No books currently available to display.</p>
           </div>
@@ -129,9 +129,9 @@ export default function Dashboard() {
                   : null;
 
                 return (
-                  <div key={book.id} className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100 overflow-hidden flex flex-col h-full cursor-pointer">
+                  <div key={book.id} className="group bg-white dark:bg-slate-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100 dark:border-slate-700 overflow-hidden flex flex-col h-full cursor-pointer">
                     {/* Book Cover */}
-                    <div className="aspect-[2/3] bg-gradient-to-br from-gray-100 to-gray-200 relative overflow-hidden">
+                    <div className="aspect-[2/3] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 relative overflow-hidden">
                       {imageUrl ? (
                         <img
                           src={imageUrl}
@@ -144,7 +144,7 @@ export default function Dashboard() {
                           }}
                         />
                       ) : null}
-                      <div className={`fallback-icon absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-gray-400 ${imageUrl ? 'hidden' : 'flex'}`}>
+                      <div className={`fallback-icon absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 text-gray-400 dark:text-slate-500 ${imageUrl ? 'hidden' : 'flex'}`}>
                         <BookOpen size={32} strokeWidth={1.5} />
                       </div>
 
@@ -156,16 +156,16 @@ export default function Dashboard() {
 
                     {/* Details */}
                     <div className="p-4 flex flex-col flex-1">
-                      <h4 className="font-bold text-gray-800 text-sm line-clamp-2 leading-tight mb-1" title={book.title}>
+                      <h4 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-2 leading-tight mb-1" title={book.title}>
                         {book.title}
                       </h4>
-                      <p className="text-xs text-gray-500 line-clamp-1 mb-auto">{book.author}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-1 mb-auto">{book.author}</p>
 
-                      <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
-                        <span className="text-[10px] font-semibold text-gray-500 px-2 py-1 bg-gray-100 rounded-full truncate max-w-[60%]">
+                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-700 flex justify-between items-center">
+                        <span className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded-full truncate max-w-[60%]">
                           {book.category}
                         </span>
-                        <span className="text-[10px] text-emerald-600 font-bold">
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
                           {book.available_copies} copies
                         </span>
                       </div>

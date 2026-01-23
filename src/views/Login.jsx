@@ -85,16 +85,16 @@ export default function Login() {
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 transition-colors duration-300">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-800">Admin Login</h2>
-            <p className="text-gray-500 mt-1">Sign in to access the dashboard</p>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Admin Login</h2>
+            <p className="text-gray-500 dark:text-slate-400 mt-1">Sign in to access the dashboard</p>
           </div>
 
           {/* Global Error Message */}
           {error && (
-            <div className="bg-red-50 border-2 border-red-200 text-red-700 px-4 py-4 rounded-xl mb-6 flex items-start gap-3">
-              <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
+            <div className="bg-red-50 dark:bg-red-900/30 border-2 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-4 rounded-xl mb-6 flex items-start gap-3">
+              <AlertCircle className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" size={20} />
               <div>
                 <p className="font-bold text-sm">Authentication Failed</p>
                 <p className="text-sm mt-0.5">{error}</p>

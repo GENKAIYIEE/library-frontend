@@ -4,13 +4,14 @@ import Swal from "sweetalert2";
 import {
   Trash2, UserPlus, Users, ToggleLeft, Search,
   ChevronDown, ChevronRight, GraduationCap, Layers,
-  Maximize2, Minimize2, User, BookOpen, Hash, Award, X, Pencil
+  Maximize2, Minimize2, User, BookOpen, Hash, Award, X, Pencil, Mail, Phone
 } from "lucide-react";
 import BatchRegister from "./BatchRegister";
 import Button from "../components/ui/Button";
 import FloatingInput from "../components/ui/FloatingInput";
 import FloatingSelect from "../components/ui/FloatingSelect";
 import AchievementBadges from "../components/AchievementBadges";
+import { useToast } from "../components/ui/Toast";
 
 // Course color mapping for visual distinction
 const COURSE_COLORS = {
@@ -28,13 +29,15 @@ const COURSE_COLORS = {
 const getCourseColors = (course) => COURSE_COLORS[course] || COURSE_COLORS.default;
 
 export default function Students() {
+  const toast = useToast();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Single registration state
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [course, setcourse] = useState("");
   const [yearLevel, setYearLevel] = useState("");
   const [section, setSection] = useState("");
@@ -65,12 +68,14 @@ export default function Students() {
   const handleSubmit = (ev) => {
     ev.preventDefault();
     if (!name || !course || !yearLevel || !section) {
-      alert("Please fill in all fields");
+      toast.warning("Please fill in all required fields");
       return;
     }
 
     const studentData = {
       name,
+      email: email || null,
+      phone_number: phoneNumber || null,
       course,
       year_level: parseInt(yearLevel),
       section
@@ -80,43 +85,47 @@ export default function Students() {
       // UPDATE MODE - modify existing student
       axiosClient.put(`/students/${editingStudent.id}`, studentData)
         .then(() => {
-          alert(`Student updated successfully!`);
+          toast.success(`Student updated successfully!`);
           cancelEdit();
           getStudents();
         })
         .catch(err => {
-          alert(err.response?.data?.message || "Error updating student.");
+          toast.error(err.response?.data?.message || "Error updating student.");
         });
     } else {
       // CREATE MODE - register new student
       axiosClient.post("/students", studentData)
         .then((res) => {
-          alert(`Student Registered! ID: ${res.data.student_id}`);
+          toast.success(`Student Registered! ID: ${res.data.student_id}`);
           setName("");
+          setEmail("");
+          setPhoneNumber("");
           setcourse("");
           setYearLevel("");
           setSection("");
           getStudents();
         })
         .catch(err => {
-          alert(err.response?.data?.message || "Error registering student.");
+          toast.error(err.response?.data?.message || "Error registering student.");
         });
     }
   };
 
-  // Edit handler - populate form with student data
   const onEdit = (student) => {
     setEditingStudent(student);
     setName(student.name);
+    setEmail(student.email || "");
+    setPhoneNumber(student.phone_number || "");
     setcourse(student.course || "");
     setYearLevel(student.year_level ? String(student.year_level) : "");
     setSection(student.section || "");
   };
 
-  // Cancel edit - clear form and exit edit mode
   const cancelEdit = () => {
     setEditingStudent(null);
     setName("");
+    setEmail("");
+    setPhoneNumber("");
     setcourse("");
     setYearLevel("");
     setSection("");
@@ -221,7 +230,7 @@ export default function Students() {
         {/* Course Header */}
         <button
           onClick={() => toggleCourse(courseName)}
-          className={`w-full ${colors.bg} px-4 py-3 flex items-center justify-between hover:brightness-95 transition-all`}
+          className={`w-full ${colors.bg} dark:bg-slate-800 px-4 py-3 flex items-center justify-between hover:brightness-95 dark:hover:bg-slate-700 transition-all`}
         >
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${colors.bg} border ${colors.border}`}>
@@ -232,8 +241,8 @@ export default function Students() {
               )}
             </div>
             <div className="text-left">
-              <h3 className={`font-bold text-lg ${colors.text}`}>{courseName}</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className={`font-bold text-lg ${colors.text} dark:text-slate-200`}>{courseName}</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 {courseStudents.length} student{courseStudents.length !== 1 ? 's' : ''} •
                 {Object.entries(yearCounts).map(([yr, count]) => ` Year ${yr}: ${count}`).join(' •')}
               </p>
@@ -248,43 +257,43 @@ export default function Students() {
 
         {/* Course Students Table */}
         {!isCollapsed && (
-          <div className="overflow-x-auto bg-white">
+          <div className="overflow-x-auto bg-white dark:bg-slate-800">
             <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 text-slate-500 uppercase text-xs font-bold tracking-wider">
+              <thead className="bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 uppercase text-xs font-bold tracking-wider">
                 <tr>
-                  <th className="p-3 border-b border-slate-100">Student ID</th>
-                  <th className="p-3 border-b border-slate-100">Name</th>
-                  <th className="p-3 border-b border-slate-100">Year/Section</th>
-                  <th className="p-3 border-b border-slate-100 text-right">Action</th>
+                  <th className="p-3 border-b border-slate-100 dark:border-slate-600">Student ID</th>
+                  <th className="p-3 border-b border-slate-100 dark:border-slate-600">Name</th>
+                  <th className="p-3 border-b border-slate-100 dark:border-slate-600">Year/Section</th>
+                  <th className="p-3 border-b border-slate-100 dark:border-slate-600 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
                 {courseStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-50 transition group">
-                    <td className="p-3 font-mono text-primary-600 font-semibold text-sm">{student.student_id}</td>
-                    <td className="p-3 text-slate-700 font-medium">{student.name}</td>
-                    <td className="p-3 text-slate-600 text-sm">
+                  <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
+                    <td className="p-3 font-mono text-primary-600 dark:text-primary-400 font-semibold text-sm">{student.student_id}</td>
+                    <td className="p-3 text-slate-700 dark:text-slate-200 font-medium">{student.name}</td>
+                    <td className="p-3 text-slate-600 dark:text-slate-400 text-sm">
                       {student.year_level ? `${student.year_level}-${student.section || '?'}` : '-'}
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex justify-end gap-1">
                         <button
                           onClick={() => setViewingBadges(student)}
-                          className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 p-2 rounded-lg transition"
+                          className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/30 p-2 rounded-lg transition"
                           title="View Achievements"
                         >
                           <Award size={16} />
                         </button>
                         <button
                           onClick={() => onEdit(student)}
-                          className="text-slate-400 hover:text-primary-500 hover:bg-primary-50 p-2 rounded-lg transition"
+                          className="text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30 p-2 rounded-lg transition"
                           title="Edit Student"
                         >
                           <Pencil size={16} />
                         </button>
                         <button
                           onClick={() => onDelete(student.id, student.name)}
-                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition"
+                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-lg transition"
                           title="Delete Student"
                         >
                           <Trash2 size={16} />
@@ -302,12 +311,12 @@ export default function Students() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50 -m-8 p-8 min-h-screen relative">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen relative transition-colors duration-300">
 
       {/* ACHIEVEMENTS MODAL */}
       {viewingBadges && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-scaleIn">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-scaleIn bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
             <button
               onClick={() => setViewingBadges(null)}
               className="absolute top-4 right-4 z-[60] p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-all shadow-lg"
@@ -328,18 +337,18 @@ export default function Students() {
             onCancel={() => setBatchMode(false)}
           />
         ) : (
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-slate-700 sticky top-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className={`p-3 ${editingStudent ? 'bg-amber-500' : 'bg-primary-600'} rounded-xl shadow`}>
                   {editingStudent ? <Pencil size={20} className="text-white" /> : <UserPlus size={20} className="text-white" />}
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">
                     {editingStudent ? 'Edit Student' : 'Register Student'}
                   </h2>
                   {editingStudent && (
-                    <p className="text-xs text-amber-600">Editing: {editingStudent.student_id}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">Editing: {editingStudent.student_id}</p>
                   )}
                 </div>
               </div>
@@ -369,6 +378,22 @@ export default function Students() {
                 onChange={e => setName(e.target.value)}
                 icon={User}
                 required
+              />
+
+              <FloatingInput
+                label="Email Address"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                icon={Mail}
+              />
+
+              <FloatingInput
+                label="Phone Number"
+                type="tel"
+                value={phoneNumber}
+                onChange={e => setPhoneNumber(e.target.value)}
+                icon={Phone}
               />
 
               <FloatingSelect
@@ -428,8 +453,8 @@ export default function Students() {
               <Users size={24} className="text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-800">Registered Students</h2>
-              <p className="text-sm text-gray-500">Organized by course • {filteredStudents.length} students total</p>
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Registered Students</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400">Organized by course • {filteredStudents.length} students total</p>
             </div>
           </div>
         </div>
@@ -445,10 +470,10 @@ export default function Students() {
                   onClick={() => {
                     setCollapsedCourses(prev => ({ ...prev, [courseName]: false }));
                   }}
-                  className={`${colors.bg} ${colors.border} border-2 rounded-2xl p-4 text-left hover:brightness-95 transition-all duration-200 hover:shadow-lg`}
+                  className={`${colors.bg} dark:bg-top-800 ${colors.border} dark:border-slate-700 border-2 rounded-2xl p-4 text-left hover:brightness-95 transition-all duration-200 hover:shadow-lg bg-white dark:bg-slate-800`}
                 >
-                  <div className={`text-xs font-bold ${colors.text} uppercase tracking-wide truncate mb-1`}>{courseName}</div>
-                  <div className="text-2xl font-bold text-gray-800">{totalStudents}</div>
+                  <div className={`text-xs font-bold ${colors.text} dark:text-slate-200 uppercase tracking-wide truncate mb-1`}>{courseName}</div>
+                  <div className="text-2xl font-bold text-gray-800 dark:text-white">{totalStudents}</div>
                 </button>
               );
             })}
@@ -456,14 +481,14 @@ export default function Students() {
         )}
 
         {/* Search and Controls */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 border border-gray-100 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-slate-700 mb-6">
           <div className="flex flex-col sm:flex-row gap-3 items-end">
             <div className="flex-1 w-full">
               <div className="relative">
                 <Search className="absolute left-4 top-3 text-primary-400" size={18} />
                 <input
                   placeholder="Search by name, ID, course, section..."
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-600 transition-all bg-gray-50 hover:bg-white"
+                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 transition-all bg-gray-50 dark:bg-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-800"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -472,14 +497,14 @@ export default function Students() {
             <div className="flex gap-2">
               <button
                 onClick={expandAll}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
                 title="Expand All"
               >
                 <Maximize2 size={16} /> Expand
               </button>
               <button
                 onClick={collapseAll}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
                 title="Collapse All"
               >
                 <Minimize2 size={16} /> Collapse
@@ -490,18 +515,18 @@ export default function Students() {
 
         {/* Course Sections */}
         {loading ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center text-gray-400 border border-gray-100">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
             <p>Loading students...</p>
           </div>
         ) : Object.keys(studentsByCourse).length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-lg p-12 text-center text-gray-400 border border-gray-100">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
             <div className="flex flex-col items-center gap-2">
               <Users size={48} strokeWidth={1.5} className="opacity-30" />
-              <p className="text-lg font-medium text-gray-600">
+              <p className="text-lg font-medium text-gray-600 dark:text-slate-300">
                 {searchTerm ? `No students found matching "${searchTerm}"` : "No students registered yet"}
               </p>
-              <p className="text-sm text-gray-400">Register students using the form on the left</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500">Register students using the form on the left</p>
             </div>
           </div>
         ) : (
