@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import KioskLayout from "./KioskLayout";
-import BookCardPublic from "../components/BookCardPublic";
+import FlipBookCard from "../components/FlipBookCard";
 import ShelfMapModal from "../components/ShelfMapModal";
 import axiosClient from "../axios-client";
-import { Search, Loader2 } from "lucide-react";
-import Button from "../components/ui/Button";
+import { Search, Loader2, BookOpen, MapPin } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function PublicCatalog() {
     const [books, setBooks] = useState([]);
@@ -16,30 +16,27 @@ export default function PublicCatalog() {
     const categories = ["All", "Fiction", "Science", "Technology", "History", "Education", "Literature", "Reference", "Business", "Arts", "Religion", "Philosophy", "Law", "Medicine", "Engineering", "Maritime", "Hospitality", "Criminology"];
 
     useEffect(() => {
-        fetchBooks();
-    }, [searchTerm, selectedCategory]); // Debounce recommended but simple effect for now
+        const delayDebounceFn = setTimeout(() => {
+            fetchBooks();
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm, selectedCategory]);
 
     const fetchBooks = () => {
         setLoading(true);
-        // Build query params
         const params = {};
-        if (searchTerm) params.search = searchTerm;
-        // Note: Category filtering is done via search keyword in backend simpler for now, 
-        // or we can add precise category filter later. 
-        // If selectedCategory !== All, we prepend it to search or handle client side if API doesn't support strict filter yet.
-        // Given the PublicBookController implementation, it searches all fields. 
-        // So passing category as search term works.
-
-        // If we have both search term AND category, we might need to handle it. 
-        // For now, let's just use search param.
+        // Combine category and search term for wider results if specific logic isn't in backend
         if (selectedCategory !== "All") {
-            params.search = selectedCategory + (searchTerm ? " " + searchTerm : "");
+            // If backend supports 'category' param, cleaner. If not, prepend to search.
+            // PublicBookController lines 26-31 search all fields. appending category works.
+            params.search = searchTerm ? `${selectedCategory} ${searchTerm}` : selectedCategory;
+        } else if (searchTerm) {
+            params.search = searchTerm;
         }
 
         axiosClient.get('/public/books', { params })
-            .then(({ date, data }) => { // Pagination returns object with data array
-                // data might be wrapped in pagination (data.data) or direct array depending on controller
-                // PublicBookController uses paginate(), so it returns { data: [...], ... }
+            .then(({ data }) => {
                 if (data && data.data) {
                     setBooks(data.data);
                 } else if (Array.isArray(data)) {
@@ -59,11 +56,8 @@ export default function PublicCatalog() {
         // Fetch fresh details with location
         axiosClient.get(`/public/books/${book.id}`)
             .then(({ data }) => {
-                // Find the available asset
                 const asset = data.assets && data.assets.length > 0 ? data.assets[0] : null;
                 if (asset) {
-                    setSelectedBook(book);
-                    // Attach location to book or separate state
                     setSelectedBook({ ...book, location: asset });
                 } else {
                     alert("Sorry, no physical copy location found.");
@@ -74,82 +68,132 @@ export default function PublicCatalog() {
 
     return (
         <KioskLayout>
-            {/* HERO SEARCH */}
-            <div className="text-center mb-12 animate-fade-in-down">
-                <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">
-                    Find Your Next Great Read
-                </h2>
-                <p className="text-slate-500 mb-8 text-lg">
-                    Search our collection of {books.length > 0 ? 'thousands of' : ''} books and resources.
-                </p>
+            {/* HERO SECTION */}
+            <div className="relative mb-12 py-10 text-center">
+                {/* Background Decor */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full max-w-4xl bg-blue-500/5 blur-3xl rounded-full -z-10" />
 
-                <div className="max-w-2xl mx-auto relative group">
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                >
+                    <h2 className="text-5xl md:text-6xl font-black text-slate-900 mb-6 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600">
+                        Discover Your Next Read
+                    </h2>
+                    <p className="text-slate-500 text-xl font-medium max-w-2xl mx-auto mb-10 leading-relaxed">
+                        Explore our vast collection of books, journals, and resources.
+                        Tap any book to flip and see details.
+                    </p>
+                </motion.div>
+
+                {/* SEARCH BAR */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2, duration: 0.5 }}
+                    className="max-w-3xl mx-auto relative group z-20"
+                >
                     <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-                        <Search className="text-slate-400 group-focus-within:text-primary-500 transition-colors" size={24} />
+                        <Search className="text-slate-400 group-focus-within:text-blue-600 transition-colors" size={28} />
                     </div>
                     <input
                         type="text"
-                        placeholder="Search by title, author, or ISBN..."
-                        className="w-full pl-16 pr-6 py-5 rounded-2xl border-2 border-slate-200 shadow-sm focus:border-primary-500 focus:ring-4 focus:ring-primary-100 outline-none text-lg transition-all"
+                        placeholder="Search by title, author, isbn, or topic..."
+                        className="w-full pl-16 pr-6 py-6 rounded-3xl border-2 border-slate-200 shadow-xl shadow-blue-900/5 focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none text-xl font-medium transition-all bg-white/80 backdrop-blur-sm"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                </div>
+                </motion.div>
 
-                {/* CATEGORY CHIPS */}
-                <div className="flex flex-wrap justify-center gap-3 mt-6">
-                    {categories.map(cat => (
-                        <button
+                {/* CATEGORY PILLS */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="flex flex-wrap justify-center gap-3 mt-8 max-w-5xl mx-auto px-4"
+                >
+                    {categories.map((cat, i) => (
+                        <motion.button
                             key={cat}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.05 * i + 0.5 }}
                             onClick={() => setSelectedCategory(cat)}
-                            className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all transform hover:-translate-y-0.5
+                            className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all border-2
                             ${selectedCategory === cat
-                                    ? 'bg-primary-600 text-white shadow-lg shadow-primary-200 ring-2 ring-primary-100'
-                                    : 'bg-white text-slate-500 border border-slate-200 hover:border-primary-300 hover:text-primary-600'
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105'
+                                    : 'bg-white border-slate-200 text-slate-500 hover:border-blue-300 hover:text-blue-600 hover:shadow-md'
                                 }`}
                         >
                             {cat}
-                        </button>
+                        </motion.button>
                     ))}
-                </div>
+                </motion.div>
             </div>
 
             {/* RESULTS GRID */}
-            {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                    <Loader2 size={48} className="animate-spin mb-4 text-primary-500" />
-                    <p>Searching the archives...</p>
-                </div>
-            ) : books.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
-                    {books.map(book => (
-                        <BookCardPublic key={book.id} book={book} onLocate={handleLocate} />
-                    ))}
-                </div>
-            ) : (
-                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
-                    <div className="inline-block p-4 bg-slate-50 rounded-full mb-4">
-                        <Search size={32} className="text-slate-400" />
+            <div className="min-h-[400px]">
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                        <Loader2 size={48} className="animate-spin mb-4 text-blue-500" />
+                        <p className="text-lg font-medium animate-pulse">Searching the archives...</p>
                     </div>
-                    <h3 className="text-xl font-bold text-slate-700 mb-2">No books found</h3>
-                    <p className="text-slate-500">Try adjusting your search terms or category.</p>
-                    <button
-                        onClick={() => { setSearchTerm(""); setSelectedCategory("All"); }}
-                        className="mt-6 text-primary-600 font-bold hover:underline"
+                ) : books.length > 0 ? (
+                    <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        variants={{
+                            hidden: { opacity: 0 },
+                            visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+                        }}
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 px-4 pb-20"
                     >
-                        Clear all filters
-                    </button>
-                </div>
-            )}
+                        {books.map((book, index) => (
+                            <div key={book.id} className="relative group">
+                                <FlipBookCard book={book} index={index} />
+
+                                {/* LOCATE BUTTON (Floating below or overlaid) */}
+                                {/* Since FlipBookCard consumes the click/hover, we can add a utilitarian button below it for Kiosk users who need the MAP */}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleLocate(book); }}
+                                    className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0 flex items-center gap-2 hover:bg-slate-800 z-30"
+                                >
+                                    <MapPin size={12} /> LOCATE IN SHELF
+                                </button>
+                            </div>
+                        ))}
+                    </motion.div>
+                ) : (
+                    <div className="text-center py-20 max-w-lg mx-auto">
+                        <div className="inline-flex p-6 bg-slate-50 rounded-full mb-6">
+                            <BookOpen size={48} className="text-slate-300" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-slate-700 mb-3">No matching books found</h3>
+                        <p className="text-slate-500 mb-8">
+                            We couldn't find anything matching "{searchTerm || selectedCategory}".
+                            Try broadening your search.
+                        </p>
+                        <button
+                            onClick={() => { setSearchTerm(""); setSelectedCategory("All"); }}
+                            className="text-blue-600 font-bold hover:underline"
+                        >
+                            Clear all filters
+                        </button>
+                    </div>
+                )}
+            </div>
 
             {/* MODAL */}
-            {selectedBook && (
-                <ShelfMapModal
-                    book={selectedBook}
-                    location={selectedBook.location} // Passed from handleLocate
-                    onClose={() => setSelectedBook(null)}
-                />
-            )}
+            <AnimatePresence>
+                {selectedBook && (
+                    <ShelfMapModal
+                        book={selectedBook}
+                        location={selectedBook.location} // Passed from handleLocate
+                        onClose={() => setSelectedBook(null)}
+                    />
+                )}
+            </AnimatePresence>
 
         </KioskLayout>
     );

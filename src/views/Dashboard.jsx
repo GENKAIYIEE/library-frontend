@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import axiosClient from "../axios-client";
-import StatCard from "../components/StatCard";
+import axiosClient, { ASSET_URL } from "../axios-client";
 import Leaderboard from "../components/Leaderboard";
 import MonthlyTrendChart from "../components/charts/MonthlyTrendChart";
 import CategoryPieChart from "../components/charts/CategoryPieChart";
-import { BookOpen, Copy, Repeat, Users, LayoutDashboard } from "lucide-react";
+import { BookOpen, Copy, Repeat, Users, LayoutDashboard, Plus, Search, Scan, ArrowRight } from "lucide-react";
 import Pagination from "../components/ui/Pagination";
+import { motion } from "framer-motion";
+import GlassCard from "../components/ui/GlassCard";
+import FlipBookCard from "../components/FlipBookCard";
+import MostPopularBooks from "../components/MostPopularBooks";
 
-export default function Dashboard() {
+export default function Dashboard({ setActiveTab }) {
   const [stats, setStats] = useState({
     titles: 0,
     copies: 0,
@@ -35,173 +38,183 @@ export default function Dashboard() {
     // Initial fetch
     fetchData();
 
-    // Poll every 30 seconds (reduced from 5s to avoid 429 Too Many Requests)
+    // Poll every 30 seconds
     const interval = setInterval(fetchData, 30000);
 
     return () => clearInterval(interval);
   }, []);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 100 }
+    }
+  };
+
   return (
-    <div className="space-y-8 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-8 p-8 min-h-screen pb-24" // Added padding-bottom for dock
+    >
       {/* Page Header */}
-      <div className="flex items-center gap-4">
-        <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
+      <div className="flex items-center gap-4 mb-8">
+        <div className="p-3 bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl shadow-lg shadow-primary-900/20">
           <LayoutDashboard size={28} className="text-white" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
-          <p className="text-gray-500 dark:text-slate-400">Overview of the library inventory and activities.</p>
+          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-slate-400">
+            Dashboard
+          </h2>
+          <p className="text-gray-500 dark:text-slate-400 font-medium">Overview of the library inventory and activities.</p>
         </div>
       </div>
 
       {/* STAT CARDS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
+        <DashboardStatCard
           title="Total Titles"
           value={stats.titles}
           icon={BookOpen}
-          color="blue"
-          description="Unique book titles"
+          color="bg-blue-500"
+          delay={0}
         />
-        <StatCard
+        <DashboardStatCard
           title="Physical Copies"
           value={stats.copies}
           icon={Copy}
-          color="indigo"
-          description="Total books in shelf"
+          color="bg-indigo-500"
+          delay={0.1}
         />
-        <StatCard
+        <DashboardStatCard
           title="Active Loans"
           value={stats.loans}
           icon={Repeat}
-          color="orange"
-          description="Books currently borrowed"
+          color="bg-orange-500"
+          delay={0.2}
         />
-        <StatCard
+        <DashboardStatCard
           title="Reg. Students"
           value={stats.students}
           icon={Users}
-          color="green"
-          description="Total registered students"
+          color="bg-emerald-500"
+          delay={0.3}
         />
       </div>
 
-      {/* Analytics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Monthly Trends */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">30-Day Borrowing Activity</h3>
-          <MonthlyTrendChart />
-        </div>
+      {/* MAIN CONTENT GRID */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-        {/* Category Popularity */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 p-6">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Popular Categories</h3>
-          <CategoryPieChart />
-        </div>
-      </div>
+        {/* LEFT COLUMN (2/3 width) */}
+        <div className="xl:col-span-2 space-y-8">
 
+          {/* MOST POPULAR BOOKS */}
+          <MostPopularBooks />
 
-      {/* RECENTLY AVAILABLE BOOKS GRID */}
-      <div>
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white">Recently Available Books</h3>
-          <a href="/books" className="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 hover:underline transition">
-            View All Inventory &rarr;
-          </a>
-        </div>
-
-        {availableBooks.length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 p-12 text-center text-gray-500 dark:text-slate-400">
-            <BookOpen className="mx-auto mb-4 opacity-20" size={56} />
-            <p className="text-lg">No books currently available to display.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
-              {availableBooks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((book) => {
-                // Get image URL - handle both image_path (new) and cover_image (legacy)
-                const imagePath = book.image_path || book.cover_image;
-                const imageUrl = imagePath
-                  ? (imagePath.startsWith('http')
-                    ? imagePath
-                    : `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || ''}/${imagePath}`)
-                  : null;
-
-                return (
-                  <div key={book.id} className="group bg-white dark:bg-slate-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border border-gray-100 dark:border-slate-700 overflow-hidden flex flex-col h-full cursor-pointer">
-                    {/* Book Cover */}
-                    <div className="aspect-[2/3] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 relative overflow-hidden">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt={book.title}
-                          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500 will-change-transform"
-                          onError={(e) => {
-                            e.target.onerror = null;
-                            e.target.style.display = 'none';
-                            e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div className={`fallback-icon absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-700 dark:to-slate-600 text-gray-400 dark:text-slate-500 ${imageUrl ? 'hidden' : 'flex'}`}>
-                        <BookOpen size={32} strokeWidth={1.5} />
-                      </div>
-
-                      {/* Badge */}
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
-                        Available
-                      </div>
-                    </div>
-
-                    {/* Details */}
-                    <div className="p-4 flex flex-col flex-1">
-                      <h4 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-2 leading-tight mb-1" title={book.title}>
-                        {book.title}
-                      </h4>
-                      <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-1 mb-auto">{book.author}</p>
-
-                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-700 flex justify-between items-center">
-                        <span className="text-[10px] font-semibold text-gray-500 dark:text-slate-400 px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded-full truncate max-w-[60%]">
-                          {book.category}
-                        </span>
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                          {book.available_copies} copies
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+          {/* RECENTLY AVAILABLE BOOKS */}
+          <motion.div variants={itemVariants}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-slate-400">
+                Recently Available Books
+              </h3>
+              <button onClick={() => setActiveTab && setActiveTab('books')} className="text-sm font-semibold text-primary-600 dark:text-primary-400 hover:text-primary-700 hover:scale-105 transition-transform flex items-center gap-1">
+                View All Inventory <ArrowRight size={16} />
+              </button>
             </div>
-            <Pagination
-              currentPage={currentPage}
-              totalItems={availableBooks.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-        )}
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* WELCOME SECTION */}
-        <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 rounded-2xl shadow-2xl p-5 text-white relative overflow-hidden border border-white/20">
-          <div className="relative z-10">
-            <h3 className="text-2xl font-bold mb-2 drop-shadow-md tracking-tight">Welcome Back!</h3>
-            <p className="text-primary-100 text-sm mb-1 max-w-md leading-relaxed font-medium drop-shadow-sm">
-              You are logged in as Administrator. Manage your library inventory, track student loans, and generate reports from here.
-            </p>
+            {availableBooks.length === 0 ? (
+              <GlassCard className="p-12 text-center text-gray-500 dark:text-slate-400 flex flex-col items-center justify-center">
+                <BookOpen className="mb-4 opacity-20" size={56} />
+                <p className="text-lg">No books currently available to display.</p>
+              </GlassCard>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
+                {availableBooks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((book, index) => (
+                  <FlipBookCard key={book.id} book={book} index={index} />
+                ))}
+              </div>
+            )}
+
+            {/* Pagination for Recent Books */}
+            {availableBooks.length > itemsPerPage && (
+              <div className="mt-6 flex justify-center">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={Math.ceil(availableBooks.length / itemsPerPage)}
+                  onPageChange={setCurrentPage}
+                />
+              </div>
+            )}
+          </motion.div>
+
+          {/* CHARTS SECTION (MOVED HERE) */}
+          <div className="pt-4">
+            <GlassCard className="p-6 h-96">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Monthly Borrowing Trends</h3>
+              <MonthlyTrendChart />
+            </GlassCard>
           </div>
-          {/* Abstract Pattern */}
-          <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white opacity-10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
         </div>
 
-        {/* TOP READERS LEADERBOARD */}
-        <Leaderboard />
+        {/* RIGHT COLUMN (1/3 width) */}
+        <div className="space-y-6">
+          {/* WELCOME BACK WIDGET */}
+          <motion.div
+            variants={itemVariants}
+            className="relative overflow-hidden rounded-2xl shadow-xl bg-gradient-to-br from-primary-700 to-primary-900 p-6 text-white"
+          >
+            <div className="relative z-10">
+              <h3 className="text-xl font-bold mb-2">Welcome Back!</h3>
+              <p className="text-primary-100/90 text-sm leading-relaxed">
+                You are logged in as Administrator. Use this command center to oversee library operations.
+              </p>
+            </div>
+            <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full blur-2xl animate-pulse"></div>
+          </motion.div>
+
+          {/* LEADERBOARD */}
+          <Leaderboard />
+
+          {/* CATEGORIES PIE CHART */}
+          <GlassCard className="p-6 h-80">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Category Distribution</h3>
+            <CategoryPieChart />
+          </GlassCard>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
+
+function DashboardStatCard({ title, value, icon: Icon, color, delay }) {
+  return (
+    <GlassCard className="p-6 flex items-center gap-4" delay={delay} hoverEffect={true}>
+      <div className={`p-4 rounded-xl ${color} bg-opacity-10 text-${color.replace('bg-', '')} shadow-sm`}>
+        <Icon size={24} className={color.replace('bg-', 'text-')} />
+      </div>
+      <div>
+        <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">{title}</p>
+        <h3 className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
+          {value !== undefined ? value : "-"}
+        </h3>
+      </div>
+    </GlassCard>
+  );
+}
+
+
+
 

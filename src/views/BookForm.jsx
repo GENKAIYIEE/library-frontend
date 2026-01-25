@@ -123,10 +123,11 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     if (bookToEdit) {
       // UPDATE MODE - Use POST with _method for Laravel
       formData.append("_method", "PUT");
-      axiosClient.post(`/books/${bookToEdit.id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      })
+      axiosClient.post(`/books/${bookToEdit.id}`, formData)
         .then(() => {
+          toast.success("Book updated successfully");
+          onSuccess(book); // Pass back updated data if needed, or just trigger refresh
+          onClose();
         })
         .catch(err => {
           setLoading(false);
@@ -135,9 +136,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
         });
     } else {
       // CREATE MODE - Barcode auto-generated in backend
-      axiosClient.post("/books/title", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      })
+      axiosClient.post("/books/title", formData)
         .then((res) => {
           const newBook = res.data.book;
           const copiesCreated = res.data.copies_created || 0;

@@ -22,6 +22,13 @@ export default {
           900: '#000040',  // Very dark
           950: '#000028',  // Darkest
         },
+        executive: {
+          900: '#0b0f19', // Obsidian (Deepest Dark)
+          800: '#111827', // Charcoal (Sidebar)
+          50: '#F9FAFB',  // Mist (Light Background)
+          accent: '#6366F1', // Electric Indigo (Primary Action)
+          highlight: '#38BDF8', // Sky Blue (Secondary)
+        },
         // Institution secondary colors
         institution: {
           dark: '#00008B',     // Main Dark Blue

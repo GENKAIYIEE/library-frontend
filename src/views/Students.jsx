@@ -2,54 +2,46 @@ import { useEffect, useState, useMemo } from "react";
 import axiosClient from "../axios-client";
 import Swal from "sweetalert2";
 import {
-  Trash2, UserPlus, Users, ToggleLeft, Search,
-  ChevronDown, ChevronRight, GraduationCap, Layers,
-  Maximize2, Minimize2, User, BookOpen, Hash, Award, X, Pencil, Mail, Phone
+  Trash2, Search, GraduationCap, LayoutGrid, List as ListIcon,
+  Filter, Award, Pencil, Phone, Mail, MoreVertical
 } from "lucide-react";
-import BatchRegister from "./BatchRegister";
-import Button from "../components/ui/Button";
-import FloatingInput from "../components/ui/FloatingInput";
-import FloatingSelect from "../components/ui/FloatingSelect";
-import AchievementBadges from "../components/AchievementBadges";
 import { useToast } from "../components/ui/Toast";
+import GlassCard from "../components/ui/GlassCard";
+import StudentProfileModal from "./StudentProfileModal";
+import { Menu } from "@headlessui/react";
+import { AnimatePresence, motion } from "framer-motion";
+import { cn } from "../lib/utils";
 
-// Course color mapping for visual distinction
+// Course color mapping
 const COURSE_COLORS = {
-  "BSIT": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700 border-blue-200", icon: "text-blue-500" },
-  "BSED": { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700 border-rose-200", icon: "text-rose-500" },
-  "BEED": { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", badge: "bg-pink-100 text-pink-700 border-pink-200", icon: "text-pink-500" },
-  "Maritime": { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", badge: "bg-cyan-100 text-cyan-700 border-cyan-200", icon: "text-cyan-500" },
-  "BSHM": { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-200", icon: "text-amber-500" },
-  "BS Criminology": { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", badge: "bg-red-100 text-red-700 border-red-200", icon: "text-red-500" },
-  "BSBA": { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: "text-emerald-500" },
-  "BS Tourism": { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: "text-indigo-500" },
-  "default": { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-500" }
+  "BSIT": { from: "from-blue-500", to: "to-cyan-500", text: "text-blue-600", bg: "bg-blue-50" },
+  "BSED": { from: "from-rose-500", to: "to-pink-500", text: "text-rose-600", bg: "bg-rose-50" },
+  "BEED": { from: "from-pink-500", to: "to-purple-500", text: "text-pink-600", bg: "bg-pink-50" },
+  "Maritime": { from: "from-cyan-500", to: "to-blue-500", text: "text-cyan-600", bg: "bg-cyan-50" },
+  "BSHM": { from: "from-amber-500", to: "to-orange-500", text: "text-amber-600", bg: "bg-amber-50" },
+  "BS Criminology": { from: "from-red-600", to: "to-orange-600", text: "text-red-700", bg: "bg-red-50" },
+  "BSBA": { from: "from-emerald-500", to: "to-teal-500", text: "text-emerald-600", bg: "bg-emerald-50" },
+  "BS Tourism": { from: "from-indigo-500", to: "to-violet-500", text: "text-indigo-600", bg: "bg-indigo-50" },
+  "default": { from: "from-slate-500", to: "to-gray-500", text: "text-slate-600", bg: "bg-slate-50" }
 };
 
-const getCourseColors = (course) => COURSE_COLORS[course] || COURSE_COLORS.default;
+const getCourseStyle = (course) => COURSE_COLORS[course] || COURSE_COLORS.default;
 
 export default function Students() {
   const toast = useToast();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [batchMode, setBatchMode] = useState(false);
+  const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'list'
+
+  // Filtering & Search
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterCourse, setFilterCourse] = useState("All");
+  const [filterYear, setFilterYear] = useState("All");
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [course, setcourse] = useState("");
-  const [yearLevel, setYearLevel] = useState("");
-  const [section, setSection] = useState("");
-
-  // Achievement Modal state
-  const [viewingBadges, setViewingBadges] = useState(null);
-
-  // Edit mode state
-  const [editingStudent, setEditingStudent] = useState(null);
-
-  // Collapsed courses state
-  const [collapsedCourses, setCollapsedCourses] = useState({});
+  // Modals
+  const [viewingStudent, setViewingStudent] = useState(null);
+  // Note: Edit functionality would normally open a modal, omitted for brevity as per request to remove form
+  // We can re-add an Edit Modal later if needed.
 
   useEffect(() => {
     getStudents();
@@ -65,483 +57,326 @@ export default function Students() {
       .catch(() => setLoading(false));
   };
 
-  const handleSubmit = (ev) => {
-    ev.preventDefault();
-    if (!name || !course || !yearLevel || !section) {
-      toast.warning("Please fill in all required fields");
-      return;
-    }
-
-    const studentData = {
-      name,
-      email: email || null,
-      phone_number: phoneNumber || null,
-      course,
-      year_level: parseInt(yearLevel),
-      section
-    };
-
-    if (editingStudent) {
-      // UPDATE MODE - modify existing student
-      axiosClient.put(`/students/${editingStudent.id}`, studentData)
-        .then(() => {
-          toast.success(`Student updated successfully!`);
-          cancelEdit();
-          getStudents();
-        })
-        .catch(err => {
-          toast.error(err.response?.data?.message || "Error updating student.");
-        });
-    } else {
-      // CREATE MODE - register new student
-      axiosClient.post("/students", studentData)
-        .then((res) => {
-          toast.success(`Student Registered! ID: ${res.data.student_id}`);
-          setName("");
-          setEmail("");
-          setPhoneNumber("");
-          setcourse("");
-          setYearLevel("");
-          setSection("");
-          getStudents();
-        })
-        .catch(err => {
-          toast.error(err.response?.data?.message || "Error registering student.");
-        });
-    }
-  };
-
-  const onEdit = (student) => {
-    setEditingStudent(student);
-    setName(student.name);
-    setEmail(student.email || "");
-    setPhoneNumber(student.phone_number || "");
-    setcourse(student.course || "");
-    setYearLevel(student.year_level ? String(student.year_level) : "");
-    setSection(student.section || "");
-  };
-
-  const cancelEdit = () => {
-    setEditingStudent(null);
-    setName("");
-    setEmail("");
-    setPhoneNumber("");
-    setcourse("");
-    setYearLevel("");
-    setSection("");
-  };
-
   const onDelete = (id, studentName) => {
     Swal.fire({
       title: 'Delete Student?',
-      text: `Are you sure you want to delete "${studentName || 'this student'}"? This cannot be undone.`,
+      text: `Are you sure you want to delete "${studentName}"?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
       confirmButtonText: 'Yes, delete!',
-      cancelButtonText: 'Cancel'
     }).then((result) => {
       if (result.isConfirmed) {
         axiosClient.delete(`/students/${id}`)
           .then(() => {
-            Swal.fire('Deleted!', 'The student has been removed.', 'success');
+            toast.success('Student removed successfully');
             getStudents();
           })
           .catch((err) => {
-            Swal.fire('Error!', err.response?.data?.message || 'Failed to delete student.', 'error');
+            toast.error(err.response?.data?.message || 'Failed to delete student.');
           });
       }
     });
-  }
+  };
 
-  // Filter students by search term
+  // Filter Logic
   const filteredStudents = useMemo(() => {
-    if (!searchTerm) return students;
-    const query = searchTerm.toLowerCase();
-    return students.filter(s =>
-      s.name.toLowerCase().includes(query) ||
-      s.student_id.toLowerCase().includes(query) ||
-      (s.course && s.course.toLowerCase().includes(query)) ||
-      (s.section && s.section.toLowerCase().includes(query))
-    );
-  }, [students, searchTerm]);
+    return students.filter(s => {
+      const matchesSearch =
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.section && s.section.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  // Group students by course
-  const studentsByCourse = useMemo(() => {
-    const grouped = {};
-    filteredStudents.forEach(student => {
-      const courseName = student.course || "Unassigned";
-      if (!grouped[courseName]) {
-        grouped[courseName] = [];
-      }
-      grouped[courseName].push(student);
+      const matchesCourse = filterCourse === "All" || s.course === filterCourse;
+      const matchesYear = filterYear === "All" || (s.year_level && String(s.year_level) === filterYear);
+
+      return matchesSearch && matchesCourse && matchesYear;
     });
-    // Sort courses alphabetically
-    return Object.keys(grouped).sort().reduce((acc, key) => {
-      acc[key] = grouped[key];
-      return acc;
-    }, {});
-  }, [filteredStudents]);
+  }, [students, searchTerm, filterCourse, filterYear]);
 
-  // Course stats
-  const courseStats = useMemo(() => {
-    return Object.entries(studentsByCourse).map(([courseName, courseStudents]) => ({
-      course: courseName,
-      totalStudents: courseStudents.length,
-      yearBreakdown: courseStudents.reduce((acc, s) => {
-        const yr = s.year_level || 'Unknown';
-        acc[yr] = (acc[yr] || 0) + 1;
-        return acc;
-      }, {})
-    }));
-  }, [studentsByCourse]);
-
-  // Toggle course collapse
-  const toggleCourse = (courseName) => {
-    setCollapsedCourses(prev => ({
-      ...prev,
-      [courseName]: !prev[courseName]
-    }));
-  };
-
-  // Expand/Collapse all
-  const expandAll = () => setCollapsedCourses({});
-  const collapseAll = () => {
-    const all = {};
-    Object.keys(studentsByCourse).forEach(c => all[c] = true);
-    setCollapsedCourses(all);
-  };
-
-  // Course Section Component
-  const CourseSection = ({ courseName, courseStudents }) => {
-    const isCollapsed = collapsedCourses[courseName];
-    const colors = getCourseColors(courseName);
-
-    // Group by year level for stats
-    const yearCounts = courseStudents.reduce((acc, s) => {
-      const yr = s.year_level || '?';
-      acc[yr] = (acc[yr] || 0) + 1;
-      return acc;
-    }, {});
-
-    return (
-      <div className={`mb-4 rounded-xl overflow-hidden border-2 ${colors.border} transition-all duration-200`}>
-        {/* Course Header */}
-        <button
-          onClick={() => toggleCourse(courseName)}
-          className={`w-full ${colors.bg} dark:bg-slate-800 px-4 py-3 flex items-center justify-between hover:brightness-95 dark:hover:bg-slate-700 transition-all`}
-        >
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${colors.bg} border ${colors.border}`}>
-              {isCollapsed ? (
-                <ChevronRight size={20} className={colors.icon} />
-              ) : (
-                <ChevronDown size={20} className={colors.icon} />
-              )}
-            </div>
-            <div className="text-left">
-              <h3 className={`font-bold text-lg ${colors.text} dark:text-slate-200`}>{courseName}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {courseStudents.length} student{courseStudents.length !== 1 ? 's' : ''} •
-                {Object.entries(yearCounts).map(([yr, count]) => ` Year ${yr}: ${count}`).join(' •')}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${colors.badge}`}>
-              {courseStudents.length} Students
-            </span>
-          </div>
-        </button>
-
-        {/* Course Students Table */}
-        {!isCollapsed && (
-          <div className="overflow-x-auto bg-white dark:bg-slate-800">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 uppercase text-xs font-bold tracking-wider">
-                <tr>
-                  <th className="p-3 border-b border-slate-100 dark:border-slate-600">Student ID</th>
-                  <th className="p-3 border-b border-slate-100 dark:border-slate-600">Name</th>
-                  <th className="p-3 border-b border-slate-100 dark:border-slate-600">Year/Section</th>
-                  <th className="p-3 border-b border-slate-100 dark:border-slate-600 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                {courseStudents.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
-                    <td className="p-3 font-mono text-primary-600 dark:text-primary-400 font-semibold text-sm">{student.student_id}</td>
-                    <td className="p-3 text-slate-700 dark:text-slate-200 font-medium">{student.name}</td>
-                    <td className="p-3 text-slate-600 dark:text-slate-400 text-sm">
-                      {student.year_level ? `${student.year_level}-${student.section || '?'}` : '-'}
-                    </td>
-                    <td className="p-3 text-right">
-                      <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => setViewingBadges(student)}
-                          className="text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/30 p-2 rounded-lg transition"
-                          title="View Achievements"
-                        >
-                          <Award size={16} />
-                        </button>
-                        <button
-                          onClick={() => onEdit(student)}
-                          className="text-slate-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/30 p-2 rounded-lg transition"
-                          title="Edit Student"
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          onClick={() => onDelete(student.id, student.name)}
-                          className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-lg transition"
-                          title="Delete Student"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // Unique Courses for Filter
+  const availableCourses = useMemo(() => {
+    const courses = new Set(students.map(s => s.course).filter(Boolean));
+    return ["All", ...Array.from(courses).sort()];
+  }, [students]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen relative transition-colors duration-300">
+    <div className="p-6 md:p-8 min-h-screen space-y-8 animate-fadeIn">
+      {/* HEADER & CONTROLS */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+            Student Directory
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            Manage and view all registered students
+          </p>
+        </div>
 
-      {/* ACHIEVEMENTS MODAL */}
-      {viewingBadges && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto relative animate-scaleIn bg-white dark:bg-slate-800 rounded-2xl shadow-2xl">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          {/* View Toggle */}
+          <div className="bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 flex">
             <button
-              onClick={() => setViewingBadges(null)}
-              className="absolute top-4 right-4 z-[60] p-2 bg-black/20 hover:bg-black/40 rounded-full text-white transition-all shadow-lg"
-              title="Close"
+              onClick={() => setViewMode("grid")}
+              className={cn(
+                "p-2 rounded-lg transition-all",
+                viewMode === "grid"
+                  ? "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+                  : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              )}
             >
-              <X size={20} />
+              <LayoutGrid size={20} />
             </button>
-            <AchievementBadges studentId={viewingBadges.id} />
+            <button
+              onClick={() => setViewMode("list")}
+              className={cn(
+                "p-2 rounded-lg transition-all",
+                viewMode === "list"
+                  ? "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+                  : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              )}
+            >
+              <ListIcon size={20} />
+            </button>
           </div>
         </div>
+      </div>
+
+      {/* SMART TOOLBAR */}
+      <GlassCard className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between sticky top-4 z-30 backdrop-blur-md">
+        <div className="relative w-full md:max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <input
+            placeholder="Search students by name, ID, or section..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+          />
+        </div>
+
+        <div className="flex w-full md:w-auto gap-3 overflow-x-auto pb-1 md:pb-0">
+          <div className="relative group">
+            <select
+              value={filterCourse}
+              onChange={(e) => setFilterCourse(e.target.value)}
+              className="appearance-none pl-10 pr-8 py-3 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl outline-none focus:border-primary-500 cursor-pointer min-w-[140px]"
+            >
+              <option value="All">All Courses</option>
+              {availableCourses.filter(c => c !== "All").map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-500 transition-colors" size={18} />
+          </div>
+
+          <div className="relative group">
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className="appearance-none pl-10 pr-8 py-3 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl outline-none focus:border-primary-500 cursor-pointer min-w-[120px]"
+            >
+              <option value="All">All Years</option>
+              {[1, 2, 3, 4].map(y => (
+                <option key={y} value={y}>{y}{y === 1 ? 'st' : y === 2 ? 'nd' : y === 3 ? 'rd' : 'th'} Year</option>
+              ))}
+            </select>
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary-500 transition-colors" size={18} />
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* CONTENT AREA */}
+      {loading ? (
+        <div className="h-64 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        </div>
+      ) : filteredStudents.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+          <Search size={64} className="mb-4 opacity-20" />
+          <p className="text-lg font-medium">No students found</p>
+          <p className="text-sm">Try adjusting your filters or search term</p>
+        </div>
+      ) : (
+        <AnimatePresence mode="wait">
+          {viewMode === "grid" ? (
+            <motion.div
+              key="grid"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              {filteredStudents.map((student) => {
+                const style = getCourseStyle(student.course);
+                return (
+                  <GlassCard
+                    key={student.id}
+                    className="relative group hover:scale-[1.02] transition-transform duration-300 border-t-4"
+                    style={{ borderTopColor: style.from.replace('from-', '').replace('-500', '') }} // Fallback dynamic color
+                  >
+                    {/* Header Gradient Line handled by border-t-4 via style injection or class if we used arbitrary values */}
+                    <div className={cn("absolute top-0 left-0 w-full h-1 bg-gradient-to-r rounded-t-xl", style.from, style.to)} />
+
+                    <div className="p-5 flex flex-col h-full">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className={cn("w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold text-white shadow-lg bg-gradient-to-br", style.from, style.to)}>
+                          {student.name.charAt(0)}
+                        </div>
+                        <Menu as="div" className="relative">
+                          <Menu.Button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors text-gray-400">
+                            <MoreVertical size={18} />
+                          </Menu.Button>
+                          <Menu.Items className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 focus:outline-none z-10 overflow-hidden">
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => setViewingStudent(student)}
+                                  className={cn("flex items-center gap-2 w-full px-4 py-3 text-sm transition-colors", active ? 'bg-gray-50 dark:bg-slate-700' : '')}
+                                >
+                                  <Award size={16} className="text-amber-500" /> View Details
+                                </button>
+                              )}
+                            </Menu.Item>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => onDelete(student.id, student.name)}
+                                  className={cn("flex items-center gap-2 w-full px-4 py-3 text-sm text-red-600 transition-colors", active ? 'bg-red-50 dark:bg-red-900/20' : '')}
+                                >
+                                  <Trash2 size={16} /> Delete
+                                </button>
+                              )}
+                            </Menu.Item>
+                          </Menu.Items>
+                        </Menu>
+                      </div>
+
+                      <div className="mb-4">
+                        <h3 className="font-bold text-lg text-gray-800 dark:text-white line-clamp-1" title={student.name}>
+                          {student.name}
+                        </h3>
+                        <p className="font-mono text-xs text-gray-400">{student.student_id}</p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        <span className={cn("px-2 py-1 rounded-md text-xs font-semibold bg-opacity-20", style.text, style.bg)}>
+                          {student.course || "No Course"}
+                        </span>
+                        {student.year_level && (
+                          <span className="px-2 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300">
+                            Year {student.year_level}
+                          </span>
+                        )}
+                        {student.section && (
+                          <span className="px-2 py-1 rounded-md text-xs font-semibold bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300">
+                            Sec {student.section}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-auto pt-4 border-t border-gray-100 dark:border-slate-700/50 flex items-center justify-between text-xs text-gray-400">
+                        {/* Contact Info Indicators */}
+                        <div className="flex gap-2">
+                          {student.email && <Mail size={14} className="hover:text-primary-500 cursor-help" title={student.email} />}
+                          {student.phone_number && <Phone size={14} className="hover:text-green-500 cursor-help" title={student.phone_number} />}
+                        </div>
+                        <button
+                          onClick={() => setViewingStudent(student)}
+                          className="text-primary-600 dark:text-primary-400 font-medium hover:underline"
+                        >
+                          View Profile
+                        </button>
+                      </div>
+                    </div>
+                  </GlassCard>
+                );
+              })}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="list"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden"
+            >
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 dark:bg-slate-900/50 text-gray-500 dark:text-gray-400 text-xs uppercase font-bold tracking-wider">
+                  <tr>
+                    <th className="p-4">Student</th>
+                    <th className="p-4">Course & Year</th>
+                    <th className="p-4">Contact</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                  {filteredStudents.map((student) => {
+                    const style = getCourseStyle(student.course);
+                    return (
+                      <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-sm bg-gradient-to-br", style.from, style.to)}>
+                              {student.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="font-bold text-gray-800 dark:text-white">{student.name}</div>
+                              <div className="text-xs font-mono text-gray-400">{student.student_id}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-col">
+                            <span className={cn("text-sm font-medium", style.text)}>
+                              {student.course}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {student.year_level ? `Year ${student.year_level}` : ''}
+                              {student.section ? ` • Sec ${student.section}` : ''}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                            {student.email && <div className="flex items-center gap-2"><Mail size={12} className="text-gray-400" /> {student.email}</div>}
+                            {student.phone_number && <div className="flex items-center gap-2"><Phone size={12} className="text-gray-400" /> {student.phone_number}</div>}
+                          </div>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setViewingStudent(student)}
+                              className="p-2 text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition"
+                              title="View Profile"
+                            >
+                              <Award size={18} />
+                            </button>
+                            <button
+                              onClick={() => onDelete(student.id, student.name)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
 
-      {/* LEFT: REGISTER FORM OR BATCH MODE */}
-      <div className="lg:col-span-1">
-        {batchMode ? (
-          <BatchRegister
-            onSuccess={getStudents}
-            onCancel={() => setBatchMode(false)}
-          />
-        ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-slate-700 sticky top-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 ${editingStudent ? 'bg-amber-500' : 'bg-primary-600'} rounded-xl shadow`}>
-                  {editingStudent ? <Pencil size={20} className="text-white" /> : <UserPlus size={20} className="text-white" />}
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">
-                    {editingStudent ? 'Edit Student' : 'Register Student'}
-                  </h2>
-                  {editingStudent && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">Editing: {editingStudent.student_id}</p>
-                  )}
-                </div>
-              </div>
-              {editingStudent ? (
-                <Button
-                  onClick={cancelEdit}
-                  variant="outline"
-                  className="text-xs px-3 py-2"
-                >
-                  <X size={16} /> Cancel
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => setBatchMode(true)}
-                  variant="secondary"
-                  className="text-xs px-3 py-2"
-                >
-                  <ToggleLeft size={16} /> Batch
-                </Button>
-              )}
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <FloatingInput
-                label="Full Name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                icon={User}
-                required
-              />
-
-              <FloatingInput
-                label="Email Address"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                icon={Mail}
-              />
-
-              <FloatingInput
-                label="Phone Number"
-                type="tel"
-                value={phoneNumber}
-                onChange={e => setPhoneNumber(e.target.value)}
-                icon={Phone}
-              />
-
-              <FloatingSelect
-                label="Course"
-                value={course}
-                onChange={e => setcourse(e.target.value)}
-                required
-              >
-                <option value="BSIT">BSIT</option>
-                <option value="BSED">BSED</option>
-                <option value="BEED">BEED</option>
-                <option value="Maritime">Maritime</option>
-                <option value="BSHM">BSHM</option>
-                <option value="BS Criminology">BS Criminology</option>
-                <option value="BSBA">BSBA</option>
-                <option value="BS Tourism">BS Tourism</option>
-              </FloatingSelect>
-
-              <div className="flex flex-wrap gap-4">
-                <FloatingSelect
-                  label="Year Level"
-                  value={yearLevel}
-                  onChange={e => setYearLevel(e.target.value)}
-                  required
-                  className="flex-grow min-w-[140px]"
-                >
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
-                </FloatingSelect>
-
-                <FloatingInput
-                  label="Section"
-                  value={section}
-                  onChange={e => setSection(e.target.value)}
-                  icon={Hash}
-                  required
-                  className="flex-grow min-w-[140px]"
-                />
-              </div>
-
-              <Button type="submit" variant={editingStudent ? 'primary' : 'form'} fullWidth className="mt-2">
-                {editingStudent ? 'Update Student' : 'Register Student'}
-              </Button>
-            </form>
-          </div>
-        )}
-      </div>
-
-      {/* RIGHT: STUDENT LIST ORGANIZED BY COURSE */}
-      <div className="lg:col-span-2">
-        {/* Header and Controls */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
-              <Users size={24} className="text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Registered Students</h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Organized by course • {filteredStudents.length} students total</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Course Summary Cards */}
-        {courseStats.length > 0 && !searchTerm && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            {courseStats.slice(0, 8).map(({ course: courseName, totalStudents }) => {
-              const colors = getCourseColors(courseName);
-              return (
-                <button
-                  key={courseName}
-                  onClick={() => {
-                    setCollapsedCourses(prev => ({ ...prev, [courseName]: false }));
-                  }}
-                  className={`${colors.bg} dark:bg-top-800 ${colors.border} dark:border-slate-700 border-2 rounded-2xl p-4 text-left hover:brightness-95 transition-all duration-200 hover:shadow-lg bg-white dark:bg-slate-800`}
-                >
-                  <div className={`text-xs font-bold ${colors.text} dark:text-slate-200 uppercase tracking-wide truncate mb-1`}>{courseName}</div>
-                  <div className="text-2xl font-bold text-gray-800 dark:text-white">{totalStudents}</div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Search and Controls */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 border border-gray-100 dark:border-slate-700 mb-6">
-          <div className="flex flex-col sm:flex-row gap-3 items-end">
-            <div className="flex-1 w-full">
-              <div className="relative">
-                <Search className="absolute left-4 top-3 text-primary-400" size={18} />
-                <input
-                  placeholder="Search by name, ID, course, section..."
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl text-sm outline-none focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 transition-all bg-gray-50 dark:bg-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-800"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={expandAll}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
-                title="Expand All"
-              >
-                <Maximize2 size={16} /> Expand
-              </button>
-              <button
-                onClick={collapseAll}
-                className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
-                title="Collapse All"
-              >
-                <Minimize2 size={16} /> Collapse
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Course Sections */}
-        {loading ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p>Loading students...</p>
-          </div>
-        ) : Object.keys(studentsByCourse).length === 0 ? (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
-            <div className="flex flex-col items-center gap-2">
-              <Users size={48} strokeWidth={1.5} className="opacity-30" />
-              <p className="text-lg font-medium text-gray-600 dark:text-slate-300">
-                {searchTerm ? `No students found matching "${searchTerm}"` : "No students registered yet"}
-              </p>
-              <p className="text-sm text-gray-400 dark:text-slate-500">Register students using the form on the left</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {Object.entries(studentsByCourse).map(([courseName, courseStudents]) => (
-              <CourseSection
-                key={courseName}
-                courseName={courseName}
-                courseStudents={courseStudents}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
+      {/* MODALS */}
+      {viewingStudent && (
+        <StudentProfileModal
+          student={viewingStudent}
+          onClose={() => setViewingStudent(null)}
+        />
+      )}
     </div>
   );
 }

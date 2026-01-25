@@ -14,7 +14,9 @@ import { ThemeProvider } from "./context/ThemeContext";
 import MainLayout from "./components/MainLayout";
 
 
+
 import PublicCatalog from "./views/PublicCatalog";
+import PrintLibraryCard from "./views/PrintLibraryCard";
 
 export default function App() {
   // PUBLIC KIOSK ROUTE - Bypass Auth
@@ -26,6 +28,11 @@ export default function App() {
         </ToastProvider>
       </ThemeProvider>
     );
+  }
+
+  // PRINT ROUTE - Bypass Main Layout
+  if (window.location.pathname === '/print/card') {
+    return <PrintLibraryCard />;
   }
 
   const token = localStorage.getItem("ACCESS_TOKEN");
