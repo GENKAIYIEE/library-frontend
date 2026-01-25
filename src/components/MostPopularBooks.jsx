@@ -15,7 +15,7 @@ export default function MostPopularBooks() {
     const fetchMostBorrowed = () => {
         axiosClient.get("/reports/most-borrowed")
             .then(({ data }) => {
-                setBooks(data.slice(0, 5)); // Top 5
+                setBooks(Array.isArray(data) ? data.slice(0, 5) : []); // Top 5
                 setLoading(false);
             })
             .catch(() => {

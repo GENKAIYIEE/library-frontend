@@ -26,12 +26,12 @@ export default function Dashboard({ setActiveTab }) {
     const fetchData = () => {
       // Fetch stats
       axiosClient.get("/dashboard/stats")
-        .then(({ data }) => setStats(data))
+        .then(({ data }) => setStats(data || { titles: 0, copies: 0, loans: 0, students: 0 }))
         .catch(err => console.error(err));
 
       // Fetch dashboard books
       axiosClient.get("/dashboard/books")
-        .then(({ data }) => setAvailableBooks(data))
+        .then(({ data }) => setAvailableBooks(Array.isArray(data) ? data : []))
         .catch(err => console.error(err));
     };
 
