@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function PrintLibraryCard() {
     const [student, setStudent] = useState(null);
@@ -211,6 +212,23 @@ export default function PrintLibraryCard() {
                                     <div className="sig-line"></div>
                                     <div className="label" style={{ marginTop: '2px' }}>Student Signature</div>
                                 </div>
+                            </div>
+                            {/* QR CODE for Attendance */}
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px', flexShrink: 0 }}>
+                                <div style={{ background: 'white', padding: '4px', borderRadius: '4px', border: '1px solid #000' }}>
+                                    {student.student_id ? (
+                                        <QRCodeSVG
+                                            value={student.student_id}
+                                            size={70}
+                                            level="M"
+                                            bgColor="#ffffff"
+                                            fgColor="#000000"
+                                        />
+                                    ) : (
+                                        <div style={{ width: 70, height: 70, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>No ID</div>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: '5px', color: '#64748b', marginTop: '2px', fontWeight: 'bold', textTransform: 'uppercase' }}>Scan for Attendance</div>
                             </div>
                         </div>
                         <div className="gold-bar"></div>

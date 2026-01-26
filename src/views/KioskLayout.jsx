@@ -1,4 +1,4 @@
-import { Library, Clock, LogIn } from "lucide-react";
+import { Library, Clock, LogIn, UserCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom"; // If available, or just use window.location
 
@@ -51,12 +51,18 @@ export default function KioskLayout({ children }) {
 
                     <div className="flex items-center gap-4">
                         <KioskClock />
-                        <button
-                            onClick={() => window.location.reload()} // Reset kiosk
+                        <a
+                            href="/attendance"
+                            className="hidden md:flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                        >
+                            <UserCheck size={16} /> Attendance
+                        </a>
+                        <a
+                            href="/catalog"
                             className="hidden md:flex bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
                         >
-                            Reset
-                        </button>
+                            Catalog
+                        </a>
                         <a href="/" className="text-primary-200 hover:text-white text-xs font-bold flex gap-1 items-center opacity-50 hover:opacity-100 transition-opacity">
                             <LogIn size={14} /> Staff
                         </a>

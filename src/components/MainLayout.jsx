@@ -18,7 +18,8 @@ import {
     Moon,
     ChevronLeft,
     ChevronRight,
-    Search
+    Search,
+    ClipboardList
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -165,6 +166,7 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                 {/* Analytics Section */}
                 <div className="space-y-0.5">
                     {!collapsed && <div className="px-3 mb-2 text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Reports</div>}
+                    <NavItem id="attendance-log" label="Attendance Log" icon={ClipboardList} />
                     <NavItem id="history" label="Activity Logs" icon={HistoryIcon} />
                     <NavItem id="reports" label="Statistics" icon={FileBarChart} />
                     <NavItem id="department-analytics" label="Departments" icon={PieChart} />
