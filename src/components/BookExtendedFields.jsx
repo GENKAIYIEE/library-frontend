@@ -1,6 +1,6 @@
 import React from "react";
 import { Tag, Hash, MapPin, Calendar, FileText } from "lucide-react";
-import FloatingInput from "../ui/FloatingInput";
+import FloatingInput from "./ui/FloatingInput";
 
 export default function BookExtendedFields({ book, setBook }) {
     return (
