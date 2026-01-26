@@ -9,6 +9,7 @@ import {
 import FloatingInput from "../components/ui/FloatingInput";
 import FloatingSelect from "../components/ui/FloatingSelect";
 import Button from "../components/ui/Button";
+import BookExtendedFields from "../components/BookExtendedFields";
 
 export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcode = "" }) {
   const toast = useToast();
@@ -17,12 +18,23 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
   const [book, setBook] = useState({
     title: "",
     author: "",
-    category: "Fiction",
+    category: "Book",
     isbn: "",
+    accession_no: "",
+    lccn: "",
+    issn: "",
     publisher: "",
+    place_of_publication: "",
     published_year: "",
+    copyright_year: "",
     call_number: "",
     pages: "",
+    physical_description: "",
+    edition: "",
+    series: "",
+    volume: "",
+    price: "",
+    book_penalty: "",
     language: "English",
     description: "",
     location: "",
@@ -45,10 +57,21 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
         author: bookToEdit.author || "",
         category: bookToEdit.category || "",
         isbn: bookToEdit.isbn || "",
+        accession_no: bookToEdit.accession_no || "",
+        lccn: bookToEdit.lccn || "",
+        issn: bookToEdit.issn || "",
         publisher: bookToEdit.publisher || "",
+        place_of_publication: bookToEdit.place_of_publication || "",
         published_year: bookToEdit.published_year || "",
+        copyright_year: bookToEdit.copyright_year || "",
         call_number: bookToEdit.call_number || "",
         pages: bookToEdit.pages || "",
+        physical_description: bookToEdit.physical_description || "",
+        edition: bookToEdit.edition || "",
+        series: bookToEdit.series || "",
+        volume: bookToEdit.volume || "",
+        price: bookToEdit.price || "",
+        book_penalty: bookToEdit.book_penalty || "",
         language: bookToEdit.language || "English",
         description: bookToEdit.description || "",
         location: bookToEdit.location || "",
@@ -104,10 +127,21 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
 
     // Only append optional fields if they have values
     if (book.isbn) formData.append("isbn", book.isbn);
+    if (book.accession_no) formData.append("accession_no", book.accession_no);
+    if (book.lccn) formData.append("lccn", book.lccn);
+    if (book.issn) formData.append("issn", book.issn);
     if (book.publisher) formData.append("publisher", book.publisher);
+    if (book.place_of_publication) formData.append("place_of_publication", book.place_of_publication);
     if (book.published_year) formData.append("published_year", book.published_year);
+    if (book.copyright_year) formData.append("copyright_year", book.copyright_year);
     if (book.call_number) formData.append("call_number", book.call_number);
     if (book.pages) formData.append("pages", book.pages);
+    if (book.physical_description) formData.append("physical_description", book.physical_description);
+    if (book.edition) formData.append("edition", book.edition);
+    if (book.series) formData.append("series", book.series);
+    if (book.volume) formData.append("volume", book.volume);
+    if (book.price) formData.append("price", book.price);
+    if (book.book_penalty) formData.append("book_penalty", book.book_penalty);
     if (book.language) formData.append("language", book.language);
     if (book.description) formData.append("description", book.description);
     if (book.location) formData.append("location", book.location);
@@ -301,24 +335,12 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 onChange={e => setBook({ ...book, category: e.target.value })}
                 required
               >
-                <option value="Fiction">Fiction</option>
-                <option value="Technology">Technology</option>
-                <option value="Science">Science</option>
-                <option value="History">History</option>
-                <option value="Education">Education</option>
-                <option value="Literature">Literature</option>
-                <option value="Reference">Reference</option>
-                <option value="Business">Business</option>
-                <option value="Arts">Arts</option>
-                <option value="Religion">Religion</option>
-                <option value="Philosophy">Philosophy</option>
-                <option value="Law">Law</option>
-                <option value="Medicine">Medicine</option>
-                <option value="Engineering">Engineering</option>
-                <option value="Maritime">Maritime</option>
-                <option value="Hospitality">Hospitality</option>
-                <option value="Criminology">Criminology</option>
+                <option value="Article">Article</option>
+                <option value="Book">Book</option>
+                <option value="Computer File/Electronic Resources">Computer File/Electronic Resources</option>
+                <option value="Map">Map</option>
                 <option value="Thesis">Thesis</option>
+                <option value="Visual Materials">Visual Materials</option>
               </FloatingSelect>
             </div>
 
@@ -384,6 +406,9 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 placeholder="e.g., Shelf A1"
               />
             </div>
+
+            {/* Extended Catalog Fields Section */}
+            <BookExtendedFields book={book} setBook={setBook} />
 
             {/* Copies - Only for new books */}
             {!bookToEdit && (

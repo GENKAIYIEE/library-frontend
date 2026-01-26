@@ -16,23 +16,12 @@ import FloatingSelect from "../components/ui/FloatingSelect";
 
 // Category color mapping for visual distinction
 const CATEGORY_COLORS = {
-  "Fiction": { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", badge: "bg-purple-100 text-purple-700 border-purple-200", icon: "text-purple-500" },
-  "Technology": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700 border-blue-200", icon: "text-blue-500" },
-  "Science": { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: "text-emerald-500" },
-  "History": { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-200", icon: "text-amber-500" },
-  "Education": { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700 border-rose-200", icon: "text-rose-500" },
-  "Literature": { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: "text-indigo-500" },
-  "Reference": { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100 text-gray-700 border-gray-200", icon: "text-gray-500" },
-  "Business": { bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700", badge: "bg-teal-100 text-teal-700 border-teal-200", icon: "text-teal-500" },
-  "Arts": { bg: "bg-pink-50", border: "border-pink-200", text: "text-pink-700", badge: "bg-pink-100 text-pink-700 border-pink-200", icon: "text-pink-500" },
-  "Religion": { bg: "bg-yellow-50", border: "border-yellow-200", text: "text-yellow-700", badge: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: "text-yellow-500" },
-  "Philosophy": { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", badge: "bg-violet-100 text-violet-700 border-violet-200", icon: "text-violet-500" },
-  "Law": { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", badge: "bg-red-100 text-red-700 border-red-200", icon: "text-red-500" },
-  "Medicine": { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", badge: "bg-cyan-100 text-cyan-700 border-cyan-200", icon: "text-cyan-500" },
-  "Engineering": { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", badge: "bg-orange-100 text-orange-700 border-orange-200", icon: "text-orange-500" },
-  "Maritime": { bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-700", badge: "bg-sky-100 text-sky-700 border-sky-200", icon: "text-sky-500" },
-  "Hospitality": { bg: "bg-fuchsia-50", border: "border-fuchsia-200", text: "text-fuchsia-700", badge: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200", icon: "text-fuchsia-500" },
-  "Criminology": { bg: "bg-stone-50", border: "border-stone-200", text: "text-stone-700", badge: "bg-stone-100 text-stone-700 border-stone-200", icon: "text-stone-500" },
+  "Book": { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", badge: "bg-purple-100 text-purple-700 border-purple-200", icon: "text-purple-500" },
+  "Article": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700 border-blue-200", icon: "text-blue-500" },
+  "Thesis": { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: "text-emerald-500" },
+  "Map": { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-200", icon: "text-amber-500" },
+  "Visual Materials": { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700 border-rose-200", icon: "text-rose-500" },
+  "Computer File/Electronic Resources": { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: "text-indigo-500" },
   "default": { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-500" }
 };
 
@@ -59,31 +48,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   // Collapsed categories state
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
-  useEffect(() => {
-    getBooks();
-
-    // Poll every 5 seconds (reduced from 1s)
-    const interval = setInterval(() => {
-      getBooks(true); // Silent update
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-open form when navigating from scanner with a barcode
-  useEffect(() => {
-    if (pendingBarcode) {
-      setPrefillBarcode(pendingBarcode);
-      setEditingBook(null);
-      setShowTitleForm(true);
-      // Clear the pending barcode so it doesn't re-trigger
-      if (onClearPendingBarcode) {
-        onClearPendingBarcode();
-      }
-    }
-  }, [pendingBarcode, onClearPendingBarcode]);
-
-  const getBooks = (silent = false) => {
+  const getBooks = useCallback((silent = false) => {
     if (!silent) setLoading(true);
     axiosClient.get("/books")
       .then(({ data }) => {
@@ -93,7 +58,18 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       .catch(() => {
         if (!silent) setLoading(false);
       });
-  };
+  }, []);
+
+  useEffect(() => {
+    getBooks();
+
+    // Poll every 5 seconds (reduced from 1s)
+    const interval = setInterval(() => {
+      getBooks(true); // Silent update
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [getBooks]);
 
   // DELETE FUNCTION
   const onDelete = (book) => {

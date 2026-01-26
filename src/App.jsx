@@ -9,6 +9,7 @@ import Reports from "./views/Reports";
 import DepartmentAnalytics from "./views/DepartmentAnalytics";
 import UserManagement from "./views/UserManagement";
 import Settings from "./views/Settings";
+import AttendanceLog from "./views/AttendanceLog";
 import { ToastProvider } from "./components/ui/Toast";
 import { ThemeProvider } from "./context/ThemeContext";
 import MainLayout from "./components/MainLayout";
@@ -16,6 +17,7 @@ import MainLayout from "./components/MainLayout";
 
 
 import PublicCatalog from "./views/PublicCatalog";
+import PublicAttendance from "./views/PublicAttendance";
 import PrintLibraryCard from "./views/PrintLibraryCard";
 
 export default function App() {
@@ -25,6 +27,17 @@ export default function App() {
       <ThemeProvider>
         <ToastProvider>
           <PublicCatalog />
+        </ToastProvider>
+      </ThemeProvider>
+    );
+  }
+
+  // PUBLIC ATTENDANCE KIOSK - Bypass Auth
+  if (window.location.pathname === '/attendance') {
+    return (
+      <ThemeProvider>
+        <ToastProvider>
+          <PublicAttendance />
         </ToastProvider>
       </ThemeProvider>
     );
@@ -98,6 +111,7 @@ export default function App() {
           {activeTab === 'department-analytics' && <DepartmentAnalytics />}
           {activeTab === 'user-management' && <UserManagement />}
           {activeTab === 'settings' && <Settings />}
+          {activeTab === 'attendance-log' && <AttendanceLog />}
         </MainLayout>
       </ToastProvider>
     </ThemeProvider >

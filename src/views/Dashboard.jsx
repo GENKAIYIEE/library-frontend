@@ -3,7 +3,7 @@ import axiosClient, { ASSET_URL } from "../axios-client";
 import Leaderboard from "../components/Leaderboard";
 import MonthlyTrendChart from "../components/charts/MonthlyTrendChart";
 import CategoryPieChart from "../components/charts/CategoryPieChart";
-import { BookOpen, Copy, Repeat, Users, LayoutDashboard, Plus, Search, Scan, ArrowRight } from "lucide-react";
+import { BookOpen, Copy, Repeat, Users, LayoutDashboard, Plus, Search, Scan, ArrowRight, ClipboardList } from "lucide-react";
 import Pagination from "../components/ui/Pagination";
 import { motion } from "framer-motion";
 import GlassCard from "../components/ui/GlassCard";
@@ -15,7 +15,8 @@ export default function Dashboard({ setActiveTab }) {
     titles: 0,
     copies: 0,
     loans: 0,
-    students: 0
+    students: 0,
+    todayAttendance: 0
   });
 
   const [availableBooks, setAvailableBooks] = useState([]);
@@ -26,13 +27,18 @@ export default function Dashboard({ setActiveTab }) {
     const fetchData = () => {
       // Fetch stats
       axiosClient.get("/dashboard/stats")
-        .then(({ data }) => setStats(data || { titles: 0, copies: 0, loans: 0, students: 0 }))
+        .then(({ data }) => setStats(prev => ({ ...prev, ...data })))
         .catch(err => console.error(err));
 
       // Fetch dashboard books
       axiosClient.get("/dashboard/books")
         .then(({ data }) => setAvailableBooks(Array.isArray(data) ? data : []))
         .catch(err => console.error(err));
+
+      // Fetch today's attendance count
+      axiosClient.get("/attendance/today")
+        .then(({ data }) => setStats(prev => ({ ...prev, todayAttendance: data.count || 0 })))
+        .catch(err => console.debug("Attendance fetch:", err));
     };
 
     // Initial fetch
@@ -112,6 +118,13 @@ export default function Dashboard({ setActiveTab }) {
           icon={Users}
           color="bg-emerald-500"
           delay={0.3}
+        />
+        <DashboardStatCard
+          title="Today's Visitors"
+          value={stats.todayAttendance}
+          icon={ClipboardList}
+          color="bg-purple-500"
+          delay={0.4}
         />
       </div>
 
