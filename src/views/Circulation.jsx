@@ -4,11 +4,13 @@ import axiosClient from "../axios-client";
 import PaymentModal from "./PaymentModal";
 import BookScanModal from "../components/BookScanModal";
 import BookNotFoundModal from "../components/BookNotFoundModal";
+import FineSettlementModal from "./FineSettlementModal";
 import CameraScanner from "../components/CameraScanner";
 import ScanModeSelector from "../components/ScanModeSelector";
 import StudentSearchModal from "../components/StudentSearchModal";
 import BookSelectorModal from "../components/BookSelectorModal";
-import { Search, ChevronDown, User, Book, Scan, Camera, Users, Library } from "lucide-react";
+import { Search, ChevronDown, User, Book, Scan, Camera, Users, Library, AlertTriangle } from "lucide-react";
+import Swal from 'sweetalert2';
 
 export default function Circulation({ onNavigateToBooks }) {
   // STATE FOR BORROWING
@@ -46,6 +48,7 @@ export default function Circulation({ onNavigateToBooks }) {
   // PAYMENT MODAL STATE
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingTransaction, setPendingTransaction] = useState(null);
+  const [showFineModal, setShowFineModal] = useState(false);
 
   // CLEARANCE STATE
   const [clearance, setClearance] = useState(null);
@@ -278,6 +281,20 @@ export default function Circulation({ onNavigateToBooks }) {
         fetchAvailableBooks();
         fetchBorrowedBooks();
         if (studentId) refreshClearance();
+
+        // Auto-select student on return to show clearance/fines
+        if (data.transaction && data.transaction.user) {
+          const sId = data.transaction.user.student_id;
+          const sCourse = data.transaction.user.course;
+          setStudentId(sId);
+          setStudentName(data.transaction.user.name);
+          setIsNewStudent(false);
+          handleSelectStudent(sId, sCourse);
+
+          if (data.penalty > 0) {
+            setShowFineModal(true);
+          }
+        }
       })
       .catch(err => {
         const response = err.response;
@@ -297,6 +314,77 @@ export default function Circulation({ onNavigateToBooks }) {
         setClearance(data);
       })
       .catch(() => { });
+  };
+
+  // --- HANDLE MARK AS LOST ---
+  const handleMarkAsLost = async () => {
+    if (!returnBookCode) {
+      toast.error("Please select a book to mark as lost.");
+      return;
+    }
+
+    const bookInfo = borrowedBooks.find(b => b.asset_code === returnBookCode);
+    const bookTitle = bookInfo?.title || 'Unknown';
+
+    // Confirm with User
+    const result = await Swal.fire({
+      title: 'Mark as Lost?',
+      text: `Are you sure you want to mark "${bookTitle}" as lost? The student will be charged for the book price.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, Mark Lost'
+    });
+
+    if (!result.isConfirmed) return;
+
+    axiosClient.post("/transactions/lost", {
+      asset_code: returnBookCode
+    })
+      .then(({ data }) => {
+        setReturnBookCode("");
+        setReturnSearchQuery("");
+
+        if (data.penalty > 0) {
+          axiosClient.get("/transactions")
+            .then(({ data: transactions }) => {
+              const transaction = transactions.find(t =>
+                t.penalty_amount == data.penalty &&
+                t.payment_status === 'pending'
+              );
+              if (transaction) {
+                setPendingTransaction(transaction);
+                setShowPaymentModal(true);
+              }
+            });
+          toast.error(`Book marked as lost. Fine Applied: ₱${data.penalty}.00`);
+        } else {
+          toast.success(data.message);
+        }
+
+        fetchAvailableBooks();
+        fetchBorrowedBooks();
+
+        // Auto-select student to show clearance/fines
+        if (data.transaction && data.transaction.user) {
+          const sId = data.transaction.user.student_id;
+          const sCourse = data.transaction.user.course;
+          setStudentId(sId);
+          setStudentName(data.transaction.user.name);
+          setIsNewStudent(false);
+          handleSelectStudent(sId, sCourse);
+
+          if (data.penalty > 0) {
+            setShowFineModal(true);
+          }
+        } else if (studentId) {
+          refreshClearance();
+        }
+      })
+      .catch(err => {
+        toast.error(err.response?.data?.message || "Failed to mark as lost.");
+      });
   };
 
   const handlePaymentSuccess = (successMessage) => {
@@ -443,6 +531,20 @@ export default function Circulation({ onNavigateToBooks }) {
         fetchBorrowedBooks();
         setScannedBook(null);
         if (studentId) refreshClearance();
+
+        // Auto-select student on return to show clearance/fines
+        if (data.transaction && data.transaction.user) {
+          const sId = data.transaction.user.student_id;
+          const sCourse = data.transaction.user.course;
+          setStudentId(sId);
+          setStudentName(data.transaction.user.name);
+          setIsNewStudent(false);
+          handleSelectStudent(sId, sCourse);
+
+          if (data.penalty > 0) {
+            setShowFineModal(true);
+          }
+        }
       })
       .catch(err => {
         toast.error(err.response?.data?.message || `Error returning book ${assetCode}.`);
@@ -462,6 +564,13 @@ export default function Circulation({ onNavigateToBooks }) {
     <div className="flex flex-col bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
 
       {/* SEARCH MODAL */}
+      <FineSettlementModal
+        isOpen={showFineModal}
+        onClose={() => setShowFineModal(false)}
+        studentId={studentId}
+        studentName={studentName}
+        onPaymentSuccess={() => refreshClearance(studentId)}
+      />
       <StudentSearchModal
         isOpen={showStudentSearchModal}
         onClose={() => setShowStudentSearchModal(false)}
@@ -678,11 +787,20 @@ export default function Circulation({ onNavigateToBooks }) {
                   </div>
                   <div className="text-right text-sm dark:text-slate-300">
                     <div>Active Loans: <span className="font-bold">{clearance.active_loans}/3</span></div>
-                    {clearance.pending_fines > 0 && (
-                      <div className="text-red-600 dark:text-red-400 font-bold">Pending: ₱{parseFloat(clearance.pending_fines).toFixed(2)}</div>
-                    )}
                   </div>
                 </div>
+                {clearance.pending_fines > 0 && (
+                  <div className="mt-2 flex justify-between items-center bg-red-100 dark:bg-red-900/50 p-2 rounded">
+                    <span className="text-red-700 dark:text-red-300 font-bold text-sm">Unpaid Fines: ₱{parseFloat(clearance.pending_fines).toFixed(2)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFineModal(true)}
+                      className="text-xs bg-red-600 text-white px-3 py-1 rounded font-bold hover:bg-red-700 transition"
+                    >
+                      Manage
+                    </button>
+                  </div>
+                )}
                 {clearance.block_reason && (
                   <div className="text-red-600 dark:text-red-400 text-sm mt-1">⚠️ {clearance.block_reason}</div>
                 )}
@@ -815,10 +933,28 @@ export default function Circulation({ onNavigateToBooks }) {
               )}
             </div>
 
-            {/* Mark as Returned Button - Full Width, Success Green */}
-            <button className="w-full bg-emerald-600 text-white py-4 rounded-xl hover:bg-emerald-700 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] font-bold text-lg transition-all duration-200 transform shadow-md shadow-emerald-200">
-              ✓ Mark as Returned
-            </button>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              {/* Mark as Returned Button - Main Action */}
+              <button
+                type="submit"
+                className="flex-1 bg-emerald-600 text-white py-4 rounded-xl hover:bg-emerald-700 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] font-bold text-lg transition-all duration-200 transform shadow-md shadow-emerald-200"
+              >
+                ✓ Mark as Returned
+              </button>
+
+              {/* Mark as Lost Button - Danger Action */}
+              <button
+                type="button"
+                onClick={handleMarkAsLost}
+                disabled={!returnBookCode}
+                className="px-5 bg-red-50 text-red-600 border-2 border-red-100 hover:bg-red-100 hover:border-red-200 rounded-xl font-bold transition-all flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Mark as Lost"
+              >
+                <AlertTriangle size={20} />
+                <span className="text-[10px] uppercase tracking-wide">Lost</span>
+              </button>
+            </div>
           </form>
         </div>
 

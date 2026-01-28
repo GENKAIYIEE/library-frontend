@@ -12,8 +12,50 @@ export default function History() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-
   const [activeTab, setActiveTab] = useState('all');
+
+  // Status Badge Component
+  const StatusBadge = ({ transaction }) => {
+    if (!transaction.returned_at) {
+      return (
+        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 flex items-center gap-1 w-fit ml-auto">
+          ⏳ Active
+        </span>
+      );
+    }
+
+    const hasPenalty = transaction.penalty_amount && parseFloat(transaction.penalty_amount) > 0;
+
+    if (hasPenalty) {
+      return (
+        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800 flex items-center gap-1 w-fit ml-auto">
+          ⚠️ Returned Late
+        </span>
+      );
+    }
+
+    return (
+      <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 flex items-center gap-1 w-fit ml-auto">
+        ✓ Returned
+      </span>
+    );
+  };
+
+
+  // Handle Waiving a fine
+  const handleWaiveFine = (transactionId) => {
+    setProcessingId(transactionId);
+    axiosClient.post(`/transactions/${transactionId}/waive`)
+      .then(() => {
+        toast.success("Fine waived successfully");
+        fetchTransactions();
+        setProcessingId(null);
+      })
+      .catch((err) => {
+        toast.error(err.response?.data?.message || "Failed to waive fine");
+        setProcessingId(null);
+      });
+  };
 
   const fetchTransactions = () => {
     setLoading(true);
@@ -31,6 +73,22 @@ export default function History() {
     fetchTransactions();
   }, []);
 
+  // Poll for real-time updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Silent Fetch
+      axiosClient.get("/transactions")
+        .then(({ data }) => {
+          // Only update if data changed (simple length check or deep compare if needed, 
+          // here we just set it to keep it fresh)
+          setTransactions(data);
+        })
+        .catch(() => { });
+    }, 5000); // 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Mark fine as paid
   const handleMarkAsPaid = (transactionId) => {
     setProcessingId(transactionId);
@@ -40,8 +98,23 @@ export default function History() {
         fetchTransactions(); // Refresh list
         setProcessingId(null);
       })
-      .catch(() => {
-        toast.error("Failed to process payment");
+      .catch((err) => {
+        toast.error(err.response?.data?.message || "Failed to process payment");
+        setProcessingId(null);
+      });
+  };
+
+  // Mark fine as UNPAID (Revert)
+  const handleMarkAsUnpaid = (transactionId) => {
+    setProcessingId(transactionId);
+    axiosClient.post(`/transactions/${transactionId}/unpaid`)
+      .then(() => {
+        toast.info("Fine reverted to Unpaid");
+        fetchTransactions(); // Refresh list
+        setProcessingId(null);
+      })
+      .catch((err) => {
+        toast.error(err.response?.data?.message || "Failed to revert status");
         setProcessingId(null);
       });
   };
@@ -63,6 +136,8 @@ export default function History() {
     }
   };
 
+
+
   // Get image URL helper
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
@@ -82,9 +157,13 @@ export default function History() {
       case 'returned':
         matchesTab = !!t.returned_at;
         break;
-      case 'unpaid':
-        matchesTab = t.penalty_amount > 0 && t.payment_status === 'pending';
+      case 'returned':
+        matchesTab = !!t.returned_at;
         break;
+      case 'fines': // Renamed from 'unpaid'
+        matchesTab = t.penalty_amount > 0; // Show ALL fines (Paid, Unpaid, Waived)
+        break;
+      case 'deleted':
       case 'deleted':
         matchesTab = !t.book_asset; // Assumes deleted book assets are null in transaction
         break;
@@ -150,7 +229,7 @@ export default function History() {
           { id: 'all', label: 'All Records' },
           { id: 'active', label: 'Active Loans' },
           { id: 'returned', label: 'Returned Books' },
-          { id: 'unpaid', label: 'Unpaid Fines' },
+          { id: 'fines', label: 'Violations & Fines' }, // Renamed
           { id: 'deleted', label: 'Deleted Books' }
         ].map(tab => (
           <button
@@ -267,27 +346,62 @@ export default function History() {
                     <td className="p-4">
                       <div className="flex items-center gap-2">
                         {getPaymentBadge(t)}
-                        {t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'pending' && (
-                          <button
-                            onClick={() => handleMarkAsPaid(t.id)}
-                            disabled={processingId === t.id}
-                            className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition-all duration-200 inline-flex items-center gap-1 font-bold shadow-sm hover:shadow"
-                          >
-                            {processingId === t.id ? (
-                              "..."
-                            ) : (
-                              <>
-                                <CheckCircle size={12} /> Pay
-                              </>
-                            )}
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleMarkAsPaid(t.id)}
+                                disabled={processingId === t.id}
+                                className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition-all duration-200 inline-flex items-center gap-1 font-bold shadow-sm hover:shadow"
+                                title="Mark as Paid"
+                              >
+                                {processingId === t.id ? "..." : <><CheckCircle size={12} /> Pay</>}
+                              </button>
+                              <button
+                                onClick={() => handleWaiveFine(t.id)}
+                                disabled={processingId === t.id}
+                                className="text-xs bg-gray-100 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-all duration-200 inline-flex items-center gap-1 font-bold shadow-sm hover:shadow"
+                                title="Waive Fine"
+                              >
+                                {processingId === t.id ? "..." : "Waive"}
+                              </button>
+                            </>
+                          )}
+                          {t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'paid' && (
+                            <button
+                              onClick={() => handleMarkAsUnpaid(t.id)}
+                              disabled={processingId === t.id}
+                              className="text-xs bg-gray-500 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 transition-all duration-200 inline-flex items-center gap-1 font-bold shadow-sm hover:shadow opacity-50 hover:opacity-100"
+                              title="Revert to Unpaid"
+                            >
+                              {processingId === t.id ? "..." : <><HistoryIcon size={12} /> Revert</>}
+                            </button>
+                          )}
+                          {t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'waived' && (
+                            <>
+                              <button
+                                onClick={() => handleMarkAsUnpaid(t.id)}
+                                disabled={processingId === t.id}
+                                className="text-xs bg-gray-500 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 transition-all duration-200 inline-flex items-center gap-1 font-bold shadow-sm hover:shadow opacity-50 hover:opacity-100"
+                                title="Revert to Unpaid"
+                              >
+                                {processingId === t.id ? "..." : <><HistoryIcon size={12} /> Revert</>}
+                              </button>
+                              <button
+                                onClick={() => handleMarkAsPaid(t.id)}
+                                disabled={processingId === t.id}
+                                className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 transition-all duration-200 inline-flex items-center gap-1 font-bold shadow-sm hover:shadow ml-1"
+                                title="Mark as Paid"
+                              >
+                                {processingId === t.id ? "..." : <><CheckCircle size={12} /> Pay</>}
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${t.returned_at ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' : 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'}`}>
-                        {t.returned_at ? '✓ Returned' : '⏳ Active Loan'}
-                      </span>
+                    <td className="p-4 whitespace-nowrap text-right">
+                      <StatusBadge transaction={t} />
                     </td>
                   </tr>
                 );
