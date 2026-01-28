@@ -23,11 +23,85 @@ export default function PublicAttendance() {
 
     useEffect(() => {
         isMounted.current = true;
-        startScanner();
+        let ignore = false;
+
+        const initScanner = async () => {
+            // Wait for any pending cleanup or layout stability
+            await new Promise(r => setTimeout(r, 100));
+
+            if (!isMounted.current || ignore) return;
+
+            // 1. CLEANUP START: Force clear any existing DOM elements
+            const region = document.getElementById("attendance-scanner-region");
+            if (region) region.innerHTML = "";
+
+            // 2. CREATE INSTANCE
+            const html5Qrcode = new Html5Qrcode("attendance-scanner-region");
+            html5QrcodeRef.current = html5Qrcode;
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 220, height: 220 },
+                // Allow library to determine best aspect ratio for camera, we crop with CSS
+                videoConstraints: {
+                    facingMode: "environment",
+                    aspectRatio: { ideal: 1.0 }
+                }
+            };
+
+            // 3. START SCANNING
+            try {
+                if (!isMounted.current || ignore) return;
+
+                await html5Qrcode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    () => { }
+                );
+
+                if (isMounted.current && !ignore) {
+                    setIsScanning(true);
+                    setIsLoading(false);
+                } else {
+                    // Start finished but we unmounted/ignored
+                    await stopScannerInstance(html5Qrcode);
+                }
+            } catch (err) {
+                console.error("Environment camera failed, trying user camera:", err);
+                try {
+                    if (!isMounted.current || ignore) return;
+                    await html5Qrcode.start(
+                        { facingMode: "user" },
+                        config,
+                        onScanSuccess,
+                        () => { }
+                    );
+                    if (isMounted.current && !ignore) {
+                        setIsScanning(true);
+                        setIsLoading(false);
+                    } else {
+                        await stopScannerInstance(html5Qrcode);
+                    }
+                } catch (userErr) {
+                    console.error("All cameras failed:", userErr);
+                    if (isMounted.current) {
+                        setError("Camera access failed. Please ensure permission is granted.");
+                        setIsLoading(false);
+                    }
+                }
+            }
+        };
+
+        initScanner();
 
         return () => {
             isMounted.current = false;
-            stopScanner();
+            ignore = true;
+            // Immediate cleanup on unmount
+            if (html5QrcodeRef.current) {
+                stopScannerInstance(html5QrcodeRef.current);
+            }
         };
     }, []);
 
@@ -41,78 +115,55 @@ export default function PublicAttendance() {
         }
     }, [result]);
 
-    const startScanner = async () => {
-        if (!isMounted.current) return;
-        setError(null);
-        setIsLoading(true);
-
+    // Helper to stop a specific instance
+    const stopScannerInstance = async (instance) => {
         try {
-            // Request camera permission
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                stream.getTracks().forEach(track => track.stop());
-            } catch (permErr) {
-                if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
-                    throw new Error("Camera permission denied. Please allow camera access.");
-                }
+            if (instance.isScanning) {
+                await instance.stop();
             }
-
-            if (html5QrcodeRef.current) {
-                await stopScanner();
-            }
-
-            const html5Qrcode = new Html5Qrcode("attendance-scanner-region");
-            html5QrcodeRef.current = html5Qrcode;
-
-            const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-            };
-
-            try {
-                await html5Qrcode.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    () => { }
-                );
-            } catch {
-                await html5Qrcode.start(
-                    { facingMode: "user" },
-                    config,
-                    onScanSuccess,
-                    () => { }
-                );
-            }
-
-            if (isMounted.current) {
-                setIsScanning(true);
-                setIsLoading(false);
-            }
-        } catch (err) {
-            if (isMounted.current) {
-                setError(err.message || "Failed to start camera.");
-                setIsLoading(false);
-            }
-        }
+            instance.clear();
+        } catch (e) { console.debug("Stop error:", e); }
     };
 
-    const stopScanner = async () => {
-        try {
-            if (html5QrcodeRef.current) {
-                try {
-                    if (html5QrcodeRef.current.getState() >= 2) {
-                        await html5QrcodeRef.current.stop();
-                    }
-                } catch { }
-                try {
-                    await html5QrcodeRef.current.clear();
-                } catch { }
-                html5QrcodeRef.current = null;
-            }
-        } catch { }
-        setIsScanning(false);
+    // Kept for manual retry button
+    const startScanner = () => {
+        window.location.reload(); // Simplest way to full reset if manual retry needed
     };
+
+    // Inject custom styles for the video element to force it to fill the container
+    // Inject custom styles for the video element and custom animations
+    useEffect(() => {
+        const style = document.createElement('style');
+        style.innerHTML = `
+            #attendance-scanner-region video { 
+                object-fit: cover !important; 
+                width: 100% !important; 
+                height: 100% !important; 
+                border-radius: 1.5rem !important;
+                filter: contrast(1.1) brightness(1.1);
+            }
+            @keyframes scanner-line {
+                0% { top: 10%; opacity: 0; }
+                10% { opacity: 1; }
+                90% { opacity: 1; }
+                100% { top: 90%; opacity: 0; }
+            }
+            .animate-scanner-line {
+                animation: scanner-line 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            }
+            @keyframes pulse-border {
+                0%, 100% { opacity: 0.6; box-shadow: 0 0 10px rgba(59,130,246,0.3); }
+                50% { opacity: 1; box-shadow: 0 0 20px rgba(59,130,246,0.6); }
+            }
+            .animate-pulse-border {
+                animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+        `;
+        document.head.appendChild(style);
+        return () => {
+            document.head.removeChild(style);
+        };
+    }, []);
 
     const onScanSuccess = async (decodedText) => {
         if (!isMounted.current) return;
@@ -182,10 +233,15 @@ export default function PublicAttendance() {
         setResult(null);
         lastScannedRef.current = null;
         if (html5QrcodeRef.current) {
-            try { await html5QrcodeRef.current.resume(); return; } catch { }
+            try {
+                await html5QrcodeRef.current.resume();
+            } catch (err) {
+                console.warn("Scanner resume failed, refreshing...", err);
+                window.location.reload();
+            }
+        } else {
+            window.location.reload();
         }
-        await stopScanner();
-        startScanner();
     };
 
     const getProfileImage = (student) => {
@@ -219,46 +275,46 @@ export default function PublicAttendance() {
 
                     <div className="relative p-1">
                         {/* Scanner Layer */}
-                        <div className={`p-6 rounded-[1.8rem] bg-black/40 ${result ? 'invisible' : ''}`}>
-                            <div className="relative rounded-2xl overflow-hidden bg-black mb-6 shadow-inner ring-1 ring-white/10">
-                                <div id="attendance-scanner-region" className="w-full aspect-square bg-black opacity-90" />
+                        <div className={`p-0 rounded-[2rem] overflow-hidden bg-black relative ${result ? 'invisible' : ''} shadow-2xl border-4 border-slate-800`}>
+                            <div id="attendance-scanner-region" className="w-full aspect-square bg-black" />
 
-                                {/* Scanner Overlays */}
-                                {!result && (
-                                    <>
-                                        {isLoading && (
-                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 backdrop-blur-sm">
-                                                <div className="text-white text-center">
-                                                    <Loader2 className="w-12 h-12 animate-spin mx-auto mb-2 text-blue-500" />
-                                                    <p className="font-bold text-sm tracking-widest uppercase">Processing...</p>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {error && (
-                                            <div className="absolute inset-0 bg-black/90 flex items-center justify-center p-6 z-20 text-center">
-                                                <div>
-                                                    <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                                                    <p className="text-white mb-6 font-medium">{error}</p>
-                                                    <button onClick={() => { setError(null); startScanner(); }} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-sm transition-colors">
-                                                        Retry
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {isScanning && !isLoading && !error && (
-                                            <div className="absolute inset-0 pointer-events-none">
-                                                <div className="absolute inset-0 border-[3px] border-blue-500/50 rounded-2xl m-8" />
-                                                <div className="absolute top-1/2 left-8 right-8 h-0.5 bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,1)] animate-ping" />
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
+                            {/* Professional Viewfinder Overlay */}
+                            {!result && (
+                                <div className="absolute inset-0 pointer-events-none z-10 p-6">
+                                    {/* Corner Brackets */}
+                                    <div className="absolute top-6 left-6 w-16 h-16 border-t-[6px] border-l-[6px] border-blue-500 rounded-tl-2xl animate-pulse-border" />
+                                    <div className="absolute top-6 right-6 w-16 h-16 border-t-[6px] border-r-[6px] border-blue-500 rounded-tr-2xl animate-pulse-border" style={{ animationDelay: '0.1s' }} />
+                                    <div className="absolute bottom-6 left-6 w-16 h-16 border-b-[6px] border-l-[6px] border-blue-500 rounded-bl-2xl animate-pulse-border" style={{ animationDelay: '0.2s' }} />
+                                    <div className="absolute bottom-6 right-6 w-16 h-16 border-b-[6px] border-r-[6px] border-blue-500 rounded-br-2xl animate-pulse-border" style={{ animationDelay: '0.3s' }} />
 
-                            <div className="flex items-center justify-center gap-3 text-slate-400 text-sm font-medium">
-                                <Camera size={18} />
-                                <span>Align QR code within frame</span>
-                            </div>
+                                    {/* Scanning Laser */}
+                                    {isScanning && !isLoading && !error && (
+                                        <div className="absolute left-6 right-6 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_rgba(34,211,238,0.8)] animate-scanner-line" />
+                                    )}
+
+                                    {/* Status Badges */}
+                                    {isLoading && (
+                                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-sm rounded-[1.5rem]">
+                                            <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-3" />
+                                            <p className="text-blue-400 font-mono text-xs uppercase tracking-[0.2em] animate-pulse">Initializing Sensor</p>
+                                        </div>
+                                    )}
+
+                                    {error && (
+                                        <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-8 text-center backdrop-blur rounded-[1.5rem]">
+                                            <XCircle className="w-16 h-16 text-red-500 mb-4 opacity-80" />
+                                            <p className="text-white text-lg font-bold mb-2">Camera Offline</p>
+                                            <p className="text-slate-400 text-sm mb-6 max-w-[200px]">{error}</p>
+                                            <button
+                                                onClick={() => { setError(null); startScanner(); }}
+                                                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-900/50"
+                                            >
+                                                Reconnect InfoLink
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Result Overlay */}

@@ -50,26 +50,27 @@ const LibrarianAvatar = () => (
             transition={{ delay: 0.5, type: "spring", stiffness: 80, damping: 15 }}
             className="relative w-64 h-64 md:w-80 md:h-80 mr-[-2rem] mb-[-2rem]" // Increased size & positioning
         >
-            {/* Speech Bubble - Always Visible after delay */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0, x: 20, rotate: 10 }}
-                animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
-                transition={{ delay: 1.5, type: "spring", stiffness: 120 }}
-                className="absolute -top-6 left-0 md:left-4 transform -translate-x-full bg-white text-slate-900 px-5 py-3 rounded-2xl rounded-br-sm shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-blue-100 z-50 min-w-[140px] text-center pointer-events-auto"
-            >
-                <p className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Please be quiet!</p>
-                <div className="text-xs text-slate-400 font-medium tracking-wide uppercase mt-1">Library Zone</div>
-
-                {/* Bubble Triangle */}
-                <div className="absolute -right-2 bottom-0 w-4 h-4 bg-white transform rotate-45 border-r border-b border-blue-100"></div>
-            </motion.div>
-
-            {/* Avatar Image with Float Animation */}
+            {/* Shared Floating Container */}
             <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-full h-full"
+                className="w-full h-full relative"
             >
+                {/* Speech Bubble - Always Visible after delay */}
+                <motion.div
+                    initial={{ opacity: 0, scale: 0, x: 20, rotate: 10 }}
+                    animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
+                    transition={{ delay: 1.5, type: "spring", stiffness: 120 }}
+                    className="absolute -top-6 left-0 md:left-4 transform -translate-x-full bg-white text-slate-900 px-5 py-3 rounded-2xl rounded-br-sm shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-blue-100 z-50 min-w-[140px] text-center pointer-events-auto"
+                >
+                    <p className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Please be quiet!</p>
+                    <div className="text-xs text-slate-400 font-medium tracking-wide uppercase mt-1">Library Zone</div>
+
+                    {/* Bubble Triangle */}
+                    <div className="absolute -right-2 bottom-0 w-4 h-4 bg-white transform rotate-45 border-r border-b border-blue-100"></div>
+                </motion.div>
+
+                {/* Avatar Image */}
                 <img
                     src="/librarian-avatar.png"
                     alt="Librarian"
