@@ -5,10 +5,11 @@ import Swal from "sweetalert2";
 import BookForm from "./BookForm";
 import AssetForm from "./AssetForm";
 import PrintLabelModal from "../components/PrintLabelModal";
+import LostBooksModal from "./LostBooksModal"; // NEW
 import {
   Edit, Trash2, PlusCircle, Search, BookOpen, Filter,
   ChevronDown, ChevronRight, FolderOpen, Layers,
-  Maximize2, Minimize2, Printer
+  Maximize2, Minimize2, Printer, AlertCircle
 } from "lucide-react";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -32,6 +33,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showTitleForm, setShowTitleForm] = useState(false);
+  const [showLostBooksModal, setShowLostBooksModal] = useState(false); // NEW
 
   // Store the book we want to edit
   const [editingBook, setEditingBook] = useState(null);
@@ -328,12 +330,21 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
           </div>
         </div>
 
-        <Button
-          onClick={onAddNew}
-          icon={PlusCircle}
-        >
-          Add New Title
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setShowLostBooksModal(true)}
+            variant="outline"
+            className="border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800"
+          >
+            <AlertCircle size={18} className="mr-2" /> Lost Books
+          </Button>
+          <Button
+            onClick={onAddNew}
+            icon={PlusCircle}
+          >
+            Add New Title
+          </Button>
+        </div>
       </div>
 
       {/* CATEGORY SUMMARY CARDS */}
@@ -460,6 +471,17 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
 
       {selectedBookForLabel && (
         <PrintLabelModal book={selectedBookForLabel} onClose={() => setSelectedBookForLabel(null)} />
+      )}
+
+      {showLostBooksModal && (
+        <LostBooksModal
+          onClose={() => setShowLostBooksModal(false)}
+          onSuccess={() => {
+            getBooks();
+            // We keep the modal open or closed? Usually keep open to restore more, 
+            // but if we want to reflect changes in background, getBooks() handles it.
+          }}
+        />
       )}
     </div>
   );
