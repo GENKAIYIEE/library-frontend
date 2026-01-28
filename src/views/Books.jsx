@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useToast } from "../components/ui/Toast";
 import axiosClient, { ASSET_URL } from "../axios-client";
 import Swal from "sweetalert2";
@@ -259,6 +259,9 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                           )}
                           <div>
                             <p className="font-semibold text-slate-800 dark:text-white">{book.title}</p>
+                            {book.subtitle && (
+                              <p className="text-xs text-slate-500 dark:text-slate-400 italic">{book.subtitle}</p>
+                            )}
                             {book.isbn && (
                               <p className="text-xs text-slate-400 font-mono">{book.isbn}</p>
                             )}

@@ -31,10 +31,19 @@ export default function AttendanceLog() {
         if (!silent) setLoading(true);
 
         try {
+            // Use the general attendance endpoint but we could filter by date if the API supported it
+            // For now, let's switch to the new index endpoint which returns formatted logs
+            // BUT, the index endpoint returns PAGINATED data. 
+            // Let's stick to the plan: Update backend `today` to return logs.
+
+            // Wait, looking at the code I'm replacing... I am replacing the fetch function.
+            // If I change the backend, I don't need to change this frontend much, except maybe to match structure.
+
+            // Let's assume I will update backend `today` method in next step.
             const response = await axiosClient.get('/attendance/today');
-            setLogs(response.data.logs || []);
+            setLogs(response.data.logs || []); // Backend needs to send this
             setTodayCount(response.data.count || 0);
-            setTodayDate(response.data.date || "");
+            setTodayDate(response.data.date || new Date().toLocaleDateString());
             setLastRefresh(new Date());
         } catch (err) {
             console.error("Failed to fetch attendance logs:", err);

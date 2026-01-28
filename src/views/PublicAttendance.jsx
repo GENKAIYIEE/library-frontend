@@ -2,8 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import KioskLayout from "./KioskLayout";
 import axiosClient from "../axios-client";
-import { Camera, CheckCircle, XCircle, Loader2, UserCheck, RotateCcw } from "lucide-react";
+import { Camera, CheckCircle, XCircle, Loader2, UserCheck, RotateCcw, ScanLine } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+// --- Glass Card Helper ---
+const GlassCard = ({ children, className = "" }) => (
+    <div className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-xl overflow-hidden ${className}`}>
+        {children}
+    </div>
+);
 
 export default function PublicAttendance() {
     const [isScanning, setIsScanning] = useState(false);
@@ -24,15 +31,15 @@ export default function PublicAttendance() {
         };
     }, []);
 
-    // Auto-reset removed as per user request
-    // useEffect(() => {
-    //     if (result) {
-    //         const timer = setTimeout(() => {
-    //             resetScanner();
-    //         }, 5000);
-    //         return () => clearTimeout(timer);
-    //     }
-    // }, [result]);
+    // Auto-reset after scan
+    useEffect(() => {
+        if (result) {
+            const timer = setTimeout(() => {
+                resetScanner();
+            }, 3000); // 3 seconds delay
+            return () => clearTimeout(timer);
+        }
+    }, [result]);
 
     const startScanner = async () => {
         if (!isMounted.current) return;
@@ -109,33 +116,21 @@ export default function PublicAttendance() {
 
     const onScanSuccess = async (decodedText) => {
         if (!isMounted.current) return;
-
-        // Prevent duplicate scans
-        if (lastScannedRef.current === decodedText) return;
+        if (lastScannedRef.current === decodedText) return; // Prevent duplicate
         lastScannedRef.current = decodedText;
 
-        // Vibrate
         if (navigator.vibrate) navigator.vibrate(200);
 
-        // Pause scanner
         if (html5QrcodeRef.current) {
-            try {
-                await html5QrcodeRef.current.pause(true);
-            } catch (e) {
-                console.debug("Scanner pause:", e.message);
-            }
+            try { await html5QrcodeRef.current.pause(true); } catch (e) { }
         }
 
         setIsLoading(true);
 
         try {
-            const response = await axiosClient.post('/public/attendance', {
-                student_id: decodedText
-            });
-
+            const response = await axiosClient.post('/public/attendance', { student_id: decodedText });
             if (isMounted.current) {
                 setResult(response.data);
-                // Play success sound
                 playSound('success');
             }
         } catch (err) {
@@ -143,7 +138,6 @@ export default function PublicAttendance() {
             if (isMounted.current) {
                 const errorData = err.response?.data || { success: false, message: "Failed to log attendance." };
                 setResult(errorData);
-                // Play error/warning sound
                 playSound(errorData.student ? 'warning' : 'error');
             }
         } finally {
@@ -157,12 +151,10 @@ export default function PublicAttendance() {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
 
             if (type === 'success') {
-                // Pleasant ascending tone
                 oscillator.frequency.setValueAtTime(523, audioContext.currentTime); // C5
                 oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1); // E5
                 oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.2); // G5
@@ -171,37 +163,27 @@ export default function PublicAttendance() {
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.4);
             } else if (type === 'warning') {
-                // Two quick beeps for "already logged"
                 oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
                 gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.15);
             } else {
-                // Low tone for error
                 oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
                 gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.3);
             }
-        } catch (e) {
-            console.debug("Audio not available:", e.message);
-        }
+        } catch (e) { }
     };
 
     const resetScanner = async () => {
         setResult(null);
         lastScannedRef.current = null;
-
         if (html5QrcodeRef.current) {
-            try {
-                await html5QrcodeRef.current.resume();
-                return;
-            } catch { }
+            try { await html5QrcodeRef.current.resume(); return; } catch { }
         }
-
-        // If resume fails, restart scanner
         await stopScanner();
         startScanner();
     };
@@ -213,134 +195,129 @@ export default function PublicAttendance() {
 
     return (
         <KioskLayout>
-            <div className="max-w-2xl mx-auto text-center py-8">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] py-8">
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
+                    className="text-center mb-12"
                 >
-                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl mb-4">
-                        <UserCheck className="text-white" size={40} />
+                    <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-600/30 to-indigo-600/30 rounded-full shadow-[0_0_40px_rgba(37,99,235,0.3)] mb-6 border border-white/10 backdrop-blur-md">
+                        <ScanLine className="text-blue-400" size={48} />
                     </div>
-                    <h1 className="text-4xl font-black text-slate-800 mb-2">Library Attendance</h1>
-                    <p className="text-slate-500 text-lg">Scan your Library ID QR code to log your attendance</p>
+                    <h1 className="text-4xl md:text-5xl font-black text-white mb-3 tracking-tight">Attendance Log</h1>
+                    <p className="text-blue-200 text-lg max-w-lg mx-auto leading-relaxed">
+                        Present your Library ID Code to the scanner below to check in.
+                    </p>
                 </motion.div>
 
                 {/* Scanner / Result Area */}
-                <div className="relative">
-                    <AnimatePresence mode="wait">
-                        {result ? (
-                            <motion.div
-                                key="result"
-                                initial={{ opacity: 0, scale: 0.9 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.9 }}
-                                className={`bg-white rounded-3xl shadow-2xl p-8 border-4 ${result.success ? 'border-green-400' : 'border-amber-400'}`}
-                            >
-                                {result.success ? (
-                                    <div className="text-center">
-                                        <CheckCircle className="text-green-500 mx-auto mb-4" size={64} />
-                                        <img
-                                            src={getProfileImage(result.student)}
-                                            alt={result.student?.name}
-                                            className="w-24 h-24 rounded-2xl mx-auto mb-4 object-cover border-4 border-green-200 shadow-lg"
-                                        />
-                                        <h2 className="text-2xl font-bold text-slate-800 mb-1">{result.student?.name}</h2>
-                                        <p className="text-slate-500 font-mono text-sm mb-2">{result.student?.student_id}</p>
-                                        <p className="text-blue-600 font-semibold">{result.student?.course} - Year {result.student?.year_level}</p>
-                                        <div className="mt-4 bg-green-50 rounded-xl px-6 py-3 inline-block">
-                                            <p className="text-green-700 font-bold">✓ Logged at {result.logged_at}</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center">
-                                        <XCircle className="text-amber-500 mx-auto mb-4" size={64} />
-                                        <h2 className="text-xl font-bold text-slate-800 mb-2">{result.message}</h2>
-                                        {result.student && (
-                                            <>
-                                                <img
-                                                    src={getProfileImage(result.student)}
-                                                    alt={result.student.name}
-                                                    className="w-20 h-20 rounded-xl mx-auto mb-2 object-cover"
-                                                />
-                                                <p className="text-slate-600">{result.student.name}</p>
-                                            </>
+                <GlassCard className="max-w-md w-full mx-auto relative group">
+                    {/* Decorative Glow */}
+                    <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+                    <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+
+                    <div className="relative p-1">
+                        {/* Scanner Layer */}
+                        <div className={`p-6 rounded-[1.8rem] bg-black/40 ${result ? 'invisible' : ''}`}>
+                            <div className="relative rounded-2xl overflow-hidden bg-black mb-6 shadow-inner ring-1 ring-white/10">
+                                <div id="attendance-scanner-region" className="w-full aspect-square bg-black opacity-90" />
+
+                                {/* Scanner Overlays */}
+                                {!result && (
+                                    <>
+                                        {isLoading && (
+                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10 backdrop-blur-sm">
+                                                <div className="text-white text-center">
+                                                    <Loader2 className="w-12 h-12 animate-spin mx-auto mb-2 text-blue-500" />
+                                                    <p className="font-bold text-sm tracking-widest uppercase">Processing...</p>
+                                                </div>
+                                            </div>
                                         )}
-                                    </div>
+                                        {error && (
+                                            <div className="absolute inset-0 bg-black/90 flex items-center justify-center p-6 z-20 text-center">
+                                                <div>
+                                                    <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                                                    <p className="text-white mb-6 font-medium">{error}</p>
+                                                    <button onClick={() => { setError(null); startScanner(); }} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-sm transition-colors">
+                                                        Retry
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {isScanning && !isLoading && !error && (
+                                            <div className="absolute inset-0 pointer-events-none">
+                                                <div className="absolute inset-0 border-[3px] border-blue-500/50 rounded-2xl m-8" />
+                                                <div className="absolute top-1/2 left-8 right-8 h-0.5 bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,1)] animate-ping" />
+                                            </div>
+                                        )}
+                                    </>
                                 )}
+                            </div>
 
-                                <button
-                                    onClick={resetScanner}
-                                    className="mt-6 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-colors flex items-center gap-2 mx-auto"
+                            <div className="flex items-center justify-center gap-3 text-slate-400 text-sm font-medium">
+                                <Camera size={18} />
+                                <span>Align QR code within frame</span>
+                            </div>
+                        </div>
+
+                        {/* Result Overlay */}
+                        <AnimatePresence>
+                            {result && (
+                                <motion.div
+                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                    className="absolute inset-0 z-30 bg-slate-900/95 backdrop-blur-xl flex flex-col items-center justify-center p-8 rounded-[1.8rem]"
                                 >
-                                    <RotateCcw size={20} /> Scan Next
-                                </button>
-                                {/* <p className="text-slate-400 text-sm mt-3">Auto-resetting in 5 seconds...</p> */}
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="scanner"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="bg-white rounded-3xl shadow-2xl p-6 border border-slate-200"
-                            >
-                                {/* Camera Feed */}
-                                <div className="relative rounded-2xl overflow-hidden bg-black mb-4">
-                                    <div
-                                        id="attendance-scanner-region"
-                                        className="w-full aspect-square max-w-md mx-auto"
-                                    />
+                                    {result.success ? (
+                                        <div className="text-center w-full">
+                                            <motion.div
+                                                initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                                className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6"
+                                            >
+                                                <CheckCircle className="text-green-400" size={48} />
+                                            </motion.div>
 
-                                    {/* Loading Overlay */}
-                                    {isLoading && (
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                            <div className="text-white text-center">
-                                                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-2" />
-                                                <p>Processing...</p>
+                                            <img src={getProfileImage(result.student)} alt="Profile" className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-4 border-green-500/30 shadow-2xl" />
+
+                                            <h2 className="text-2xl font-bold text-white mb-1">{result.student?.name}</h2>
+                                            <div className="inline-block bg-white/10 px-3 py-1 rounded-full mb-6">
+                                                <p className="text-slate-300 font-mono text-xs tracking-widest">{result.student?.student_id}</p>
+                                            </div>
+
+                                            <div className="bg-green-500/10 border border-green-500/20 rounded-xl px-6 py-3">
+                                                <p className="text-green-400 font-bold text-sm tracking-wide uppercase">✓ Logged at {result.logged_at}</p>
                                             </div>
                                         </div>
-                                    )}
-
-                                    {/* Error Overlay */}
-                                    {error && (
-                                        <div className="absolute inset-0 bg-black/80 flex items-center justify-center p-4">
-                                            <div className="text-white text-center">
-                                                <XCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-                                                <p className="mb-4">{error}</p>
-                                                <button
-                                                    onClick={() => { setError(null); startScanner(); }}
-                                                    className="px-6 py-2 bg-blue-500 rounded-lg font-bold"
-                                                >
-                                                    Try Again
-                                                </button>
-                                            </div>
+                                    ) : (
+                                        <div className="text-center w-full">
+                                            <XCircle className="text-amber-500 mx-auto mb-6" size={64} />
+                                            <h2 className="text-xl font-bold text-white mb-2">{result.message}</h2>
+                                            {result.student && (
+                                                <div className="bg-white/5 rounded-xl p-4 mt-4">
+                                                    <p className="text-slate-300 font-medium">{result.student.name}</p>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
-                                    {/* Scanning Indicator */}
-                                    {isScanning && !isLoading && !error && (
-                                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                                            Camera Active
+                                    <div className="mt-auto w-full pt-8">
+                                        <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                                            <motion.div
+                                                initial={{ width: "100%" }} animate={{ width: "0%" }} transition={{ duration: 3, ease: "linear" }}
+                                                className="h-full bg-blue-500"
+                                            />
                                         </div>
-                                    )}
-                                </div>
+                                        <p className="text-center text-slate-500 text-xs mt-3 font-mono">Auto-resetting...</p>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </GlassCard>
 
-                                <div className="flex items-center justify-center gap-2 text-slate-500">
-                                    <Camera size={20} />
-                                    <span>Position your QR code within the frame</span>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Navigation */}
-                <div className="mt-8 flex flex-col items-center gap-4">
-                    {/* File Upload Scanner */}
-                    <div className="relative">
+                {/* Footer Actions */}
+                <div className="mt-12">
+                    <div className="relative group">
                         <input
                             type="file"
                             id="qr-file-input"
@@ -349,33 +326,23 @@ export default function PublicAttendance() {
                             onChange={(e) => {
                                 if (e.target.files.length === 0) return;
                                 const file = e.target.files[0];
-
                                 const html5Qm = new Html5Qrcode("attendance-scanner-region");
                                 html5Qm.scanFile(file, false)
-                                    .then(decodedText => {
-                                        onScanSuccess(decodedText);
-                                    })
+                                    .then(decodedText => onScanSuccess(decodedText))
                                     .catch(err => {
                                         console.error("File scan error", err);
-                                        setError("Could not read QR code from image. Try a clearer photo.");
+                                        setError("Could not read QR. Try a clearer photo.");
                                         playSound('error');
                                     });
                             }}
                         />
                         <button
                             onClick={() => document.getElementById('qr-file-input').click()}
-                            className="text-sm font-medium text-slate-500 hover:text-blue-600 transition-colors flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-slate-100"
+                            className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2 px-6 py-3 rounded-full hover:bg-white/5 border border-transparent hover:border-white/10"
                         >
-                            <Camera size={16} /> Scan from Image File
+                            <Camera size={16} /> Scan from Image
                         </button>
                     </div>
-
-                    <a
-                        href="/catalog"
-                        className="text-blue-600 hover:text-blue-700 font-semibold hover:underline"
-                    >
-                        ← Back to Book Catalog
-                    </a>
                 </div>
             </div>
         </KioskLayout>

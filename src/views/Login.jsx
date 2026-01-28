@@ -1,10 +1,64 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axiosClient from "../axios-client";
-import { Library, User, Lock, AlertCircle, ArrowRight, BookOpen } from "lucide-react";
+import {
+  Library, User, Lock, AlertCircle, ArrowRight, BookOpen,
+  TrendingUp, Users, ShieldCheck, CheckCircle2, Globe, Sparkles
+} from "lucide-react";
 import FloatingInput from "../components/ui/FloatingInput";
 import Button from "../components/ui/Button";
 import LoginTransition from "../components/LoginTransition";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+
+// --- Internal Components ---
+
+const GlassCard = ({ children, className = "", delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5, delay, ease: "easeOut" }}
+    className={`relative overflow-hidden bg-white/10 dark:bg-slate-900/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl ${className}`}
+  >
+    {children}
+  </motion.div>
+);
+
+const StatTicker = () => {
+  const stats = [
+    { label: "Active Users", value: "2,450+", icon: Users, color: "text-blue-400" },
+    { label: "Books Circulated", value: "15,300", icon: BookOpen, color: "text-emerald-400" },
+    { label: "Digital Resources", value: "8,900+", icon: Globe, color: "text-purple-400" },
+    { label: "System Uptime", value: "99.9%", icon: ShieldCheck, color: "text-green-400" },
+  ];
+
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIndex((prev) => (prev + 1) % stats.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-3 bg-white/5 rounded-full px-4 py-2 border border-white/10">
+      <div className="bg-blue-500/20 p-1.5 rounded-full">
+        <TrendingUp size={14} className="text-blue-400" />
+      </div>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={index}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="flex items-center gap-2 min-w-[140px]"
+        >
+          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">{stats[index].label}</span>
+          <span className={`text-sm font-bold ${stats[index].color}`}>{stats[index].value}</span>
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+};
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -13,19 +67,21 @@ export default function Login() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
+  const [secureConnection, setSecureConnection] = useState(false);
+
+  // Simulate SSL/Security Check on mount
+  useEffect(() => {
+    setTimeout(() => setSecureConnection(true), 1500);
+  }, []);
 
   const validateForm = () => {
     const errors = {};
-    if (!username) {
-      errors.username = "Username is required";
-    } else if (username.length < 3) {
-      errors.username = "Username must be at least 3 characters";
-    }
-    if (!password) {
-      errors.password = "Password is required";
-    } else if (password.length < 4) {
-      errors.password = "Password must be at least 4 characters";
-    }
+    if (!username) errors.username = "Username is required";
+    else if (username.length < 3) errors.username = "Min 3 characters";
+
+    if (!password) errors.password = "Password is required";
+    else if (password.length < 4) errors.password = "Min 4 characters";
+
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -33,170 +89,213 @@ export default function Login() {
   const onSubmit = (ev) => {
     ev.preventDefault();
     setError(null);
-
     if (!validateForm()) return;
 
     setLoading(true);
 
-    axiosClient.post("/login", {
-      username,
-      password,
-    })
+    axiosClient.post("/login", { username, password })
       .then(({ data }) => {
         localStorage.setItem("ACCESS_TOKEN", data.token);
         localStorage.setItem("USER_NAME", data.user.name);
         localStorage.setItem("USER_ROLE", data.user.role);
-        // Trigger the book opening animation
         setShowTransition(true);
-        setLoading(false);
       })
       .catch((err) => {
         setLoading(false);
         const response = err.response;
         if (response && response.status === 401) {
-          setError("Invalid username or password. Please try again.");
+          setError("Invalid credentials.");
         } else {
-          setError("Connection error. Please check if the server is running.");
+          setError("Server unreachable.");
         }
       });
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-900 overflow-hidden relative">
-      {/* Book Opening Transition Animation */}
-      {showTransition && (
-        <LoginTransition onFinish={() => window.location.reload()} />
-      )}
+    <div className="min-h-screen bg-[#0f172a] text-white font-sans selection:bg-blue-500/30 overflow-hidden relative flex items-center justify-center p-4 lg:p-8">
 
-      {/* LEFT PANEL - LANDING / HERO */}
-      <div className="hidden lg:flex lg:w-3/5 relative bg-blue-600 overflow-hidden items-center justify-center p-12">
-        {/* Animated Background Shapes */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-          className="absolute -top-24 -left-24 w-[500px] h-[500px] bg-blue-500 rounded-full blur-3xl opacity-50 pointer-events-none"
-        />
-        <motion.div
-          animate={{ rotate: -360 }}
-          transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-indigo-600 rounded-full blur-3xl opacity-50 pointer-events-none"
-        />
-
-        <div className="relative z-10 max-w-2xl text-left text-white">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 mb-6">
-              <Library size={18} />
-              <span className="font-bold text-sm tracking-wide">PCLU LIBRARY SYSTEM</span>
-            </div>
-            <h1 className="text-6xl font-black mb-6 leading-tight">
-              Knowledge at <br /> Your Fingertips.
-            </h1>
-            <p className="text-blue-100 text-lg mb-10 leading-relaxed max-w-lg">
-              Access thousands of books, journals, and resources. Manage circulation, track inventory, and empower learning with our advanced management system.
-            </p>
-
-            {/* STUDENT CTA */}
-            <div className="p-8 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 hover:bg-white/15 transition-all group cursor-pointer" onClick={() => window.location.href = '/catalog'}>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-2xl font-bold flex items-center gap-3">
-                  <BookOpen className="text-yellow-400" />
-                  Are you a Student?
-                </h3>
-                <div className="w-10 h-10 rounded-full bg-white text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <ArrowRight size={20} strokeWidth={3} />
-                </div>
-              </div>
-              <p className="text-blue-100 opacity-80 group-hover:opacity-100 transition-opacity">
-                Browse the catalog, find books, and check availability instantly via our Kiosk.
-              </p>
-            </div>
-          </motion.div>
-        </div>
+      {/* --- BACKGROUND ANIMATION --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-indigo-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '10s' }} />
+        <div className="absolute top-[40%] left-[30%] w-[40vw] h-[40vw] bg-cyan-500/10 rounded-full blur-[80px]" />
+        {/* Grid Pattern Overlay */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+        <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
       </div>
 
-      {/* RIGHT PANEL - LOGIN FORM */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-20 relative z-20">
-        {/* Mobile Header (Only visible on small screens) */}
-        <div className="lg:hidden mb-8 text-center">
-          <div className="inline-block p-4 bg-primary-600 rounded-2xl mb-4 shadow-lg">
-            <Library size={32} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-white">PCLU Library</h1>
-        </div>
+      {/* --- TRANSITION --- */}
+      {showTransition && <LoginTransition onFinish={() => window.location.reload()} />}
 
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 }}
-          className="w-full max-w-md"
-        >
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-8 lg:p-12 mb-8">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Admin Login</h2>
-              <p className="text-slate-500 dark:text-slate-400 mt-2">Enter your credentials to access the dashboard.</p>
+      {/* --- BENTO GRID LAYOUT --- */}
+      <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 auto-rows-min lg:h-[650px]">
+
+        {/* 1. HERO SECTION (Top Left - Large) */}
+        <GlassCard className="col-span-1 md:col-span-2 lg:col-span-8 lg:row-span-8 rounded-[2.5rem] p-10 flex flex-col justify-between group overflow-hidden" delay={0.1}>
+          {/* Abstract Decoration */}
+          <motion.div
+            animate={{ rotate: 360, scale: [1, 1.1, 1] }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+            className="absolute -right-20 -top-40 w-[500px] h-[500px] border-[60px] border-white/5 rounded-full blur-sm opacity-50"
+          />
+
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3 px-4 py-2 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
+                <Library className="text-blue-400" size={20} />
+                <span className="font-bold tracking-widest text-sm text-blue-100">PCLU LIBRARY</span>
+              </div>
+              <StatTicker />
             </div>
 
-            {/* Global Error Message */}
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-300 px-4 py-3 rounded-xl mb-6 flex items-start gap-3 text-sm">
-                <AlertCircle className="flex-shrink-0 mt-0.5" size={18} />
-                <p>{error}</p>
-              </div>
-            )}
+            <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight mb-6 bg-gradient-to-r from-white via-blue-100 to-blue-300 bg-clip-text text-transparent drop-shadow-sm">
+              The Future of <br /> Knowledge.
+            </h1>
+            <p className="text-lg text-blue-200/80 max-w-2xl leading-relaxed">
+              Experience the next generation of library management.
+              Real-time tracking, seamless circulation, and advanced analytics
+              powered by intelligent automation.
+            </p>
+          </div>
 
-            <form onSubmit={onSubmit} className="space-y-6">
+          {/* Bottom Actions of Hero */}
+          <div className="relative z-10 mt-12 flex flex-wrap gap-4">
+            <div className="flex -space-x-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="w-10 h-10 rounded-full border-2 border-[#0f172a] bg-gradient-to-br from-slate-200 to-slate-400 flex items-center justify-center text-slate-800 font-bold text-xs relative z-0 hover:z-10 hover:scale-110 transition-transform">
+                  <User size={16} className="opacity-50" />
+                </div>
+              ))}
+              <div className="w-10 h-10 rounded-full border-2 border-[#0f172a] bg-slate-800 flex items-center justify-center text-white text-xs font-bold">
+                +2k
+              </div>
+            </div>
+            <p className="flex items-center text-sm text-slate-400 font-medium">
+              <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+              System Online & Operational
+            </p>
+          </div>
+        </GlassCard>
+
+        {/* 2. LOGIN FORM (Right - Vertical) */}
+        <GlassCard className="col-span-1 md:col-span-1 lg:col-span-4 lg:row-span-12 rounded-[2.5rem] p-8 flex flex-col justify-center border-t-4 border-t-blue-500" delay={0.2}>
+          <div className="mb-8 text-center">
+            <div className="w-16 h-16 mx-auto bg-gradient-to-tr from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 mb-4">
+              <Lock className="text-white" size={32} />
+            </div>
+            <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">Admin Portal</h2>
+            <p className="text-slate-400 text-sm mt-1">Secure Access Required</p>
+          </div>
+
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-3"
+              >
+                <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={16} />
+                <p className="text-red-200 text-xs">{error}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={onSubmit} className="space-y-5">
+            <div className="space-y-1">
               <FloatingInput
                 label="Username"
-                type="text"
                 value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  if (fieldErrors.username) setFieldErrors({ ...fieldErrors, username: null });
-                }}
+                onChange={(e) => setUsername(e.target.value)}
                 icon={User}
                 error={fieldErrors.username}
+                className="bg-slate-800/50 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500/20"
               />
+            </div>
+            <div className="space-y-1">
+              <FloatingInput
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                icon={Lock}
+                error={fieldErrors.password}
+                className="bg-slate-800/50 border-slate-700 text-white focus:border-blue-500 focus:ring-blue-500/20"
+              />
+            </div>
 
-              <div className="space-y-1">
-                <FloatingInput
-                  label="Password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (fieldErrors.password) setFieldErrors({ ...fieldErrors, password: null });
-                  }}
-                  icon={Lock}
-                  error={fieldErrors.password}
-                />
-                <div className="flex justify-end">
-                  <a href="#" className="text-xs font-semibold text-primary-600 hover:text-primary-700">Forgot Password?</a>
-                </div>
+            <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center gap-1.5 text-slate-400">
+                {secureConnection ? (
+                  <CheckCircle2 size={12} className="text-emerald-500" />
+                ) : (
+                  <div className="w-3 h-3 border-2 border-slate-600 border-t-transparent rounded-full animate-spin" />
+                )}
+                <span>{secureConnection ? "Secure Connection" : "Verifying..."}</span>
               </div>
+              <a href="#" className="text-blue-400 hover:text-blue-300 transition-colors">Forgot Password?</a>
+            </div>
 
-              <Button type="submit" variant="form" fullWidth loading={loading} size="lg" className="rounded-xl py-4 shadow-lg shadow-blue-500/20">
-                Sign In to Dashboard
-              </Button>
-            </form>
+            <Button
+              type="submit"
+              fullWidth
+              loading={loading}
+              size="lg"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white border-0 shadow-lg shadow-blue-600/30 rounded-xl py-4 font-bold tracking-wide mt-2"
+            >
+              AUTHENTICATE
+            </Button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-white/5 text-center">
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold flex items-center justify-center gap-2">
+              <ShieldCheck size={12} /> Authorized Personnel Only
+            </p>
           </div>
+        </GlassCard>
 
-          {/* Mobile Student Link */}
-          <div className="lg:hidden text-center bg-blue-50 dark:bg-slate-800 p-6 rounded-2xl border border-blue-100 dark:border-slate-700 cursor-pointer" onClick={() => window.location.href = '/catalog'}>
-            <h4 className="font-bold text-blue-700 dark:text-blue-400 mb-1 flex items-center justify-center gap-2">
-              <BookOpen size={18} /> Student Access
-            </h4>
-            <p className="text-sm text-slate-500">Tap here to browse the book catalog</p>
+        {/* 3. STUDENT ACCESS CARD (Bottom Left - Medium) */}
+        <GlassCard
+          className="col-span-1 md:col-span-1 lg:col-span-5 lg:row-span-4 rounded-[2.5rem] p-6 cursor-pointer group hover:bg-white/15 transition-colors border-l-4 border-l-yellow-400"
+          delay={0.3}
+        >
+          <div className="h-full flex flex-col justify-between" onClick={() => window.location.href = '/catalog'}>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <BookOpen className="text-yellow-400" size={20} />
+                  Student Access
+                </h3>
+                <ArrowRight className="text-white/50 group-hover:translate-x-1 group-hover:text-white transition-all" size={20} />
+              </div>
+              <p className="text-sm text-slate-400 leading-relaxed">
+                Browse the catalog, check book availability, and view trending resources via the Kiosk.
+              </p>
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              <span className="px-3 py-1 rounded-lg bg-yellow-400/10 text-yellow-400 text-xs font-bold border border-yellow-400/20">Catalog</span>
+              <span className="px-3 py-1 rounded-lg bg-yellow-400/10 text-yellow-400 text-xs font-bold border border-yellow-400/20">Kiosk</span>
+            </div>
           </div>
+        </GlassCard>
 
-          <p className="text-center mt-12 text-xs text-slate-400">
-            &copy; 2026 PCLU Library System. <br /> Secured Audit Logging Enabled.
-          </p>
-        </motion.div>
+        {/* 4. STATS / INFO CARD (Bottom Center - Small) */}
+        <GlassCard className="col-span-1 md:col-span-1 lg:col-span-3 lg:row-span-4 rounded-[2.5rem] p-6 flex flex-col justify-center items-center text-center bg-gradient-to-br from-emerald-900/40 to-slate-900/40 border-emerald-500/20" delay={0.4}>
+          <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 animate-pulse">
+            <Sparkles className="text-emerald-400" size={24} />
+          </div>
+          <h4 className="text-2xl font-bold text-emerald-100 mb-1">New Arrivals</h4>
+          <p className="text-xs text-emerald-300/70 mb-3">50+ New Books Details</p>
+        </GlassCard>
+
       </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-4 text-[10px] text-slate-600 font-mono">
+        PCLU LMS v2.0 • Build 2026.01.27
+      </div>
+
     </div>
   );
 }

@@ -160,6 +160,11 @@ export default function PrintLabelModal({ book, asset, onClose }) {
                                             <div className="font-bold text-[10px] leading-tight line-clamp-2 text-slate-900 mb-0.5">
                                                 {truncateTitle(book?.title || 'Unknown Title', 40).toUpperCase()}
                                             </div>
+                                            {book?.subtitle && (
+                                                <div className="text-[8px] text-slate-700 leading-tight italic truncate mb-0.5">
+                                                    {truncateTitle(book.subtitle, 30)}
+                                                </div>
+                                            )}
                                             <div className="text-[9px] text-slate-500 truncate leading-none">
                                                 {book?.author ? book.author.split(',')[0] : 'Unknown'}
                                             </div>

@@ -9,7 +9,6 @@ import {
 import FloatingInput from "../components/ui/FloatingInput";
 import FloatingSelect from "../components/ui/FloatingSelect";
 import Button from "../components/ui/Button";
-import BookExtendedFields from "../components/BookExtendedFields";
 
 export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcode = "" }) {
   const toast = useToast();
@@ -17,6 +16,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
 
   const [book, setBook] = useState({
     title: "",
+    subtitle: "",
     author: "",
     category: "Book",
     isbn: "",
@@ -54,6 +54,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     if (bookToEdit) {
       setBook({
         title: bookToEdit.title || "",
+        subtitle: bookToEdit.subtitle || "",
         author: bookToEdit.author || "",
         category: bookToEdit.category || "",
         isbn: bookToEdit.isbn || "",
@@ -122,6 +123,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     // Create FormData for file upload
     const formData = new FormData();
     formData.append("title", book.title);
+    if (book.subtitle) formData.append("subtitle", book.subtitle);
     formData.append("author", book.author);
     formData.append("category", book.category);
 
@@ -302,33 +304,10 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
               </div>
             </div>
 
-            {/* Basic Info Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FloatingInput
-                label="Book Title"
-                value={book.title}
-                onChange={e => setBook({ ...book, title: e.target.value })}
-                icon={BookOpen}
-                required
-              />
-              <FloatingInput
-                label="Author"
-                value={book.author}
-                onChange={e => setBook({ ...book, author: e.target.value })}
-                icon={User}
-                required
-              />
-            </div>
+            {/* Form Fields: Strict Order as Requested */}
+            <div className="space-y-4">
 
-            {/* ISBN and Category Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FloatingInput
-                label="ISBN (Optional)"
-                value={book.isbn}
-                onChange={e => setBook({ ...book, isbn: e.target.value })}
-                icon={Hash}
-                placeholder={bookToEdit ? "" : "Auto-generated if left blank"}
-              />
+              {/* 1. Category */}
               <FloatingSelect
                 label="Category"
                 value={book.category}
@@ -342,107 +321,187 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 <option value="Thesis">Thesis</option>
                 <option value="Visual Materials">Visual Materials</option>
               </FloatingSelect>
-            </div>
 
-            {/* Publisher and Year Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FloatingInput
-                label="Publisher"
-                value={book.publisher}
-                onChange={e => setBook({ ...book, publisher: e.target.value })}
-                icon={Building2}
-              />
-              <FloatingInput
-                label="Published Year"
-                value={book.published_year}
-                onChange={e => setBook({ ...book, published_year: e.target.value })}
-                icon={Calendar}
-                type="number"
-                min="1800"
-                max={new Date().getFullYear() + 1}
-              />
-            </div>
-
-            {/* Call Number and Pages Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FloatingInput
-                label="Call Number"
-                value={book.call_number}
-                onChange={e => setBook({ ...book, call_number: e.target.value })}
-                icon={Hash}
-              />
-              <FloatingInput
-                label="Pages"
-                value={book.pages}
-                onChange={e => setBook({ ...book, pages: e.target.value })}
-                icon={FileText}
-                type="number"
-                min="1"
-              />
-            </div>
-
-            {/* Language and Location Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FloatingSelect
-                label="Language"
-                value={book.language}
-                onChange={e => setBook({ ...book, language: e.target.value })}
-              >
-                <option value="English">English</option>
-                <option value="Filipino">Filipino</option>
-                <option value="Spanish">Spanish</option>
-                <option value="Japanese">Japanese</option>
-                <option value="Chinese">Chinese</option>
-                <option value="Korean">Korean</option>
-                <option value="French">French</option>
-                <option value="German">German</option>
-                <option value="Other">Other</option>
-              </FloatingSelect>
-              <FloatingInput
-                label="Default Location"
-                value={book.location}
-                onChange={e => setBook({ ...book, location: e.target.value })}
-                icon={MapPin}
-                placeholder="e.g., Shelf A1"
-              />
-            </div>
-
-            {/* Extended Catalog Fields Section */}
-            <BookExtendedFields book={book} setBook={setBook} />
-
-            {/* Copies - Only for new books */}
-            {!bookToEdit && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  <Copy className="text-[#020463]" size={20} />
-                  <span className="font-semibold text-[#020463]">Physical Copies</span>
-                </div>
+              {/* 2. Accession No. & 3. Call Number */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FloatingInput
-                  label="Number of Copies"
-                  value={book.copies}
+                  label="Accession No."
+                  value={book.accession_no}
+                  onChange={e => setBook({ ...book, accession_no: e.target.value })}
+                  icon={Hash}
+                />
+                <FloatingInput
+                  label="Call Number"
+                  value={book.call_number}
+                  onChange={e => setBook({ ...book, call_number: e.target.value })}
+                  icon={Hash}
+                />
+              </div>
+
+              {/* 4. Book Title */}
+              <FloatingInput
+                label="Book Title"
+                value={book.title}
+                onChange={e => setBook({ ...book, title: e.target.value })}
+                icon={BookOpen}
+                required
+              />
+
+              {/* 5. Subtitle (New) */}
+              <FloatingInput
+                label="Subtitle"
+                value={book.subtitle || ""}
+                onChange={e => setBook({ ...book, subtitle: e.target.value })}
+                icon={BookOpen}
+                placeholder="Optional"
+              />
+
+              {/* 6. Author */}
+              <FloatingInput
+                label="Author"
+                value={book.author}
+                onChange={e => setBook({ ...book, author: e.target.value })}
+                icon={User}
+                required
+              />
+
+              {/* 7. ISBN, 8. LCCN, 9. ISSN */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FloatingInput
+                  label="ISBN"
+                  value={book.isbn}
+                  onChange={e => setBook({ ...book, isbn: e.target.value })}
+                  icon={Hash}
+                  placeholder={bookToEdit ? "" : "Auto-generated if blank"}
+                />
+                <FloatingInput
+                  label="LCCN"
+                  value={book.lccn}
+                  onChange={e => setBook({ ...book, lccn: e.target.value })}
+                  icon={Hash}
+                  placeholder="Library of Congress"
+                />
+                <FloatingInput
+                  label="ISSN"
+                  value={book.issn}
+                  onChange={e => setBook({ ...book, issn: e.target.value })}
+                  icon={Hash}
+                  placeholder="Serial Number"
+                />
+              </div>
+
+              {/* 10. Location & 11. Book Penalty */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FloatingInput
+                  label="Location"
+                  value={book.location}
+                  onChange={e => setBook({ ...book, location: e.target.value })}
+                  icon={MapPin}
+                  placeholder="Shelf location"
+                />
+                <FloatingInput
+                  label="Book Penalty (₱)"
+                  value={book.book_penalty}
+                  onChange={e => setBook({ ...book, book_penalty: e.target.value })}
+                  icon={Tag}
+                  type="number"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+
+              {/* 12. Publisher & 13. Place */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FloatingInput
+                  label="Publisher"
+                  value={book.publisher}
+                  onChange={e => setBook({ ...book, publisher: e.target.value })}
+                  icon={Building2}
+                />
+                <FloatingInput
+                  label="Place of Publication"
+                  value={book.place_of_publication}
+                  onChange={e => setBook({ ...book, place_of_publication: e.target.value })}
+                  icon={MapPin}
+                />
+              </div>
+
+              {/* 14. Physical Description & 15. Edition */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FloatingInput
+                  label="Physical Description"
+                  value={book.physical_description}
+                  onChange={e => setBook({ ...book, physical_description: e.target.value })}
+                  icon={FileText}
+                  placeholder="e.g. 200p., ill."
+                />
+                <FloatingInput
+                  label="Edition"
+                  value={book.edition}
+                  onChange={e => setBook({ ...book, edition: e.target.value })}
+                  icon={FileText}
+                  placeholder="e.g. 2nd Edition"
+                />
+              </div>
+
+              {/* 16. Copyright & 17. Series */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FloatingInput
+                  label="Copyright Year"
+                  value={book.copyright_year}
+                  onChange={e => setBook({ ...book, copyright_year: e.target.value })}
+                  icon={Calendar}
+                  type="number"
+                />
+                <FloatingInput
+                  label="Series"
+                  value={book.series}
+                  onChange={e => setBook({ ...book, series: e.target.value })}
+                  icon={FileText}
+                />
+              </div>
+
+              {/* 18. Copy & 19. Volume */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FloatingInput
+                  label="Copies (Items)"
+                  value={book.copies} // Assuming 'copies' maps to 'Copy'
                   onChange={e => setBook({ ...book, copies: e.target.value })}
                   icon={Copy}
                   type="number"
                   min="1"
-                  max="100"
-                  required
+                // disabled={!!bookToEdit} // Usually copies are handled separately on updates, but kept here for input match
                 />
-                <p className="text-xs text-blue-600 mt-2">
-                  System will auto-generate {book.copies || 0} unique barcode(s) for scanner tracking.
-                </p>
+                <FloatingInput
+                  label="Volume"
+                  value={book.volume}
+                  onChange={e => setBook({ ...book, volume: e.target.value })}
+                  icon={FileText}
+                />
               </div>
-            )}
 
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-              <textarea
-                value={book.description}
-                onChange={e => setBook({ ...book, description: e.target.value })}
-                rows={3}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#020463] focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-gray-900"
-                placeholder="Enter a brief description of the book..."
+              {/* 20. Price */}
+              <FloatingInput
+                label="Price (₱)"
+                value={book.price}
+                onChange={e => setBook({ ...book, price: e.target.value })}
+                icon={Tag}
+                type="number"
+                step="0.01"
               />
+
+              {/* 21. Remarks */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Remarks</label>
+                <textarea
+                  value={book.description} // Using description for remarks
+                  onChange={e => setBook({ ...book, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#020463] focus:ring-2 focus:ring-blue-100 outline-none transition-all resize-none text-gray-900"
+                  placeholder="Additional remarks..."
+                />
+              </div>
+
             </div>
 
             {/* Actions */}

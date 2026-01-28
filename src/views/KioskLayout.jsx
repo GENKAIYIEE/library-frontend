@@ -1,8 +1,9 @@
-import { Library, Clock, LogIn, UserCheck } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom"; // If available, or just use window.location
+import { Clock, Library, Menu, X } from "lucide-react";
+import { useEffect, useState } from "react";
+// import { Link, useLocation } from "react-router-dom"; // REMOVED: Using manual routing
+import { motion } from "framer-motion";
 
-// Reusing Digital Clock logic simplified
+// --- Kiosk Clock Component ---
 function KioskClock() {
     const [time, setTime] = useState(new Date());
 
@@ -21,63 +22,154 @@ function KioskClock() {
     };
 
     return (
-        <div className="flex items-center gap-2 text-primary-100 bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm border border-white/20">
-            <Clock size={16} />
-            <span className="font-bold font-mono tracking-wide">{formatTime(time)}</span>
+        <div className="flex items-center gap-2 text-blue-100 bg-white/10 px-4 py-2 rounded-full backdrop-blur-md border border-white/10 shadow-lg">
+            <Clock size={16} className="text-blue-400" />
+            <span className="font-bold font-mono tracking-wide text-sm">{formatTime(time)}</span>
         </div>
     );
 }
 
+// --- Animated Background Component (Reused from Login) ---
+const KioskBackground = () => (
+    <div className="fixed inset-0 z-0 pointer-events-none bg-[#0f172a]">
+        <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-indigo-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '10s' }} />
+        <div className="absolute top-[40%] left-[30%] w-[40vw] h-[40vw] bg-cyan-500/10 rounded-full blur-[80px]" />
+        {/* Grid Pattern Overlay */}
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>
+        <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
+    </div>
+);
+
+// --- Librarian Avatar Component ---
+const LibrarianAvatar = () => (
+    <div className="fixed bottom-0 right-0 z-50 pointer-events-none">
+        <motion.div
+            initial={{ y: 200, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5, type: "spring", stiffness: 80, damping: 15 }}
+            className="relative w-64 h-64 md:w-80 md:h-80 mr-[-2rem] mb-[-2rem]" // Increased size & positioning
+        >
+            {/* Speech Bubble - Always Visible after delay */}
+            <motion.div
+                initial={{ opacity: 0, scale: 0, x: 20, rotate: 10 }}
+                animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
+                transition={{ delay: 1.5, type: "spring", stiffness: 120 }}
+                className="absolute -top-6 left-0 md:left-4 transform -translate-x-full bg-white text-slate-900 px-5 py-3 rounded-2xl rounded-br-sm shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-blue-100 z-50 min-w-[140px] text-center pointer-events-auto"
+            >
+                <p className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Please be quiet!</p>
+                <div className="text-xs text-slate-400 font-medium tracking-wide uppercase mt-1">Library Zone</div>
+
+                {/* Bubble Triangle */}
+                <div className="absolute -right-2 bottom-0 w-4 h-4 bg-white transform rotate-45 border-r border-b border-blue-100"></div>
+            </motion.div>
+
+            {/* Avatar Image with Float Animation */}
+            <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="w-full h-full"
+            >
+                <img
+                    src="/librarian-avatar.png"
+                    alt="Librarian"
+                    className="w-full h-full object-contain filter drop-shadow-2xl hover:brightness-110 transition-all duration-300 cursor-pointer pointer-events-auto"
+                />
+            </motion.div>
+        </motion.div>
+    </div>
+);
+
 export default function KioskLayout({ children }) {
-    // Simple navigation hack if not using router
-    const goLogin = () => {
-        window.location.href = '/login'; // Or reload if handled by App.jsx
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    // const location = useLocation(); // REMOVED
+    const currentPath = window.location.pathname; // Manual check
+
+    // Mock User for Kiosk Demo
+    const user = {
+        name: "Student Guest",
+        avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Felix",
+        role: "Student"
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
-            {/* KIOSK HEADER */}
-            <header className="bg-primary-600 text-white shadow-xl sticky top-0 z-40">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="bg-white p-2 rounded-xl shadow-lg">
-                            <Library className="text-primary-600" size={32} />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold leading-none tracking-tight">PCLU Library</h1>
-                            <p className="text-primary-200 text-xs font-medium tracking-wider uppercase mt-1">Student Kiosk</p>
-                        </div>
-                    </div>
+        <div className="min-h-screen font-sans flex flex-col relative overflow-x-hidden text-slate-200">
+            {/* Background */}
+            <KioskBackground />
 
-                    <div className="flex items-center gap-4">
-                        <KioskClock />
-                        <a
-                            href="/attendance"
-                            className="hidden md:flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
-                        >
-                            <UserCheck size={16} /> Attendance
-                        </a>
+            {/* Librarian Avatar (Fixed Right) */}
+            <LibrarianAvatar />
+
+            {/* FLOATING HEADER */}
+            <header className="fixed top-0 left-0 right-0 z-50 px-4 py-4 md:px-8">
+                <motion.div
+                    initial={{ y: -50, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="max-w-7xl mx-auto bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-full px-6 py-3 shadow-2xl flex items-center justify-between"
+                >
+                    {/* Brand */}
+                    <a href="/" className="flex items-center gap-3 group">
+                        <div className="bg-blue-600/20 p-2 rounded-full border border-blue-500/30 group-hover:bg-blue-600/40 transition-colors">
+                            <Library className="text-blue-400" size={20} />
+                        </div>
+                        <div className="hidden md:block">
+                            <h1 className="text-lg font-bold leading-none text-white tracking-tight">PCLU Library</h1>
+                            <p className="text-blue-300/70 text-[10px] font-bold tracking-widest uppercase">Student Kiosk</p>
+                        </div>
+                    </a>
+
+                    {/* Desktop Nav */}
+                    <nav className="hidden md:flex items-center gap-2">
                         <a
                             href="/catalog"
-                            className="hidden md:flex bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors"
+                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${currentPath === '/catalog'
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
                         >
                             Catalog
                         </a>
-                        <a href="/" className="text-primary-200 hover:text-white text-xs font-bold flex gap-1 items-center opacity-50 hover:opacity-100 transition-opacity">
-                            <LogIn size={14} /> Staff
+                        <a
+                            href="/attendance"
+                            className={`px-4 py-2 rounded-full text-sm font-bold transition-all ${currentPath === '/attendance'
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            Attendance
                         </a>
+                    </nav>
+
+                    {/* Right Actions */}
+                    <div className="flex items-center gap-4">
+                        <KioskClock />
+
+                        {/* User Profile Pill */}
+                        <div className="flex items-center gap-3 pl-4 border-l border-white/10">
+                            <div className="hidden sm:block text-right">
+                                <p className="text-sm font-bold text-white leading-none">{user.name}</p>
+                                <p className="text-[10px] text-emerald-400 font-medium uppercase tracking-wider">Online</p>
+                            </div>
+                            <img src={user.avatar} alt="Avatar" className="w-9 h-9 rounded-full border-2 border-blue-500/50 bg-slate-800" />
+                        </div>
+
+                        {/* Mobile Menu Toggle */}
+                        <button className="md:hidden text-white" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                            {isMenuOpen ? <X /> : <Menu />}
+                        </button>
                     </div>
-                </div>
+                </motion.div>
             </header>
 
-            {/* CONTENT */}
-            <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
+            {/* MAIN CONTENT */}
+            <main className="flex-1 w-full max-w-7xl mx-auto px-4 md:px-8 py-24 relative z-10">
                 {children}
             </main>
 
-            {/* FOOTER */}
-            <footer className="bg-white border-t border-slate-200 py-6 text-center text-slate-400 text-sm">
-                <p>© 2026 PCLU Library Management System • Public Access Catalog</p>
+            {/* GLASS FOOTER */}
+            <footer className="relative z-10 border-t border-white/5 bg-slate-900/40 backdrop-blur-md py-6 text-center text-slate-500 text-xs font-mono">
+                <p>PCLU Library Management System • Secure Kiosk Environment</p>
             </footer>
         </div>
     );

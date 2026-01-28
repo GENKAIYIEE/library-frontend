@@ -3,13 +3,15 @@ import axiosClient from "../axios-client";
 import Swal from "sweetalert2";
 import {
   Trash2, Search, GraduationCap, LayoutGrid, List as ListIcon,
-  Filter, Award, Pencil, Phone, Mail, MoreVertical
+  Filter, Award, Pencil, Phone, Mail, MoreVertical, PlusCircle
 } from "lucide-react";
 import { useToast } from "../components/ui/Toast";
 import GlassCard from "../components/ui/GlassCard";
 import StudentProfileModal from "./StudentProfileModal";
+import StudentFormModal from "./StudentFormModal"; // Import the form modal
 import { Menu } from "@headlessui/react";
 import { AnimatePresence, motion } from "framer-motion";
+import Button from "../components/ui/Button"; // Import Button component
 import { cn } from "../lib/utils";
 
 // Course color mapping
@@ -40,8 +42,8 @@ export default function Students() {
 
   // Modals
   const [viewingStudent, setViewingStudent] = useState(null);
-  // Note: Edit functionality would normally open a modal, omitted for brevity as per request to remove form
-  // We can re-add an Edit Modal later if needed.
+  const [showFormModal, setShowFormModal] = useState(false); // State for Add/Edit Modal
+  const [editingStudent, setEditingStudent] = useState(null); // Student being edited
 
   useEffect(() => {
     getStudents();
@@ -114,6 +116,18 @@ export default function Students() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 items-center">
+          {/* Add New Student Button */}
+          <Button
+            onClick={() => {
+              setEditingStudent(null);
+              setShowFormModal(true);
+            }}
+            icon={PlusCircle}
+            className="w-full sm:w-auto"
+          >
+            Add New Student
+          </Button>
+
           {/* View Toggle */}
           <div className="bg-white dark:bg-slate-800 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 flex">
             <button
@@ -226,14 +240,27 @@ export default function Students() {
                           <Menu.Button className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors text-gray-400">
                             <MoreVertical size={18} />
                           </Menu.Button>
-                          <Menu.Items className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 focus:outline-none z-10 overflow-hidden">
+                          <Menu.Items className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-100 dark:border-slate-700 focus:outline-none z-10 overflow-hidden origin-top-right">
                             <Menu.Item>
                               {({ active }) => (
                                 <button
                                   onClick={() => setViewingStudent(student)}
-                                  className={cn("flex items-center gap-2 w-full px-4 py-3 text-sm transition-colors", active ? 'bg-gray-50 dark:bg-slate-700' : '')}
+                                  className={cn("flex items-center gap-2 w-full px-4 py-3 text-sm transition-colors text-left", active ? 'bg-gray-50 dark:bg-slate-700' : '')}
                                 >
                                   <Award size={16} className="text-amber-500" /> View Details
+                                </button>
+                              )}
+                            </Menu.Item>
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => {
+                                    setEditingStudent(student);
+                                    setShowFormModal(true);
+                                  }}
+                                  className={cn("flex items-center gap-2 w-full px-4 py-3 text-sm transition-colors text-left", active ? 'bg-gray-50 dark:bg-slate-700' : '')}
+                                >
+                                  <Pencil size={16} className="text-blue-500" /> Edit Student
                                 </button>
                               )}
                             </Menu.Item>
@@ -375,6 +402,18 @@ export default function Students() {
         <StudentProfileModal
           student={viewingStudent}
           onClose={() => setViewingStudent(null)}
+        />
+      )}
+
+      {/* Add/Edit Student Modal */}
+      {showFormModal && (
+        <StudentFormModal
+          studentToEdit={editingStudent}
+          onClose={() => {
+            setShowFormModal(false);
+            setEditingStudent(null);
+          }}
+          onSuccess={getStudents}
         />
       )}
     </div>

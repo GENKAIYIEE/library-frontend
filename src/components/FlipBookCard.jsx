@@ -51,6 +51,9 @@ export default function FlipBookCard({ book, index }) {
                             <h3 className="text-white font-bold text-lg line-clamp-2 leading-tight shadow-black drop-shadow-md">
                                 {book.title}
                             </h3>
+                            {book.subtitle && (
+                                <p className="text-white/90 text-xs italic line-clamp-1 mb-0.5">{book.subtitle}</p>
+                            )}
                             <p className="text-white/80 text-sm mt-1 font-medium">{book.author}</p>
                         </div>
 
@@ -84,6 +87,9 @@ export default function FlipBookCard({ book, index }) {
                             <h4 className="text-gray-900 dark:text-white font-bold text-sm line-clamp-2 leading-tight">
                                 {book.title}
                             </h4>
+                            {book.subtitle && (
+                                <p className="text-xs text-gray-500 dark:text-slate-400 italic line-clamp-1 mb-1">{book.subtitle}</p>
+                            )}
                             <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold mt-1">
                                 {book.category || "General"}
                             </p>
