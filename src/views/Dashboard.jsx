@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import axiosClient, { ASSET_URL } from "../axios-client";
 import Leaderboard from "../components/Leaderboard";
-import MonthlyTrendChart from "../components/charts/MonthlyTrendChart";
 import CategoryPieChart from "../components/charts/CategoryPieChart";
-import { BookOpen, Copy, Repeat, Users, LayoutDashboard, Plus, Search, Scan, ArrowRight, ClipboardList } from "lucide-react";
+import { BookOpen, Copy, Repeat, Users, LayoutDashboard, Plus, Search, Scan, ArrowRight, ClipboardList, AlertTriangle, DollarSign } from "lucide-react";
 import Pagination from "../components/ui/Pagination";
 import { motion } from "framer-motion";
 import GlassCard from "../components/ui/GlassCard";
@@ -113,11 +112,25 @@ export default function Dashboard({ setActiveTab }) {
           delay={0.2}
         />
         <DashboardStatCard
+          title="Overdue Books"
+          value={stats.overdue || 0}
+          icon={AlertTriangle}
+          color="bg-red-500"
+          delay={0.3}
+        />
+        <DashboardStatCard
           title="Reg. Students"
           value={stats.students}
           icon={Users}
           color="bg-emerald-500"
-          delay={0.3}
+          delay={0.4}
+        />
+        <DashboardStatCard
+          title="Revenue Collected"
+          value={`₱${Number(stats.collected_fines || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+          icon={DollarSign}
+          color="bg-yellow-500"
+          delay={0.5}
         />
         <DashboardStatCard
           title="Today's Visitors"
@@ -174,12 +187,7 @@ export default function Dashboard({ setActiveTab }) {
           </motion.div>
 
           {/* CHARTS SECTION (MOVED HERE) */}
-          <div className="pt-4">
-            <GlassCard className="p-6 h-96">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-6">Monthly Borrowing Trends</h3>
-              <MonthlyTrendChart />
-            </GlassCard>
-          </div>
+
         </div>
 
         {/* RIGHT COLUMN (1/3 width) */}

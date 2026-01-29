@@ -3,6 +3,7 @@ import { useToast } from "../components/ui/Toast";
 import axiosClient from "../axios-client";
 import { DollarSign, CheckCircle, History as HistoryIcon, Search, BookOpen, User } from "lucide-react";
 import Pagination from "../components/ui/Pagination";
+import WaiverModal from "./WaiverModal";
 
 export default function History() {
   const toast = useToast();
@@ -13,13 +14,20 @@ export default function History() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [activeTab, setActiveTab] = useState('all');
+  const [isWaiverModalOpen, setIsWaiverModalOpen] = useState(false);
+  const [waivingTransactionId, setWaivingTransactionId] = useState(null);
 
   // Status Badge Component
   const StatusBadge = ({ transaction }) => {
     if (!transaction.returned_at) {
+      // Check if currently overdue
+      const isOverdue = new Date(transaction.due_date) < new Date();
       return (
-        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 flex items-center gap-1 w-fit ml-auto">
-          ⏳ Active
+        <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 w-fit ml-auto ${isOverdue
+          ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
+          : 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+          }`}>
+          {isOverdue ? '⚠️ Overdue' : '⏳ Active'}
         </span>
       );
     }
@@ -27,10 +35,27 @@ export default function History() {
     const hasPenalty = transaction.penalty_amount && parseFloat(transaction.penalty_amount) > 0;
 
     if (hasPenalty) {
+      // Calculate delay
+      const dueDate = new Date(transaction.due_date);
+      const returnedDate = new Date(transaction.returned_at);
+      const diffTime = Math.abs(returnedDate - dueDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      const isLost = transaction.book_asset?.status === 'lost'; // Or infer from high penalty?
+      // Better: if penalty == book price? But let's stick to simple "Late" vs "Lost" if we knew. 
+      // For now, just show "Returned Late" and maybe days.
+
       return (
-        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800 flex items-center gap-1 w-fit ml-auto">
-          ⚠️ Returned Late
-        </span>
+        <div className="flex flex-col items-end">
+          <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800 flex items-center gap-1 w-fit">
+            ⚠️ Returned Late
+          </span>
+          {diffDays > 0 && (
+            <span className="text-[10px] text-orange-600 dark:text-orange-400 font-medium mt-1">
+              {diffDays} day{diffDays > 1 ? 's' : ''} overdue
+            </span>
+          )}
+        </div>
       );
     }
 
@@ -42,14 +67,22 @@ export default function History() {
   };
 
 
-  // Handle Waiving a fine
-  const handleWaiveFine = (transactionId) => {
-    setProcessingId(transactionId);
-    axiosClient.post(`/transactions/${transactionId}/waive`)
+  // Handle Waive Click
+  const onWaiveClick = (transactionId) => {
+    setWaivingTransactionId(transactionId);
+    setIsWaiverModalOpen(true);
+  };
+
+  // Confirm Waive with Reason
+  const confirmWaiver = (reason) => {
+    setProcessingId(waivingTransactionId);
+    axiosClient.post(`/transactions/${waivingTransactionId}/waive`, { reason })
       .then(() => {
         toast.success("Fine waived successfully");
         fetchTransactions();
         setProcessingId(null);
+        setIsWaiverModalOpen(false);
+        setWaivingTransactionId(null);
       })
       .catch((err) => {
         toast.error(err.response?.data?.message || "Failed to waive fine");
@@ -155,15 +188,11 @@ export default function History() {
         matchesTab = !t.returned_at;
         break;
       case 'returned':
-        matchesTab = !!t.returned_at;
-        break;
-      case 'returned':
-        matchesTab = !!t.returned_at;
+        matchesTab = !!t.returned_at && t.book_asset?.status !== 'lost' && (!t.penalty_amount || parseFloat(t.penalty_amount) === 0);
         break;
       case 'fines': // Renamed from 'unpaid'
         matchesTab = t.penalty_amount > 0; // Show ALL fines (Paid, Unpaid, Waived)
         break;
-      case 'deleted':
       case 'deleted':
         matchesTab = !t.book_asset; // Assumes deleted book assets are null in transaction
         break;
@@ -358,7 +387,7 @@ export default function History() {
                                 {processingId === t.id ? "..." : <><CheckCircle size={12} /> Pay</>}
                               </button>
                               <button
-                                onClick={() => handleWaiveFine(t.id)}
+                                onClick={() => onWaiveClick(t.id)}
                                 disabled={processingId === t.id}
                                 className="text-xs bg-gray-100 text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-all duration-200 inline-flex items-center gap-1 font-bold shadow-sm hover:shadow"
                                 title="Waive Fine"
@@ -418,6 +447,14 @@ export default function History() {
           onPageChange={setCurrentPage}
         />
       </div>
+
+      {/* Waiver Modal */}
+      <WaiverModal
+        isOpen={isWaiverModalOpen}
+        onClose={() => setIsWaiverModalOpen(false)}
+        onConfirm={confirmWaiver}
+        loading={processingId === waivingTransactionId}
+      />
     </div >
   );
 }
