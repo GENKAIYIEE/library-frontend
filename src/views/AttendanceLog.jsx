@@ -12,8 +12,19 @@ export default function AttendanceLog() {
     const [lastRefresh, setLastRefresh] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [showReportModal, setShowReportModal] = useState(false);
+    const [reportLogs, setReportLogs] = useState([]); // Store full list for report
+    const [generatingReport, setGeneratingReport] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [lastPage, setLastPage] = useState(1);
+    const [loadingMore, setLoadingMore] = useState(false);
     const pollIntervalRef = useRef(null);
+    const currentPageRef = useRef(1);
 
+
+    // Keep ref in sync with state
+    useEffect(() => {
+        currentPageRef.current = currentPage;
+    }, [currentPage]);
 
     useEffect(() => {
         fetchLogsByDate(selectedDate);
@@ -21,7 +32,8 @@ export default function AttendanceLog() {
         const today = new Date().toISOString().split('T')[0];
         if (selectedDate === today) {
             pollIntervalRef.current = setInterval(() => {
-                fetchLogsByDate(selectedDate, true);
+                // Use ref to get latest current page inside closure
+                fetchLogsByDate(selectedDate, true, currentPageRef.current);
             }, 15000);
         }
 
@@ -32,14 +44,21 @@ export default function AttendanceLog() {
         };
     }, [selectedDate]);
 
-    const fetchLogsByDate = async (date, silent = false) => {
+    const fetchLogsByDate = async (date, silent = false, page = 1) => {
         if (!silent) setLoading(true);
+        if (silent && page > 1) return; // Don't silent poll on other pages for now
 
         try {
-            const response = await axiosClient.get(`/attendance/today?date=${date}`);
+            const response = await axiosClient.get(`/attendance/today?date=${date}&page=${page}`);
             setLogs(response.data.logs || []);
             setTotalCount(response.data.count || 0);
             setDisplayDate(response.data.date || date);
+
+            if (response.data.pagination) {
+                setCurrentPage(response.data.pagination.current_page);
+                setLastPage(response.data.pagination.last_page);
+            }
+
             setLastRefresh(new Date());
         } catch (err) {
             console.error("Failed to fetch attendance logs:", err);
@@ -52,6 +71,7 @@ export default function AttendanceLog() {
         const prev = new Date(selectedDate);
         prev.setDate(prev.getDate() - 1);
         setSelectedDate(prev.toISOString().split('T')[0]);
+        setCurrentPage(1);
     };
 
     const goToNextDay = () => {
@@ -60,20 +80,36 @@ export default function AttendanceLog() {
         const today = new Date().toISOString().split('T')[0];
         if (next.toISOString().split('T')[0] <= today) {
             setSelectedDate(next.toISOString().split('T')[0]);
+            setCurrentPage(1);
         }
     };
 
     const goToToday = () => {
-        setSelectedDate(new Date().toISOString().split('T')[0]);
+        const today = new Date().toISOString().split('T')[0];
+        setSelectedDate(today);
+        setCurrentPage(1); // Reset to page 1
     };
 
-    const handleGenerateReport = () => {
-        setShowReportModal(true);
+    const handleGenerateReport = async () => {
+        setGeneratingReport(true);
+        try {
+            // Fetch ALL logs for the selected date
+            const response = await axiosClient.get(`/attendance/today?date=${selectedDate}&all=true`);
+            setReportLogs(response.data.logs || []);
+            setShowReportModal(true);
+        } catch (error) {
+            console.error("Failed to generate report:", error);
+            // Fallback to current logs if fetch fails
+            setReportLogs(logs);
+            setShowReportModal(true);
+        } finally {
+            setGeneratingReport(false);
+        }
     };
 
     const handlePrintReport = () => {
-        // Generate print-friendly HTML content
-        const currentLogs = logs.filter(log =>
+        // Generate print-friendly HTML content using reportLogs (full list)
+        const logsToPrint = reportLogs.filter(log =>
             log.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             log.user?.student_id?.toLowerCase().includes(searchTerm.toLowerCase())
         );
@@ -86,7 +122,7 @@ export default function AttendanceLog() {
             });
         };
 
-        const tableRows = currentLogs.map((log, index) => `
+        const tableRows = logsToPrint.map((log, index) => `
             <tr>
                 <td>${index + 1}</td>
                 <td>${log.user?.name || 'Unknown'}</td>
@@ -110,6 +146,11 @@ export default function AttendanceLog() {
                         padding: 40px; 
                         background: white;
                         color: #000;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    html {
+                        color-scheme: light;
                     }
                     .header { 
                         text-align: center; 
@@ -189,7 +230,7 @@ export default function AttendanceLog() {
             <body>
                 <div class="header">
                     <h1>PCLU Library Management System</h1>
-                    <p>Philippine Christian Luzon University</p>
+                    <p>Polytechnic College of La Union</p>
                     <h2>Daily Attendance Report</h2>
                 </div>
                 
@@ -199,7 +240,7 @@ export default function AttendanceLog() {
                         <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
                     </div>
                     <div style="text-align: right;">
-                        <p><strong>Total Visitors:</strong> ${currentLogs.length}</p>
+                        <p><strong>Total Visitors:</strong> ${logsToPrint.length}</p>
                         <p><strong>Report Type:</strong> Daily Attendance Log</p>
                     </div>
                 </div>
@@ -207,10 +248,10 @@ export default function AttendanceLog() {
                 <div class="summary">
                     <h3>Summary</h3>
                     <p>This report documents all library visitors who checked in on <strong>${displayDate}</strong>. 
-                    A total of <strong>${currentLogs.length} student(s)</strong> visited the library on this date.</p>
+                    A total of <strong>${logsToPrint.length} student(s)</strong> visited the library on this date.</p>
                 </div>
                 
-                ${currentLogs.length > 0 ? `
+                ${logsToPrint.length > 0 ? `
                     <table>
                         <thead>
                             <tr>
@@ -237,23 +278,12 @@ export default function AttendanceLog() {
                         <p>Prepared by: Library Management System</p>
                         <p>Document generated on ${new Date().toLocaleString()}</p>
                     </div>
-                    <div style="text-align: right;">
-                        <p>Page 1 of 1</p>
-                        <p>PCLU Library - Confidential</p>
-                    </div>
                 </div>
                 
                 <div class="signatures">
-                    <div class="signature-box">
+                    <div class="signature-box" style="margin: 0 auto;">
                         <div class="signature-line">
                             <p>Librarian Signature</p>
-                            <span>Date: _______________</span>
-                        </div>
-                    </div>
-                    <div class="signature-box">
-                        <div class="signature-line">
-                            <p>Noted By</p>
-                            <span>Date: _______________</span>
                         </div>
                     </div>
                 </div>
@@ -354,8 +384,12 @@ export default function AttendanceLog() {
                             <div className="overflow-auto flex-1 bg-slate-100 p-6">
                                 <div
                                     id="report-document"
-                                    className="bg-white mx-auto max-w-3xl p-10 shadow-lg"
-                                    style={{ fontFamily: 'Times New Roman, serif' }}
+                                    className="mx-auto max-w-3xl p-10 shadow-lg"
+                                    style={{
+                                        fontFamily: 'Times New Roman, serif',
+                                        backgroundColor: 'white',
+                                        color: 'black'
+                                    }}
                                 >
 
                                     {/* Report Header */}
@@ -364,7 +398,7 @@ export default function AttendanceLog() {
                                             PCLU Library Management System
                                         </h1>
                                         <p className="text-sm text-slate-600 mb-4">
-                                            Philippine Christian Luzon University
+                                            Polytechnic College of La Union
                                         </p>
                                         <h2 className="text-xl font-bold uppercase mt-4">
                                             Daily Attendance Report
@@ -379,7 +413,7 @@ export default function AttendanceLog() {
                                                 <p><strong>Generated:</strong> {new Date().toLocaleString()}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p><strong>Total Visitors:</strong> {filteredLogs.length}</p>
+                                                <p><strong>Total Visitors:</strong> {reportLogs.length}</p>
                                                 <p><strong>Report Type:</strong> Daily Attendance Log</p>
                                             </div>
                                         </div>
@@ -390,12 +424,12 @@ export default function AttendanceLog() {
                                         <h3 className="font-bold text-sm uppercase tracking-wide mb-2">Summary</h3>
                                         <p className="text-sm">
                                             This report documents all library visitors who checked in on <strong>{displayDate}</strong>.
-                                            A total of <strong>{filteredLogs.length} student(s)</strong> visited the library on this date.
+                                            A total of <strong>{reportLogs.length} student(s)</strong> visited the library on this date.
                                         </p>
                                     </div>
 
                                     {/* Attendance Table */}
-                                    {filteredLogs.length > 0 ? (
+                                    {reportLogs.length > 0 ? (
                                         <table className="report-table w-full border-collapse text-sm">
                                             <thead>
                                                 <tr className="bg-slate-200">
@@ -408,7 +442,7 @@ export default function AttendanceLog() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {filteredLogs.map((log, index) => (
+                                                {reportLogs.map((log, index) => (
                                                     <tr key={log.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                                         <td className="border border-slate-300 px-3 py-2">{index + 1}</td>
                                                         <td className="border border-slate-300 px-3 py-2">{log.user?.name || 'Unknown'}</td>
@@ -433,25 +467,14 @@ export default function AttendanceLog() {
                                                 <p>Prepared by: Library Management System</p>
                                                 <p>Document generated on {new Date().toLocaleString()}</p>
                                             </div>
-                                            <div className="text-right">
-                                                <p>Page 1 of 1</p>
-                                                <p>PCLU Library - Confidential</p>
-                                            </div>
                                         </div>
                                     </div>
 
                                     {/* Signature Lines */}
-                                    <div className="mt-12 grid grid-cols-2 gap-8">
+                                    <div className="mt-12 flex justify-center">
                                         <div className="text-center">
-                                            <div className="border-t border-slate-400 pt-2 mt-10">
+                                            <div className="border-t border-slate-400 pt-2 mt-10 w-48 mx-auto">
                                                 <p className="text-sm font-semibold">Librarian Signature</p>
-                                                <p className="text-xs text-slate-500">Date: _______________</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-center">
-                                            <div className="border-t border-slate-400 pt-2 mt-10">
-                                                <p className="text-sm font-semibold">Noted By</p>
-                                                <p className="text-xs text-slate-500">Date: _______________</p>
                                             </div>
                                         </div>
                                     </div>
@@ -488,7 +511,10 @@ export default function AttendanceLog() {
                         type="date"
                         value={selectedDate}
                         max={new Date().toISOString().split('T')[0]}
-                        onChange={(e) => setSelectedDate(e.target.value)}
+                        onChange={(e) => {
+                            setSelectedDate(e.target.value);
+                            setCurrentPage(1);
+                        }}
                         className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white font-medium text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     />
 
@@ -513,11 +539,11 @@ export default function AttendanceLog() {
 
                     <button
                         onClick={handleGenerateReport}
-                        disabled={loading || filteredLogs.length === 0}
+                        disabled={loading || generatingReport}
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold text-sm transition-colors"
                         title="Generate Printable Report"
                     >
-                        <FileText size={16} />
+                        {generatingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
                         Generate Report
                     </button>
 
@@ -653,6 +679,32 @@ export default function AttendanceLog() {
                     </div>
                 )}
             </div>
+            {/* Pagination Controls */}
+            {lastPage > 1 && (
+                <div className="flex items-center justify-between mt-4 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Page <span className="font-bold text-slate-800 dark:text-white">{currentPage}</span> of <span className="font-bold text-slate-800 dark:text-white">{lastPage}</span>
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => fetchLogsByDate(selectedDate, false, currentPage - 1)}
+                            disabled={currentPage === 1}
+                            className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 transition-colors flex items-center gap-2"
+                        >
+                            <ChevronLeft size={16} />
+                            Previous
+                        </button>
+                        <button
+                            onClick={() => fetchLogsByDate(selectedDate, false, currentPage + 1)}
+                            disabled={currentPage === lastPage}
+                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                        >
+                            Next
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -10,9 +10,7 @@ export default function PrintLibraryCard() {
         if (data) {
             setStudent(JSON.parse(data));
             setReady(true);
-            setTimeout(() => {
-                window.print();
-            }, 1500);
+
         }
     }, []);
 
