@@ -4,11 +4,17 @@ import { X, BookOpen, AlertTriangle, CheckCircle, DollarSign, Calendar, Hash, Pr
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
 import LibraryCard from "../components/LibraryCard";
+import Pagination from "../components/ui/Pagination"; // Import Pagination
 import Swal from "sweetalert2";
 
 export default function StudentProfileModal({ student: initialStudent, onClose }) {
     const [student, setStudent] = useState(initialStudent);
     const [transactions, setTransactions] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalItems, setTotalItems] = useState(0);
+    const itemsPerPage = 10; // Must match backend paginate(10)
+
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
@@ -21,19 +27,34 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
     });
 
     useEffect(() => {
-        fetchStudentHistory();
-    }, [initialStudent]); // Update if ID changes
+        fetchStudentHistory(1); // Reset to page 1 on open/change
+    }, [initialStudent]);
 
-    const fetchStudentHistory = () => {
-        axiosClient.get(`/students/${initialStudent.id}/history`)
+    const fetchStudentHistory = (page = 1) => {
+        setLoading(true);
+        axiosClient.get(`/students/${initialStudent.id}/history?page=${page}`)
             .then(({ data }) => {
-                setTransactions(data.transactions || []);
+                // Handle Paginated Response
+                if (data.transactions && data.transactions.data) {
+                    setTransactions(data.transactions.data);
+                    setCurrentPage(data.transactions.current_page);
+                    setTotalPages(data.transactions.last_page);
+                    setTotalItems(data.transactions.total);
+                } else {
+                    setTransactions([]);
+                }
+
                 setStats(data.stats || stats);
                 setLoading(false);
             })
             .catch(() => {
                 setLoading(false);
             });
+    };
+
+    // Handle Page Change
+    const handlePageChange = (page) => {
+        fetchStudentHistory(page);
     };
 
     const handleAvatarClick = () => {
@@ -275,6 +296,18 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
                                     </table>
                                 )}
                             </div>
+
+                            {/* Pagination Logic */}
+                            {!loading && transactions.length > 0 && (
+                                <div className="mt-4">
+                                    <Pagination
+                                        currentPage={currentPage}
+                                        totalItems={totalItems}
+                                        itemsPerPage={itemsPerPage}
+                                        onPageChange={handlePageChange}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </motion.div>

@@ -41,45 +41,85 @@ const KioskBackground = () => (
     </div>
 );
 
-// --- Librarian Avatar Component ---
-const LibrarianAvatar = () => (
-    <div className="fixed bottom-0 right-0 z-50 pointer-events-none">
-        <motion.div
-            initial={{ y: 200, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.5, type: "spring", stiffness: 80, damping: 15 }}
-            className="relative w-64 h-64 md:w-80 md:h-80 mr-[-2rem] mb-[-2rem]" // Increased size & positioning
-        >
-            {/* Shared Floating Container */}
+const LibrarianAvatar = () => {
+    const [isSpeaking, setIsSpeaking] = useState(false);
+
+    const handleSpeak = () => {
+        // Create audio object pointing to the file in public folder
+        const audio = new Audio('/shush.mp3');
+
+        // Handle visualization state
+        setIsSpeaking(true);
+        audio.play().catch(e => console.error("Audio play failed:", e));
+
+        // Reset state when audio finishes
+        audio.onended = () => setIsSpeaking(false);
+    };
+
+    return (
+        <div className="fixed bottom-0 right-0 z-50 pointer-events-none">
             <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-full h-full relative"
+                initial={{ y: 200, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5, type: "spring", stiffness: 80, damping: 15 }}
+                className="relative w-64 h-64 md:w-80 md:h-80 mr-[-2rem] mb-[-2rem]" // Increased size & positioning
             >
-                {/* Speech Bubble - Always Visible after delay */}
+                {/* Shared Floating Container */}
                 <motion.div
-                    initial={{ opacity: 0, scale: 0, x: 20, rotate: 10 }}
-                    animate={{ opacity: 1, scale: 1, x: 0, rotate: 0 }}
-                    transition={{ delay: 1.5, type: "spring", stiffness: 120 }}
-                    className="absolute -top-6 left-0 md:left-4 transform -translate-x-full bg-white text-slate-900 px-5 py-3 rounded-2xl rounded-br-sm shadow-[0_10px_30px_rgba(0,0,0,0.2)] border border-blue-100 z-50 min-w-[140px] text-center pointer-events-auto"
+                    animate={isSpeaking ? {
+                        y: [0, -5, 0],
+                        scale: [1, 1.05, 1]
+                    } : {
+                        y: [0, -10, 0]
+                    }}
+                    transition={isSpeaking ? {
+                        duration: 0.3,
+                        repeat: Infinity
+                    } : {
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                    }}
+                    className="w-full h-full relative"
                 >
-                    <p className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Please be quiet!</p>
-                    <div className="text-xs text-slate-400 font-medium tracking-wide uppercase mt-1">Library Zone</div>
+                    {/* Speech Bubble - Visible when speaking or initially */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0, x: 20, rotate: 10 }}
+                        animate={{
+                            opacity: 1,
+                            scale: isSpeaking ? 1.1 : 1,
+                            x: 0,
+                            rotate: isSpeaking ? [0, -2, 2, 0] : 0
+                        }}
+                        transition={{
+                            delay: isSpeaking ? 0 : 1.5,
+                            type: "spring",
+                            stiffness: 120
+                        }}
+                        className={`absolute -top-6 left-0 md:left-4 transform -translate-x-full bg-white text-slate-900 px-5 py-3 rounded-2xl rounded-br-sm shadow-[0_10px_30px_rgba(0,0,0,0.2)] border-2 ${isSpeaking ? 'border-red-400' : 'border-blue-100'} z-50 min-w-[140px] text-center pointer-events-auto transition-colors duration-300`}
+                    >
+                        <p className={`font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r ${isSpeaking ? 'from-red-600 to-orange-600' : 'from-blue-600 to-indigo-600'}`}>
+                            {isSpeaking ? "SHHHHHH!" : "Please be quiet!"}
+                        </p>
+                        <div className="text-xs text-slate-400 font-medium tracking-wide uppercase mt-1">Library Zone</div>
 
-                    {/* Bubble Triangle */}
-                    <div className="absolute -right-2 bottom-0 w-4 h-4 bg-white transform rotate-45 border-r border-b border-blue-100"></div>
+                        {/* Bubble Triangle */}
+                        <div className={`absolute -right-2 bottom-0 w-4 h-4 bg-white transform rotate-45 border-r border-b ${isSpeaking ? 'border-red-400' : 'border-blue-100'} transition-colors duration-300`}></div>
+                    </motion.div>
+
+                    {/* Avatar Image */}
+                    <img
+                        src="/librarian-avatar.png"
+                        alt="Librarian"
+                        onClick={handleSpeak}
+                        className="w-full h-full object-contain filter drop-shadow-2xl hover:brightness-110 transition-all duration-300 cursor-pointer pointer-events-auto active:scale-95"
+                        title="Click to Shush!"
+                    />
                 </motion.div>
-
-                {/* Avatar Image */}
-                <img
-                    src="/librarian-avatar.png"
-                    alt="Librarian"
-                    className="w-full h-full object-contain filter drop-shadow-2xl hover:brightness-110 transition-all duration-300 cursor-pointer pointer-events-auto"
-                />
             </motion.div>
-        </motion.div>
-    </div>
-);
+        </div>
+    );
+};
 
 export default function KioskLayout({ children }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
