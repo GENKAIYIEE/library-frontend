@@ -590,8 +590,8 @@ export default function Circulation({ onNavigateToBooks }) {
                       readOnly={!isNewStudent}
                       className={`w-full pl-12 pr-4 border-2 p-3 rounded-xl outline-none transition-all 
                             ${!isNewStudent
-                          ? 'bg-gray-100 dark:bg-slate-800 border-transparent text-gray-500 cursor-not-allowed'
-                          : 'bg-white dark:bg-slate-900 border-primary-300 ring-2 ring-primary-100 text-primary-700 font-bold'
+                          ? 'bg-gray-100 dark:bg-slate-800 border-transparent text-gray-500 dark:text-slate-500 cursor-not-allowed'
+                          : 'bg-white dark:bg-slate-900 border-primary-300 ring-2 ring-primary-100 text-primary-700 dark:text-emerald-400 font-bold'
                         }`}
                       placeholder={isNewStudent && studentId.length > 2 ? "Enter new student name..." : "Waiting for ID..."}
                       required
@@ -615,7 +615,7 @@ export default function Circulation({ onNavigateToBooks }) {
                       <select
                         value={studentCourse}
                         onChange={(e) => setStudentCourse(e.target.value)}
-                        className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-primary-300 dark:border-primary-700 text-gray-800 dark:text-white p-3 rounded-xl focus:ring-4 focus:ring-primary-100 outline-none font-bold"
+                        className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-primary-300 dark:border-primary-700 text-gray-800 dark:text-gray-100 p-3 rounded-xl focus:ring-4 focus:ring-primary-100 outline-none font-bold"
                       >
                         <option value="BSIT">BSIT</option>
                         <option value="BSED">BSED</option>
@@ -638,7 +638,7 @@ export default function Circulation({ onNavigateToBooks }) {
                         <select
                           value={studentYear}
                           onChange={(e) => setStudentYear(e.target.value)}
-                          className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-primary-300 dark:border-primary-700 text-gray-800 dark:text-white p-3 rounded-xl focus:ring-4 focus:ring-primary-100 outline-none font-bold"
+                          className="w-full appearance-none bg-white dark:bg-slate-900 border-2 border-primary-300 dark:border-primary-700 text-gray-800 dark:text-gray-100 p-3 rounded-xl focus:ring-4 focus:ring-primary-100 outline-none font-bold"
                         >
                           <option value="1">1</option>
                           <option value="2">2</option>
