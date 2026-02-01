@@ -1,13 +1,18 @@
-import { useState, useCallback } from "react";
-import axiosClient from "../axios-client";
-import Swal from "sweetalert2";
 import {
-    UserPlus, Shield, Eye, EyeOff,
-    RefreshCw, Mail, User, Lock, ChevronRight
+    ChevronRight,
+    Eye, EyeOff,
+    Lock,
+    Mail,
+    RefreshCw,
+    Shield,
+    User,
+    UserPlus
 } from "lucide-react";
-import FloatingInput from "../components/ui/FloatingInput";
-import FloatingSelect from "../components/ui/FloatingSelect";
+import { useCallback, useState } from "react";
+import Swal from "sweetalert2";
+import axiosClient from "../axios-client";
 import Button from "../components/ui/Button";
+import FloatingInput from "../components/ui/FloatingInput";
 
 export default function UserManagement() {
     // Form Fields
@@ -204,16 +209,7 @@ export default function UserManagement() {
                                 </div>
                             </div>
 
-                            <FloatingSelect
-                                label="Permissions Level"
-                                value={permissions}
-                                onChange={(e) => setPermissions(e.target.value)}
-                                required
-                                error={errors.permissions}
-                            >
-                                <option value="full_access">Full Access</option>
-                                <option value="read_only">Read Only</option>
-                            </FloatingSelect>
+                            
 
                             <Button
                                 type="submit"

@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Calendar, ChevronLeft, ChevronRight, ClipboardList, Clock, FileText, Loader2, Printer, RefreshCw, Search, Users, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import axiosClient from "../axios-client";
-import { ClipboardList, Calendar, Loader2, RefreshCw, Users, Clock, Search, ChevronLeft, ChevronRight, FileText, X, Printer } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useLibrarySettings } from "../context/LibrarySettingsContext";
 
 export default function AttendanceLog() {
+    const { libraryName } = useLibrarySettings();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [totalCount, setTotalCount] = useState(0);
@@ -229,7 +231,7 @@ export default function AttendanceLog() {
             </head>
             <body>
                 <div class="header">
-                    <h1>PCLU Library Management System</h1>
+                    <h1>${libraryName || 'Library Management System'}</h1>
                     <p>Polytechnic College of La Union</p>
                     <h2>Daily Attendance Report</h2>
                 </div>
@@ -395,10 +397,10 @@ export default function AttendanceLog() {
                                     {/* Report Header */}
                                     <div className="text-center mb-8 border-b-2 border-slate-800 pb-6">
                                         <h1 className="text-2xl font-bold uppercase tracking-wide mb-1">
-                                            PCLU Library Management System
+                                            {libraryName || 'Library Management System'}
                                         </h1>
                                         <p className="text-sm text-slate-600 mb-4">
-                                            Polytechnic College of La Union
+                                            Library Management System
                                         </p>
                                         <h2 className="text-xl font-bold uppercase mt-4">
                                             Daily Attendance Report

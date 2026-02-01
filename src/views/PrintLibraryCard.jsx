@@ -23,127 +23,130 @@ export default function PrintLibraryCard() {
     }
 
     return (
-        <html>
-            <head>
-                <title>Library Card - {student.name}</title>
-                <style dangerouslySetInnerHTML={{
-                    __html: `
-                    * { margin: 0; padding: 0; box-sizing: border-box; }
-                    body { 
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                        background: #e2e8f0;
+        <>
+            {/* Helmet for title */}
+            <title>Library Card - {student.name}</title>
+
+            {/* Styles for print and screen */}
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                .print-card-page * { margin: 0; padding: 0; box-sizing: border-box; }
+                .print-card-page { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    background: #e2e8f0;
+                    min-height: 100vh;
+                }
+                @media print {
+                    @page { 
+                        size: A4 portrait; 
+                        margin: 10mm; 
                     }
-                    @media print {
-                        @page { 
-                            size: A4 portrait; 
-                            margin: 10mm; 
-                        }
-                        body { 
-                            background: white !important;
-                            -webkit-print-color-adjust: exact !important;
-                            print-color-adjust: exact !important;
-                        }
-                        .no-print { display: none !important; }
-                        .card { 
-                            box-shadow: none !important; 
-                            border: 1px solid #999 !important;
-                            margin-bottom: 10mm !important;
-                        }
+                    body, .print-card-page { 
+                        background: white !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
-                    .card {
-                        width: 323px;
-                        height: 204px;
-                        background: white;
-                        border-radius: 8px;
-                        overflow: hidden;
-                        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                        margin: 0 auto 20px auto;
-                        border: 1px solid #cbd5e1;
+                    .no-print { display: none !important; }
+                    .card { 
+                        box-shadow: none !important; 
+                        border: 1px solid #999 !important;
+                        margin-bottom: 10mm !important;
                     }
-                    .header-front {
-                        width: 100%;
-                        height: 54px;
-                        background: #00008B;
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        padding: 0 12px;
-                    }
-                    .header-back {
-                        width: 100%;
-                        height: 30px;
-                        background: #00008B;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                    }
-                    .gold-bar {
-                        width: 100%;
-                        height: 10px;
-                        background: #FCD34D;
-                    }
-                    .content {
-                        flex: 1;
-                        display: flex;
-                        padding: 8px 10px;
-                        gap: 10px;
-                        background: #f8fafc;
-                        height: 140px;
-                    }
-                    .content-back {
-                        padding: 8px 12px;
-                        background: white;
-                        height: 164px;
-                        display: flex;
-                        flex-direction: column;
-                    }
-                    .photo-box {
-                        width: 80px;
-                        height: 100px;
-                        border: 2px solid #00008B;
-                        border-radius: 4px;
-                        overflow: hidden;
-                        flex-shrink: 0;
-                    }
-                    .photo-box img {
-                        width: 100%;
-                        height: 100%;
-                        object-fit: cover;
-                    }
-                    .details {
-                        flex: 1;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: space-between;
-                    }
-                    .label {
-                        font-size: 7px;
-                        font-weight: bold;
-                        color: #64748b;
-                        text-transform: uppercase;
-                        letter-spacing: 0.5px;
-                        margin-bottom: 1px;
-                    }
-                    .value {
-                        font-size: 10px;
-                        font-weight: bold;
-                        color: #00008B;
-                    }
-                    .value-large {
-                        font-size: 12px;
-                        font-weight: 800;
-                        color: #00008B;
-                        text-transform: uppercase;
-                    }
-                    .sig-line {
-                        border-bottom: 1px solid #94a3b8;
-                        width: 90px;
-                        height: 14px;
-                        margin-top: 6px;
-                    }
-                ` }} />
-            </head>
-            <body>
+                }
+                .card {
+                    width: 323px;
+                    height: 204px;
+                    background: white;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+                    margin: 0 auto 20px auto;
+                    border: 1px solid #cbd5e1;
+                }
+                .header-front {
+                    width: 100%;
+                    height: 54px;
+                    background: #00008B;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 0 12px;
+                }
+                .header-back {
+                    width: 100%;
+                    height: 30px;
+                    background: #00008B;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .gold-bar {
+                    width: 100%;
+                    height: 10px;
+                    background: #FCD34D;
+                }
+                .content {
+                    flex: 1;
+                    display: flex;
+                    padding: 8px 10px;
+                    gap: 10px;
+                    background: #f8fafc;
+                    height: 140px;
+                }
+                .content-back {
+                    padding: 8px 12px;
+                    background: white;
+                    height: 164px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .photo-box {
+                    width: 80px;
+                    height: 100px;
+                    border: 2px solid #00008B;
+                    border-radius: 4px;
+                    overflow: hidden;
+                    flex-shrink: 0;
+                }
+                .photo-box img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+                .details {
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                }
+                .label {
+                    font-size: 7px;
+                    font-weight: bold;
+                    color: #64748b;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                    margin-bottom: 1px;
+                }
+                .value {
+                    font-size: 10px;
+                    font-weight: bold;
+                    color: #00008B;
+                }
+                .value-large {
+                    font-size: 12px;
+                    font-weight: 800;
+                    color: #00008B;
+                    text-transform: uppercase;
+                }
+                .sig-line {
+                    border-bottom: 1px solid #94a3b8;
+                    width: 90px;
+                    height: 14px;
+                    margin-top: 6px;
+                }
+            ` }} />
+
+            <div className="print-card-page">
                 {/* Controls - Screen Only */}
                 <div className="no-print" style={{ padding: '30px', textAlign: 'center', background: '#e2e8f0' }}>
                     <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: '#1e293b', marginBottom: '6px' }}>Library Card Preview</h1>
@@ -257,7 +260,7 @@ export default function PrintLibraryCard() {
                         <div className="gold-bar"></div>
                     </div>
                 </div>
-            </body>
-        </html>
+            </div>
+        </>
     );
 }

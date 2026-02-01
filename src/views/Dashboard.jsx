@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
-import axiosClient, { ASSET_URL } from "../axios-client";
-import Leaderboard from "../components/Leaderboard";
-import CategoryPieChart from "../components/charts/CategoryPieChart";
-import { BookOpen, Copy, Repeat, Users, LayoutDashboard, Plus, Search, Scan, ArrowRight, ClipboardList, AlertTriangle, DollarSign } from "lucide-react";
-import Pagination from "../components/ui/Pagination";
 import { motion } from "framer-motion";
-import GlassCard from "../components/ui/GlassCard";
+import { AlertTriangle, ArrowRight, BookOpen, ClipboardList, Copy, DollarSign, LayoutDashboard, Repeat, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import axiosClient from "../axios-client";
 import FlipBookCard from "../components/FlipBookCard";
+import Leaderboard from "../components/Leaderboard";
 import MostPopularBooks from "../components/MostPopularBooks";
+import CategoryPieChart from "../components/charts/CategoryPieChart";
+import GlassCard from "../components/ui/GlassCard";
+import Pagination from "../components/ui/Pagination";
 
 export default function Dashboard({ setActiveTab }) {
   const [stats, setStats] = useState({
@@ -91,7 +91,7 @@ export default function Dashboard({ setActiveTab }) {
       {/* STAT CARDS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <DashboardStatCard
-          title="Total Titles"
+          title="Total Books"
           value={stats.titles}
           icon={BookOpen}
           color="bg-blue-500"

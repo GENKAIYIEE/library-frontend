@@ -22,14 +22,18 @@ import {
     History,
     ChevronLeft,
     ChevronRight,
+    Loader2,
+    RotateCcw,
 } from "lucide-react";
 import { useToast } from "../components/ui/Toast";
 import Button from "../components/ui/Button";
 import axiosClient from "../axios-client";
+import { useLibrarySettings } from "../context/LibrarySettingsContext";
 
 export default function Settings() {
     const toast = useToast();
-    const [activeSection, setActiveSection] = useState("dashboard");
+    const { refreshSettings: refreshGlobalSettings } = useLibrarySettings();
+    const [activeSection, setActiveSection] = useState("library");
     const [loading, setLoading] = useState(false);
     const [lastRefresh, setLastRefresh] = useState(new Date());
 
@@ -61,29 +65,44 @@ export default function Settings() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 8;
 
-    // Library Settings
-    const [librarySettings, setLibrarySettings] = useState(() => {
-        const saved = localStorage.getItem('librarySettings');
-        return saved ? JSON.parse(saved) : {
-            libraryName: "PCLU Library System",
-            defaultLoanDays: 7,
-            maxLoansPerStudent: 3,
-            finePerDay: 10,
-            emailNotifications: true
-        };
+    // Library Settings - Now fetched from API
+    const [librarySettings, setLibrarySettings] = useState({
+        library_name: "PCLU Library System",
+        default_loan_days: 7,
+        max_loans_per_student: 3,
+        fine_per_day: 5
     });
+    const [originalSettings, setOriginalSettings] = useState(null);
+    const [settingsLoading, setSettingsLoading] = useState(true);
+    const [settingsSaving, setSettingsSaving] = useState(false);
+    const [settingsChanged, setSettingsChanged] = useState(false);
+
+    // Fetch settings from API on mount
+    const fetchSettings = useCallback(async () => {
+        setSettingsLoading(true);
+        try {
+            const res = await axiosClient.get('/settings');
+            if (res.data?.success && res.data?.settings) {
+                const settings = res.data.settings;
+                setLibrarySettings(settings);
+                setOriginalSettings(settings);
+                setSettingsChanged(false);
+            }
+        } catch (error) {
+            console.error('Failed to fetch settings:', error);
+            toast.error('Failed to load settings. Using defaults.');
+        } finally {
+            setSettingsLoading(false);
+        }
+    }, [toast]);
 
     // Fetch all data on mount and setup auto-refresh
     useEffect(() => {
+        fetchSettings();
         refreshAllData();
         const interval = setInterval(refreshAllData, 30000);
         return () => clearInterval(interval);
-    }, []);
-
-    // Persist settings
-    useEffect(() => {
-        localStorage.setItem('librarySettings', JSON.stringify(librarySettings));
-    }, [librarySettings]);
+    }, [fetchSettings]);
 
     const refreshAllData = useCallback(async () => {
         await Promise.all([
@@ -229,9 +248,59 @@ export default function Settings() {
         }
     };
 
-    const handleSaveSettings = () => {
-        localStorage.setItem('librarySettings', JSON.stringify(librarySettings));
-        toast.success("Settings saved successfully");
+    const handleSaveSettings = async () => {
+        setSettingsSaving(true);
+        try {
+            const res = await axiosClient.put('/settings', librarySettings);
+            if (res.data?.success) {
+                toast.success("Settings saved successfully! Changes apply immediately.");
+                setOriginalSettings(librarySettings);
+                setSettingsChanged(false);
+                // Refresh global settings context so sidebar/kiosk update immediately
+                refreshGlobalSettings();
+            } else {
+                throw new Error(res.data?.message || 'Unknown error');
+            }
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            const msg = error.response?.data?.message || error.response?.data?.errors || "Failed to save settings";
+            toast.error(typeof msg === 'object' ? JSON.stringify(msg) : msg);
+        } finally {
+            setSettingsSaving(false);
+        }
+    };
+
+    const handleResetSettings = async () => {
+        if (!confirm('Are you sure you want to reset all settings to defaults?')) return;
+
+        setSettingsSaving(true);
+        try {
+            const res = await axiosClient.post('/settings/reset');
+            if (res.data?.success && res.data?.settings) {
+                setLibrarySettings(res.data.settings);
+                setOriginalSettings(res.data.settings);
+                setSettingsChanged(false);
+                // Refresh global settings context
+                refreshGlobalSettings();
+            }
+            toast.success("Settings reset to defaults");
+        } catch (error) {
+            toast.error("Failed to reset settings");
+        } finally {
+            setSettingsSaving(false);
+        }
+    };
+
+    const handleCancelChanges = () => {
+        if (originalSettings) {
+            setLibrarySettings(originalSettings);
+            setSettingsChanged(false);
+        }
+    };
+
+    const updateSetting = (key, value) => {
+        setLibrarySettings(prev => ({ ...prev, [key]: value }));
+        setSettingsChanged(true);
     };
 
     const handleExportCSV = async (type) => {
@@ -382,12 +451,8 @@ export default function Settings() {
                 {/* Sidebar */}
                 <div className="w-full lg:w-56 flex-shrink-0">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-3 space-y-1">
-                        <SectionButton id="dashboard" label="Dashboard" icon={BarChart3} />
-                        <SectionButton id="health" label="System Health" icon={Activity} badge={`${systemHealth.overall}%`} />
                         <SectionButton id="library" label="Configuration" icon={BookOpen} />
                         <SectionButton id="data" label="Data Export" icon={Database} />
-                        <SectionButton id="activity" label="Activity Log" icon={History} badge={recentActivity.length} />
-                        <SectionButton id="about" label="About" icon={Info} />
                     </div>
                 </div>
 
@@ -395,231 +460,157 @@ export default function Settings() {
                 <div className="flex-1">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-6 min-h-[650px]">
 
-                        {/* DASHBOARD */}
-                        {activeSection === "dashboard" && (
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                    <BarChart3 size={20} className="text-primary-500" />
-                                    Quick Overview
-                                </h3>
+                        {/* LIBRARY CONFIG */}
 
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                                    <StatCard icon={BookOpen} label="Total Books" value={stats.totalBooks} subValue={`${stats.totalCopies} copies total`} color="blue" />
-                                    <StatCard icon={Users} label="Students" value={stats.totalStudents} color="emerald" />
-                                    <StatCard icon={TrendingUp} label="Active Loans" value={stats.activeLoans} subValue={`${stats.overdueLoans} overdue`} color="amber" />
-                                    <StatCard icon={DollarSign} label="Pending Fines" value={`₱${stats.pendingFines.toFixed(0)}`} subValue={`₱${stats.paidFines.toFixed(0)} collected`} color="red" />
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-blue-500 rounded-lg">
-                                                <Zap size={18} className="text-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-2xl font-black text-blue-700 dark:text-blue-400">{stats.todayLoans}</p>
-                                                <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">Books Borrowed Today</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-emerald-500 rounded-lg">
-                                                <CheckCircle size={18} className="text-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{stats.todayReturns}</p>
-                                                <p className="text-xs text-emerald-600 dark:text-emerald-300 font-medium">Books Returned Today</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="p-4 bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-xl border border-purple-100 dark:border-purple-900/30">
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-purple-500 rounded-lg">
-                                                <BookOpen size={18} className="text-white" />
-                                            </div>
-                                            <div>
-                                                <p className="text-2xl font-black text-purple-700 dark:text-purple-400">{stats.availableCopies}</p>
-                                                <p className="text-xs text-purple-600 dark:text-purple-300 font-medium">Available Now</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="p-5 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-gray-200 dark:border-slate-700">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="font-bold text-gray-700 dark:text-gray-300">System Status</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2.5 h-2.5 rounded-full ${systemHealth.overall >= 80 ? 'bg-emerald-500' : systemHealth.overall >= 50 ? 'bg-amber-500' : 'bg-red-500'} animate-pulse`}></div>
-                                            <span className="text-sm font-bold text-gray-600 dark:text-gray-400">{systemHealth.overall}% Operational</span>
-                                        </div>
-                                    </div>
-                                    <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full bg-gradient-to-r ${getHealthGradient(systemHealth.overall)} transition-all duration-700`}
-                                            style={{ width: `${systemHealth.overall}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* SYSTEM HEALTH */}
-                        {activeSection === "health" && (
+                        {activeSection === "library" && (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                        <Activity size={20} className="text-primary-500" />
-                                        System Health Monitor
+                                        <BookOpen size={20} className="text-primary-500" />
+                                        Library Configuration
                                     </h3>
-                                    <span className="text-xs text-gray-400">
-                                        Last check: {systemHealth.api.lastCheck || 'Checking...'}
-                                    </span>
+                                    {settingsChanged && (
+                                        <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-3 py-1 rounded-full font-medium animate-pulse">
+                                            Unsaved changes
+                                        </span>
+                                    )}
                                 </div>
 
-                                <div className="p-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl text-white relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-white/10 to-transparent rounded-full -mr-20 -mt-20"></div>
-                                    <div className="relative z-10">
-                                        <p className="text-sm text-slate-300 mb-2">Overall System Health</p>
-                                        <div className="flex items-end gap-4">
-                                            <span className="text-6xl font-black">{systemHealth.overall}%</span>
-                                            <span className={`text-lg font-bold mb-2 ${systemHealth.overall >= 80 ? 'text-emerald-400' :
-                                                systemHealth.overall >= 50 ? 'text-amber-400' : 'text-red-400'
-                                                }`}>
-                                                {systemHealth.overall >= 80 ? '✓ Excellent' :
-                                                    systemHealth.overall >= 50 ? '⚠ Fair' : '✕ Critical'}
-                                            </span>
-                                        </div>
-                                        <div className="mt-4 w-full bg-slate-700 rounded-full h-3 overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full bg-gradient-to-r ${getHealthGradient(systemHealth.overall)} transition-all duration-1000`}
-                                                style={{ width: `${systemHealth.overall}%` }}
-                                            />
-                                        </div>
+                                {settingsLoading ? (
+                                    <div className="flex items-center justify-center py-12">
+                                        <Loader2 size={32} className="animate-spin text-primary-500" />
+                                        <span className="ml-3 text-gray-500">Loading settings...</span>
                                     </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className={`p-5 rounded-2xl border ${getStatusBg(systemHealth.api.status)} dark:bg-opacity-20 dark:border-opacity-30 border-gray-200 dark:border-slate-600`}>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-white rounded-xl shadow-sm">
-                                                    {systemHealth.api.status !== 'offline' && systemHealth.api.status !== 'error'
-                                                        ? <Wifi size={22} className={getStatusColor(systemHealth.api.status)} />
-                                                        : <WifiOff size={22} className="text-red-500" />
-                                                    }
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-gray-800 dark:text-white">API Server</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">Backend Connection</p>
+                                ) : (
+                                    <>
+                                        {/* Info Banner */}
+                                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl">
+                                            <div className="flex items-start gap-3">
+                                                <Info size={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                                                <div className="text-sm text-blue-800 dark:text-blue-200">
+                                                    <p className="font-medium">These settings control library operations</p>
+                                                    <p className="text-blue-600 dark:text-blue-300 mt-1">Changes will apply to all new transactions in the Circulation page.</p>
                                                 </div>
                                             </div>
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full ${getStatusBg(systemHealth.api.status)} ${getStatusColor(systemHealth.api.status)}`}>
-                                                {systemHealth.api.status.toUpperCase()}
-                                            </span>
                                         </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500 dark:text-gray-400">Response Time</span>
-                                            <span className="font-bold text-gray-700 dark:text-gray-300">{systemHealth.api.latency}ms</span>
-                                        </div>
-                                    </div>
 
-                                    <div className={`p-5 rounded-2xl border ${getStatusBg(systemHealth.database.status)} dark:bg-opacity-20 dark:border-opacity-30 border-gray-200 dark:border-slate-600`}>
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-white rounded-xl shadow-sm">
-                                                    <Server size={22} className={getStatusColor(systemHealth.database.status)} />
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Library Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={librarySettings.library_name || ''}
+                                                    onChange={(e) => updateSetting('library_name', e.target.value)}
+                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                    <Clock size={14} /> Default Loan Period (days)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1" max="365"
+                                                    value={librarySettings.default_loan_days || 7}
+                                                    onChange={(e) => updateSetting('default_loan_days', parseInt(e.target.value) || 7)}
+                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                />
+                                                <p className="text-xs text-gray-500 dark:text-slate-400">Default borrowing period for all courses</p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                    <BookOpen size={14} /> Max Loans Per Student
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="1" max="20"
+                                                    value={librarySettings.max_loans_per_student || 3}
+                                                    onChange={(e) => updateSetting('max_loans_per_student', parseInt(e.target.value) || 3)}
+                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                />
+                                                <p className="text-xs text-gray-500 dark:text-slate-400">Students cannot borrow more than this limit</p>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                    <DollarSign size={14} /> Fine Per Day (₱)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    min="0" max="1000"
+                                                    value={librarySettings.fine_per_day || 5}
+                                                    onChange={(e) => updateSetting('fine_per_day', parseInt(e.target.value) || 5)}
+                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                />
+                                                <p className="text-xs text-gray-500 dark:text-slate-400">Penalty charged per day for late returns</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Current Active Settings Summary */}
+                                        <div className="mt-6 p-5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800/50">
+                                            <h4 className="font-bold text-emerald-800 dark:text-emerald-300 mb-4 flex items-center gap-2">
+                                                <CheckCircle size={16} />
+                                                Active Settings Summary
+                                            </h4>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                                    <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                                                        {librarySettings.default_loan_days || 7}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Days Loan</div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-gray-800 dark:text-white">Database</p>
-                                                    <p className="text-xs text-gray-500 dark:text-gray-400">MySQL Server</p>
+                                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                                        {librarySettings.max_loans_per_student || 3}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Max Books</div>
+                                                </div>
+                                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                                                        ₱{librarySettings.fine_per_day || 5}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Fine/Day</div>
+                                                </div>
+                                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
+                                                    <div className="text-xs font-bold text-gray-600 dark:text-gray-300 truncate">
+                                                        {librarySettings.library_name || 'Library'}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Library</div>
                                                 </div>
                                             </div>
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full ${getStatusBg(systemHealth.database.status)} ${getStatusColor(systemHealth.database.status)}`}>
-                                                {systemHealth.database.status.toUpperCase()}
-                                            </span>
                                         </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-500 dark:text-gray-400">Active Tables</span>
-                                            <span className="font-bold text-gray-700 dark:text-gray-300">{systemHealth.database.tables}</span>
+
+                                        <div className="pt-4 border-t border-gray-200 dark:border-slate-700 flex flex-wrap items-center gap-3">
+                                            <Button
+                                                onClick={handleSaveSettings}
+                                                icon={settingsSaving ? Loader2 : Save}
+                                                disabled={settingsSaving || !settingsChanged}
+                                                className={settingsSaving ? 'opacity-75' : ''}
+                                            >
+                                                {settingsSaving ? 'Saving...' : 'Save Configuration'}
+                                            </Button>
+                                            {settingsChanged && (
+                                                <button
+                                                    onClick={handleCancelChanges}
+                                                    disabled={settingsSaving}
+                                                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-gray-200 dark:border-slate-600"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={handleResetSettings}
+                                                disabled={settingsSaving}
+                                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                            >
+                                                <RotateCcw size={16} />
+                                                Reset to Defaults
+                                            </button>
                                         </div>
-                                    </div>
-                                </div>
-
-                                <div className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-200 dark:border-slate-600">
-                                    <div className="flex items-center gap-3 text-sm">
-                                        <Clock size={16} className="text-gray-400" />
-                                        <span className="text-gray-600 dark:text-gray-300">Session uptime:</span>
-                                        <span className="font-bold text-gray-800 dark:text-white">{systemHealth.uptime} minutes</span>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* LIBRARY CONFIG */}
-                        {activeSection === "library" && (
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                    <BookOpen size={20} className="text-primary-500" />
-                                    Library Configuration
-                                </h3>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Library Name</label>
-                                        <input
-                                            type="text"
-                                            value={librarySettings.libraryName}
-                                            onChange={(e) => setLibrarySettings({ ...librarySettings, libraryName: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                                            <Clock size={14} /> Default Loan Period (days)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="1" max="30"
-                                            value={librarySettings.defaultLoanDays}
-                                            onChange={(e) => setLibrarySettings({ ...librarySettings, defaultLoanDays: parseInt(e.target.value) || 7 })}
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                                            <BookOpen size={14} /> Max Loans Per Student
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="1" max="10"
-                                            value={librarySettings.maxLoansPerStudent}
-                                            onChange={(e) => setLibrarySettings({ ...librarySettings, maxLoansPerStudent: parseInt(e.target.value) || 3 })}
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                                            <DollarSign size={14} /> Fine Per Day (₱)
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="0" max="500"
-                                            value={librarySettings.finePerDay}
-                                            onChange={(e) => setLibrarySettings({ ...librarySettings, finePerDay: parseInt(e.target.value) || 10 })}
-                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="pt-4 border-t border-gray-200 dark:border-slate-700">
-                                    <Button onClick={handleSaveSettings} icon={Save}>Save Configuration</Button>
-                                </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
@@ -672,122 +663,7 @@ export default function Settings() {
                             </div>
                         )}
 
-                        {/* ACTIVITY LOG */}
-                        {activeSection === "activity" && (
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                    <History size={20} className="text-primary-500" />
-                                    Activity Log
-                                </h3>
 
-                                <div className="space-y-3">
-                                    {recentActivity.length === 0 ? (
-                                        <div className="text-center py-12 text-gray-400">
-                                            <History size={40} className="mx-auto mb-3 opacity-50" />
-                                            <p>No recent activity</p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {recentActivity
-                                                .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-                                                .map((activity) => (
-                                                    <div key={activity.id} className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl border border-gray-100 dark:border-slate-600">
-                                                        <div className={`p-2 rounded-lg ${activity.type === 'borrow' ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-emerald-100 dark:bg-emerald-900/40'}`}>
-                                                            {activity.type === 'borrow'
-                                                                ? <BookOpen size={18} className="text-blue-600 dark:text-blue-400" />
-                                                                : <CheckCircle size={18} className="text-emerald-600 dark:text-emerald-400" />
-                                                            }
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="font-medium text-gray-800 dark:text-white truncate">{activity.book}</p>
-                                                            <p className="text-sm text-gray-500 dark:text-slate-400">
-                                                                {activity.type === 'borrow' ? 'Borrowed by' : 'Returned by'} {activity.user}
-                                                            </p>
-                                                        </div>
-                                                        <div className="text-right flex-shrink-0">
-                                                            <p className="text-xs text-gray-400">
-                                                                {new Date(activity.date).toLocaleDateString()}
-                                                            </p>
-                                                            {activity.hasOverdue && (
-                                                                <span className="text-xs text-red-500 font-bold">Late</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-
-                                            {recentActivity.length > itemsPerPage && (
-                                                <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-slate-700">
-                                                    <p className="text-sm text-gray-500">
-                                                        Showing <span className="font-bold">{((currentPage - 1) * itemsPerPage) + 1}</span> to <span className="font-bold">{Math.min(currentPage * itemsPerPage, recentActivity.length)}</span> of <span className="font-bold">{recentActivity.length}</span> results
-                                                    </p>
-                                                    <div className="flex items-center gap-2">
-                                                        <button
-                                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                                            disabled={currentPage === 1}
-                                                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                        >
-                                                            <ChevronLeft size={20} className="text-gray-600 dark:text-slate-400" />
-                                                        </button>
-                                                        <span className="text-sm font-medium text-gray-700">
-                                                            Page {currentPage} of {Math.ceil(recentActivity.length / itemsPerPage)}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(recentActivity.length / itemsPerPage)))}
-                                                            disabled={currentPage === Math.ceil(recentActivity.length / itemsPerPage)}
-                                                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                        >
-                                                            <ChevronRight size={20} className="text-gray-600 dark:text-slate-400" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ABOUT */}
-                        {activeSection === "about" && (
-                            <div className="space-y-6">
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                    <Info size={20} className="text-primary-500" />
-                                    About System
-                                </h3>
-
-                                <div className="text-center py-10">
-                                    <div className="w-24 h-24 mx-auto bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 rounded-3xl flex items-center justify-center mb-5 shadow-2xl shadow-primary-600/40">
-                                        <BookOpen size={44} className="text-white" />
-                                    </div>
-                                    <h2 className="text-3xl font-black text-gray-800 dark:text-white">{librarySettings.libraryName}</h2>
-                                    <p className="text-gray-500 dark:text-slate-400 mt-2">Library Management System</p>
-
-                                    <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-gray-100 rounded-full">
-                                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                                        <span className="text-sm font-medium text-gray-600">Version 1.0.0</span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl text-center">
-                                        <p className="text-sm text-gray-500 dark:text-slate-400">Frontend</p>
-                                        <p className="font-bold text-gray-800 dark:text-white mt-1">React + Vite</p>
-                                    </div>
-                                    <div className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl text-center">
-                                        <p className="text-sm text-gray-500 dark:text-slate-400">Backend</p>
-                                        <p className="font-bold text-gray-800 dark:text-white mt-1">Laravel 10</p>
-                                    </div>
-                                    <div className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl text-center">
-                                        <p className="text-sm text-gray-500 dark:text-slate-400">Database</p>
-                                        <p className="font-bold text-gray-800 dark:text-white mt-1">MySQL</p>
-                                    </div>
-                                    <div className="p-4 bg-gray-50 dark:bg-slate-700/50 rounded-xl text-center">
-                                        <p className="text-sm text-gray-500 dark:text-slate-400">Styling</p>
-                                        <p className="font-bold text-gray-800 dark:text-white mt-1">Tailwind CSS</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>

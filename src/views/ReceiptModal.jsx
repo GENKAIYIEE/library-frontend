@@ -1,6 +1,9 @@
 import { X, Printer, BookOpen, User, Barcode, Calendar, Building2, MapPin } from 'lucide-react';
+import { useLibrarySettings } from "../context/LibrarySettingsContext";
 
 export default function ReceiptModal({ type, data, onClose }) {
+    const { libraryName, settings } = useLibrarySettings();
+
     const handlePrint = () => {
         window.print();
     };
@@ -48,7 +51,7 @@ export default function ReceiptModal({ type, data, onClose }) {
                 <div className="p-6" id="receipt-content">
                     {/* Receipt Header */}
                     <div className="text-center border-b-2 border-dashed pb-4 mb-4">
-                        <h2 className="text-2xl font-bold text-gray-800">📚 PCLU LIBRARY</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">📚 {libraryName?.toUpperCase() || 'LIBRARY'}</h2>
                         <p className="text-sm text-gray-500">Library Management System</p>
                         <p className="text-xs text-gray-400 mt-2">{currentDate}</p>
                     </div>
@@ -147,9 +150,9 @@ export default function ReceiptModal({ type, data, onClose }) {
 
                     {/* Footer */}
                     <div className="text-center text-xs text-gray-400 space-y-1">
-                        <p className="font-medium">Thank you for using PCLU Library!</p>
+                        <p className="font-medium">Thank you for using {libraryName}!</p>
                         <p>Please return books on or before the due date.</p>
-                        <p className="mt-2 text-gray-300">Late fee: ₱5.00 per day</p>
+                        <p className="mt-2 text-gray-300">Late fee: ₱{settings.fine_per_day || 5}.00 per day</p>
                     </div>
                 </div>
 
