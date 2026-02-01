@@ -12,6 +12,7 @@ import Settings from "./views/Settings";
 import AttendanceLog from "./views/AttendanceLog";
 import { ToastProvider } from "./components/ui/Toast";
 import { ThemeProvider } from "./context/ThemeContext";
+import { LibrarySettingsProvider } from "./context/LibrarySettingsContext";
 import MainLayout from "./components/MainLayout";
 
 
@@ -25,9 +26,11 @@ export default function App() {
   if (window.location.pathname === '/catalog') {
     return (
       <ThemeProvider>
-        <ToastProvider>
-          <PublicCatalog />
-        </ToastProvider>
+        <LibrarySettingsProvider>
+          <ToastProvider>
+            <PublicCatalog />
+          </ToastProvider>
+        </LibrarySettingsProvider>
       </ThemeProvider>
     );
   }
@@ -36,9 +39,11 @@ export default function App() {
   if (window.location.pathname === '/attendance') {
     return (
       <ThemeProvider>
-        <ToastProvider>
-          <PublicAttendance />
-        </ToastProvider>
+        <LibrarySettingsProvider>
+          <ToastProvider>
+            <PublicAttendance />
+          </ToastProvider>
+        </LibrarySettingsProvider>
       </ThemeProvider>
     );
   }
@@ -85,9 +90,11 @@ export default function App() {
   if (!token) {
     return (
       <ThemeProvider>
-        <ToastProvider>
-          <Login />
-        </ToastProvider>
+        <LibrarySettingsProvider>
+          <ToastProvider>
+            <Login />
+          </ToastProvider>
+        </LibrarySettingsProvider>
       </ThemeProvider>
     );
   }
@@ -95,25 +102,27 @@ export default function App() {
   // IF LOGGED IN -> SHOW MAIN LAYOUT
   return (
     <ThemeProvider>
-      <ToastProvider>
-        <MainLayout
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          onLogout={onLogout}
-          userName={userName}
-        >
-          {activeTab === 'dashboard' && <Dashboard />}
-          {activeTab === 'students' && <Students />}
-          {activeTab === 'books' && <Books pendingBarcode={pendingBarcode} onClearPendingBarcode={handleClearPendingBarcode} />}
-          {activeTab === 'circulation' && <Circulation onNavigateToBooks={handleNavigateToBooks} />}
-          {activeTab === 'history' && <History />}
-          {activeTab === 'reports' && <Reports />}
-          {activeTab === 'department-analytics' && <DepartmentAnalytics />}
-          {activeTab === 'user-management' && <UserManagement />}
-          {activeTab === 'settings' && <Settings />}
-          {activeTab === 'attendance-log' && <AttendanceLog />}
-        </MainLayout>
-      </ToastProvider>
+      <LibrarySettingsProvider>
+        <ToastProvider>
+          <MainLayout
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            onLogout={onLogout}
+            userName={userName}
+          >
+            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'students' && <Students />}
+            {activeTab === 'books' && <Books pendingBarcode={pendingBarcode} onClearPendingBarcode={handleClearPendingBarcode} />}
+            {activeTab === 'circulation' && <Circulation onNavigateToBooks={handleNavigateToBooks} />}
+            {activeTab === 'history' && <History />}
+            {activeTab === 'reports' && <Reports />}
+            {activeTab === 'department-analytics' && <DepartmentAnalytics />}
+            {activeTab === 'user-management' && <UserManagement />}
+            {activeTab === 'settings' && <Settings />}
+            {activeTab === 'attendance-log' && <AttendanceLog />}
+          </MainLayout>
+        </ToastProvider>
+      </LibrarySettingsProvider>
     </ThemeProvider >
   );
 }

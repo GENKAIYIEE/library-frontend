@@ -1,19 +1,25 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useToast } from "../components/ui/Toast";
-import axiosClient, { ASSET_URL } from "../axios-client";
-import Swal from "sweetalert2";
-import BookForm from "./BookForm";
-import AssetForm from "./AssetForm";
-import PrintLabelModal from "../components/PrintLabelModal";
-import LostBooksModal from "./LostBooksModal"; // NEW
 import {
-  Edit, Trash2, PlusCircle, Search, BookOpen, Filter,
-  ChevronDown, ChevronRight, FolderOpen, Layers,
-  Maximize2, Minimize2, Printer, AlertCircle
+  AlertCircle,
+  BookOpen,
+  ChevronDown, ChevronRight,
+  Edit,
+  Filter,
+  Maximize2, Minimize2,
+  PlusCircle,
+  Printer,
+  Search,
+  Trash2
 } from "lucide-react";
-import Card from "../components/ui/Card";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Swal from "sweetalert2";
+import axiosClient, { ASSET_URL } from "../axios-client";
+import PrintLabelModal from "../components/PrintLabelModal";
 import Button from "../components/ui/Button";
 import FloatingSelect from "../components/ui/FloatingSelect";
+import { useToast } from "../components/ui/Toast";
+import AssetForm from "./AssetForm";
+import BookForm from "./BookForm";
+import LostBooksModal from "./LostBooksModal"; // NEW
 
 // Category color mapping for visual distinction
 const CATEGORY_COLORS = {
@@ -342,7 +348,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
             onClick={onAddNew}
             icon={PlusCircle}
           >
-            Add New Title
+            Add New Book
           </Button>
         </div>
       </div>

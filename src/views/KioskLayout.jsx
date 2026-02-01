@@ -2,6 +2,7 @@ import { Clock, Library, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 // import { Link, useLocation } from "react-router-dom"; // REMOVED: Using manual routing
 import { motion } from "framer-motion";
+import { useLibrarySettings } from "../context/LibrarySettingsContext";
 
 // --- Kiosk Clock Component ---
 function KioskClock() {
@@ -125,6 +126,7 @@ export default function KioskLayout({ children }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     // const location = useLocation(); // REMOVED
     const currentPath = window.location.pathname; // Manual check
+    const { libraryName } = useLibrarySettings();
 
     // Mock User for Kiosk Demo
     const user = {
@@ -151,11 +153,11 @@ export default function KioskLayout({ children }) {
                 >
                     {/* Brand */}
                     <a href="/" className="flex items-center gap-3 group">
-                        <div className="bg-blue-600/20 p-2 rounded-full border border-blue-500/30 group-hover:bg-blue-600/40 transition-colors">
-                            <Library className="text-blue-400" size={20} />
+                        <div className="p-1 rounded-full group-hover:scale-105 transition-transform duration-300">
+                            <img src="/pclu-logo.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                         </div>
                         <div className="hidden md:block">
-                            <h1 className="text-lg font-bold leading-none text-white tracking-tight">PCLU Library</h1>
+                            <h1 className="text-lg font-bold leading-none text-white tracking-tight truncate max-w-[200px]" title={libraryName}>{libraryName}</h1>
                             <p className="text-blue-300/70 text-[10px] font-bold tracking-widest uppercase">Student Kiosk</p>
                         </div>
                     </a>
@@ -210,7 +212,7 @@ export default function KioskLayout({ children }) {
 
             {/* GLASS FOOTER */}
             <footer className="relative z-10 border-t border-white/5 bg-slate-900/40 backdrop-blur-md py-6 text-center text-slate-500 text-xs font-mono">
-                <p>PCLU Library Management System • Secure Kiosk Environment</p>
+                <p>{libraryName} • Secure Kiosk Environment</p>
             </footer>
         </div>
     );

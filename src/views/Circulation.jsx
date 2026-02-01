@@ -9,7 +9,7 @@ import CameraScanner from "../components/CameraScanner";
 import ScanModeSelector from "../components/ScanModeSelector";
 import StudentSearchModal from "../components/StudentSearchModal";
 import BookSelectorModal from "../components/BookSelectorModal";
-import { Search, ChevronDown, User, Book, Scan, Camera, Users, Library, AlertTriangle } from "lucide-react";
+import { Search, ChevronDown, User, Book, Scan, Camera, Users, Library, AlertTriangle, Settings, Clock, DollarSign } from "lucide-react";
 import Swal from 'sweetalert2';
 
 export default function Circulation({ onNavigateToBooks }) {
@@ -54,6 +54,14 @@ export default function Circulation({ onNavigateToBooks }) {
   const [clearance, setClearance] = useState(null);
   const [selectedStudentCourse, setSelectedStudentCourse] = useState("");
 
+  // LIBRARY SETTINGS STATE (from backend)
+  const [librarySettings, setLibrarySettings] = useState({
+    default_loan_days: 7,
+    max_loans_per_student: 3,
+    fine_per_day: 5,
+    library_name: "Library"
+  });
+
   // SCANNER MODE STATE
   const [scannedBook, setScannedBook] = useState(null);
   const [showScanModal, setShowScanModal] = useState(false);
@@ -69,8 +77,26 @@ export default function Circulation({ onNavigateToBooks }) {
   const [showBorrowBookModal, setShowBorrowBookModal] = useState(false);
   const [showReturnBookModal, setShowReturnBookModal] = useState(false);
 
+  // Fetch library settings on mount
+  const fetchLibrarySettings = async () => {
+    try {
+      const res = await axiosClient.get('/settings/circulation');
+      if (res.data) {
+        setLibrarySettings({
+          default_loan_days: res.data.default_loan_days || 7,
+          max_loans_per_student: res.data.max_loans_per_student || 3,
+          fine_per_day: res.data.fine_per_day || 5,
+          library_name: res.data.library_name || "Library"
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch library settings:', error);
+    }
+  };
+
   // Fetch data on component mount
   useEffect(() => {
+    fetchLibrarySettings();
     fetchAvailableBooks();
     fetchBorrowedBooks();
     fetchStudents();
@@ -627,6 +653,36 @@ export default function Circulation({ onNavigateToBooks }) {
         </div>
       </div>
 
+      {/* ACTIVE SETTINGS INFO BAR */}
+      <div className="mt-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-slate-400">
+            <Settings size={16} className="text-primary-500" />
+            <span className="font-medium">Active Library Rules:</span>
+          </div>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <Clock size={14} className="text-emerald-500" />
+              <span className="text-gray-700 dark:text-slate-300">
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">{librarySettings.default_loan_days}</span> day loan
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Book size={14} className="text-blue-500" />
+              <span className="text-gray-700 dark:text-slate-300">
+                Max <span className="font-bold text-blue-600 dark:text-blue-400">{librarySettings.max_loans_per_student}</span> books
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign size={14} className="text-amber-500" />
+              <span className="text-gray-700 dark:text-slate-300">
+                <span className="font-bold text-amber-600 dark:text-amber-400">₱{librarySettings.fine_per_day}</span>/day fine
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 mt-6">
 
@@ -786,7 +842,10 @@ export default function Circulation({ onNavigateToBooks }) {
                     </span>
                   </div>
                   <div className="text-right text-sm dark:text-slate-300">
-                    <div>Active Loans: <span className="font-bold">{clearance.active_loans}/3</span></div>
+                    <div>Active Loans: <span className="font-bold">{clearance.active_loans}/{clearance.max_loans || 3}</span></div>
+                    {clearance.fine_per_day && (
+                      <div className="text-xs text-gray-500 dark:text-slate-400">Fine Rate: ₱{clearance.fine_per_day}/day</div>
+                    )}
                   </div>
                 </div>
                 {clearance.pending_fines > 0 && (

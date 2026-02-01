@@ -8,6 +8,7 @@ import FloatingInput from "../components/ui/FloatingInput";
 import Button from "../components/ui/Button";
 import LoginTransition from "../components/LoginTransition";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLibrarySettings } from "../context/LibrarySettingsContext";
 
 // --- Internal Components ---
 
@@ -68,6 +69,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [secureConnection, setSecureConnection] = useState(false);
+  const { libraryName, libraryShortName } = useLibrarySettings();
 
   // Simulate SSL/Security Check on mount
   useEffect(() => {
@@ -141,9 +143,9 @@ export default function Login() {
 
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-3 px-4 py-2 bg-white/10 rounded-full border border-white/10 backdrop-blur-md">
-                <Library className="text-blue-400" size={20} />
-                <span className="font-bold tracking-widest text-sm text-blue-100">PCLU LIBRARY</span>
+              <div className="flex items-center gap-3 px-4 py-2 bg-white/10 rounded-full border border-white/10 backdrop-blur-md hover:bg-white/20 transition-colors">
+                <img src="/pclu-logo.png" alt="Logo" className="w-6 h-6 object-contain" />
+                <span className="font-bold tracking-widest text-sm text-blue-100 truncate max-w-[150px]" title={libraryName}>{libraryName?.toUpperCase() || 'LIBRARY'}</span>
               </div>
               <StatTicker />
             </div>
@@ -293,7 +295,7 @@ export default function Login() {
 
       {/* Footer */}
       <div className="absolute bottom-4 text-[10px] text-slate-600 font-mono">
-        PCLU LMS v2.0 • Build 2026.01.27
+        {libraryShortName} LMS v2.0 • Build 2026.01.30
       </div>
 
     </div>

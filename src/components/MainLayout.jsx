@@ -1,28 +1,27 @@
-import { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-    LayoutDashboard,
-    Users,
     BookOpen,
-    Repeat,
-    History as HistoryIcon,
-    FileBarChart,
-    PieChart,
-    Library,
-    UserPlus,
-    X,
-    Clock,
-    LogOut,
-    User,
-    Settings as SettingsIcon,
-    Sun,
-    Moon,
     ChevronLeft,
     ChevronRight,
+    ClipboardList,
+    FileBarChart,
+    History as HistoryIcon,
+    LayoutDashboard,
+    LogOut,
+    Moon,
+    PieChart,
+    Repeat,
     Search,
-    ClipboardList
+    Settings as SettingsIcon,
+    Sun,
+    User,
+    UserPlus,
+    Users,
+    X
 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useLibrarySettings } from "../context/LibrarySettingsContext";
 import { useTheme } from "../context/ThemeContext";
-import { motion, AnimatePresence } from "framer-motion";
 import CommandPalette from "./CommandPalette";
 
 // Digital Clock - Minimalist Typographic
@@ -78,6 +77,7 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
     const [commandOpen, setCommandOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const { isDark, toggleTheme } = useTheme();
+    const { libraryName, libraryShortName } = useLibrarySettings();
 
     // Persist collapsed state
     useEffect(() => {
@@ -131,13 +131,13 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
             {/* Header with Logo */}
             <div className={`h-16 flex items-center ${collapsed ? 'justify-center' : 'px-5'} border-b border-gray-100 dark:border-gray-800 transition-all duration-300`}>
                 <div className="flex items-center gap-3">
-                    <div className="bg-executive-accent text-white p-1.5 rounded-lg flex-shrink-0">
-                        <Library size={20} fill="currentColor" className="text-white" />
+                    <div className="flex-shrink-0">
+                        <img src="/pclu-logo.png" alt="Logo" className="w-10 h-10 object-contain drop-shadow-md" />
                     </div>
                     {!collapsed && (
                         <div className="flex-1 min-w-0">
-                            <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-none tracking-tight">PCLU Library</h1>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">System</p>
+                            <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-none tracking-tight truncate" title={libraryName}>{libraryName}</h1>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">OF PCLU</p>
                         </div>
                     )}
                 </div>
@@ -160,7 +160,7 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                     {!collapsed && <div className="px-3 mb-2 text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Management</div>}
                     <NavItem id="books" label="Inventory" icon={BookOpen} />
                     <NavItem id="students" label="Students" icon={Users} />
-                    <NavItem id="user-management" label="Staff Access" icon={UserPlus} />
+                    <NavItem id="user-management" label="Add User" icon={UserPlus} />
                 </div>
 
                 {/* Analytics Section */}
@@ -185,7 +185,7 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                         title={collapsed ? "Expand" : "Collapse"}
                     >
                         {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-                        {!collapsed && <span>Collapse Menu</span>}
+                        {!collapsed && <span>Collapse Sidebar</span>}
                     </button>
 
                     {/* Theme Toggle */}
@@ -276,7 +276,7 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                             <button onClick={() => setMobileSidebarOpen(true)} className="p-2 -ml-2 text-gray-600 dark:text-gray-300">
                                 <LayoutDashboard size={24} />
                             </button>
-                            <span className="font-bold text-gray-900 dark:text-white">PCLU Library</span>
+                            <span className="font-bold text-gray-900 dark:text-white truncate max-w-[150px]">{libraryName}</span>
                         </div>
 
                         {/* Search Bar (Fake) */}
