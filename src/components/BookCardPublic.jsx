@@ -1,116 +1,167 @@
-import { MapPin, Book, Calendar, FileText, Building2 } from "lucide-react";
+import { MapPin, Book, Share2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { useState } from "react";
 
-export default function BookCardPublic({ book, onLocate }) {
+export default function BookCardPublic({ book, onLocate, onSelect, index }) {
     const isAvailable = book.available_copies > 0;
+    const [isFlipped, setIsFlipped] = useState(false);
 
-    // Get image URL - handle both image_path (new) and cover_image (legacy)
+    // Get image URL
     const getImageUrl = () => {
-        const imagePath = book.image_path || book.cover_image;
+        const imagePath = book.cover_image || book.image_path;
         if (!imagePath) return null;
-
-        // If it's already a full URL, return as is
         if (imagePath.startsWith('http')) return imagePath;
 
-        // Otherwise, prepend the API base URL
         const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || '';
-        return `${baseUrl}/${imagePath}`;
+
+        // If path already acts as a full relative path (e.g. /storage/...)
+        if (imagePath.startsWith('/')) return `${baseUrl}${imagePath}`;
+
+        // Specific fix for "uploads/" directory (standard public folder, not storage linked)
+        if (imagePath.startsWith('uploads/')) return `${baseUrl}/${imagePath}`;
+
+        // Default assumption: it's a storage path
+        return `${baseUrl}/storage/${imagePath}`;
     };
 
     const imageUrl = getImageUrl();
 
-    return (
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group">
-            <div className="flex h-full">
-                {/* Cover Image */}
-                <div className="w-32 bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shrink-0 border-r border-gray-100 relative overflow-hidden">
-                    {imageUrl ? (
-                        <img
-                            src={imageUrl}
-                            alt={book.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.style.display = 'none';
-                                e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
-                            }}
-                        />
-                    ) : null}
-                    <div className={`fallback-icon absolute inset-0 flex items-center justify-center ${imageUrl ? 'hidden' : 'flex'}`}>
-                        <Book size={40} className="text-slate-300 group-hover:scale-110 transition-transform duration-500" />
-                    </div>
+    // Deterministic height for masonry effect (Aspect Ratios: 3:4, 3:5, 4:5, 2:3)
+    const rawRatios = ['3/4', '3/5', '4/5', '2/3'];
+    const ratioIndex = (book.id ? book.id : index) % rawRatios.length;
+    const paddingRatio = rawRatios[ratioIndex]; // e.g. "3/4"
 
-                    {/* Status Band */}
-                    <div className={`absolute bottom-0 w-full text-center text-[10px] font-bold uppercase py-1.5 ${isAvailable ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
-                        {isAvailable ? `${book.available_copies} Available` : 'Borrowed'}
+    const handleInteraction = (e) => {
+        // Prevent default only if necessary, but here we generally want propagation unless specific button click
+        // e.stopPropagation(); 
+
+        // On click (especially mobile), we want to both Select (Immersive BG) AND Flip
+        // This ensures the user feels the interaction immediately.
+        if (onSelect) onSelect(book);
+
+        // Toggle flip state on click/tap
+        setIsFlipped(!isFlipped);
+    };
+
+    return (
+        <div
+            className="break-inside-avoid mb-6 group relative"
+            style={{
+                perspective: "1000px",
+                aspectRatio: paddingRatio,
+                minHeight: '280px' // Fallback minimum height
+            }}
+            onMouseEnter={() => setIsFlipped(true)}
+            onMouseLeave={() => setIsFlipped(false)}
+            onClick={handleInteraction}
+        >
+            {/* The 3D Card Container */}
+            <motion.div
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{
+                    opacity: 1,
+                    scale: 1,
+                    rotateY: isFlipped ? 180 : 0
+                }}
+                transition={{ duration: 0.6, type: "spring", stiffness: 180, damping: 14 }}
+                style={{ transformStyle: "preserve-3d" }} // INLINE STYLE for 3D context
+                className="relative w-full h-full rounded-2xl cursor-pointer"
+            >
+                {/* --- FRONT FACE (Cover Image) --- */}
+                <div
+                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden shadow-md group-hover:shadow-2xl transition-shadow duration-300 bg-gray-200 dark:bg-gray-800"
+                    style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }} // INLINE STYLE
+                >
+                    <div className="w-full h-full relative">
+                        {imageUrl ? (
+                            <img
+                                src={imageUrl}
+                                alt={book.title}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.parentElement.classList.add('flex', 'items-center', 'justify-center', 'bg-slate-800');
+                                    e.target.parentElement.querySelector('.fallback-icon').style.display = 'flex';
+                                }}
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-900" />
+                        )}
+
+                        {/* Fallback Icon for Broken/Missing Images */}
+                        <div className="fallback-icon hidden absolute inset-0 items-center justify-center">
+                            <Book size={48} className="text-white/20" />
+                        </div>
+
+                        {/* Front Overlay Gradient (Subtle) */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-80" />
+
+                        {/* Front Title (Minimal) */}
+                        <div className="absolute bottom-0 left-0 right-0 p-4 transform translate-y-2 group-hover:translate-y-0 transition-transform">
+                            <h3 className="text-white font-bold text-sm line-clamp-2 drop-shadow-md leading-tight">{book.title}</h3>
+                            <p className="text-white/70 text-xs mt-1 truncate">{book.author}</p>
+                        </div>
                     </div>
                 </div>
 
-                {/* Details */}
-                <div className="p-4 flex flex-col flex-1 min-w-0">
-                    <div className="mb-auto">
-                        <span className="text-[10px] font-bold tracking-wider text-primary-600 uppercase mb-1 block">
-                            {book.category}
-                        </span>
-                        <h3 className="font-bold text-gray-800 leading-tight mb-1 line-clamp-2" title={book.title}>
-                            {book.title}
-                        </h3>
-                        <p className="text-sm text-gray-500 mb-2 truncate">{book.author}</p>
+                {/* --- BACK FACE (Details) --- */}
+                <div
+                    className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden bg-slate-900/90 backdrop-blur-3xl border border-white/10 shadow-2xl p-5 flex flex-col justify-between"
+                    style={{
+                        backfaceVisibility: "hidden",
+                        WebkitBackfaceVisibility: "hidden",
+                        transform: "rotateY(180deg)"
+                    }}
+                >
+                    {/* Top Actions */}
+                    <div className="flex justify-between items-start">
+                        <div className="bg-white/10 px-2.5 py-1 rounded-md text-[10px] font-bold text-white uppercase tracking-wider backdrop-blur-sm border border-white/5">
+                            {book.category || 'General'}
+                        </div>
+                        <button className="p-2 hover:bg-white/10 rounded-full text-white/50 hover:text-white transition-colors">
+                            <Share2 size={16} />
+                        </button>
+                    </div>
 
-                        {/* Additional Info */}
-                        <div className="space-y-1 text-xs text-gray-400">
-                            {book.publisher && (
-                                <div className="flex items-center gap-1.5 truncate">
-                                    <Building2 size={12} />
-                                    <span className="truncate">{book.publisher}</span>
-                                </div>
-                            )}
-                            {book.published_year && (
-                                <div className="flex items-center gap-1.5">
-                                    <Calendar size={12} />
-                                    <span>{book.published_year}</span>
-                                </div>
-                            )}
-                            {book.call_number && (
-                                <div className="flex items-center gap-1.5">
-                                    <FileText size={12} />
-                                    <span className="font-mono">{book.call_number}</span>
-                                </div>
-                            )}
+                    {/* Content Info */}
+                    <div className="flex-1 flex flex-col justify-center gap-3 py-2">
+                        <h3 className="text-white font-bold text-lg leading-tight line-clamp-2">{book.title}</h3>
+                        <p className="text-blue-400 text-xs font-bold uppercase tracking-wide truncate">{book.author}</p>
+
+                        <div className="mt-1 text-slate-300 text-xs leading-relaxed line-clamp-4 font-medium opacity-80">
+                            {book.description || "No description available. Tap 'Locate' to find it on the shelf."}
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                        <div className="text-xs font-medium text-gray-400 font-mono truncate">
-                            {book.isbn || 'No ISBN'}
+                    {/* Bottom Action (Locate) */}
+                    <div>
+                        <div className="flex items-center justify-between mb-3 text-xs border-t border-white/10 pt-3">
+                            <span className="text-slate-400 font-medium">Availability</span>
+                            <span className={`font-bold ${isAvailable ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {isAvailable ? 'In Stock' : 'All Borrowed'}
+                            </span>
                         </div>
-                        {isAvailable && (
-                            <button
-                                onClick={() => onLocate(book)}
-                                className="flex items-center gap-1.5 text-xs font-bold text-primary-600 bg-primary-50 px-3 py-2 rounded-lg hover:bg-primary-100 transition-colors flex-shrink-0"
-                            >
-                                <MapPin size={14} />
-                                <span className="hidden sm:inline">Find It</span>
-                            </button>
-                        )}
-                    </div>
 
-                    {/* Mobile Button */}
-                    <div className="mt-2 sm:hidden">
                         {isAvailable ? (
                             <button
-                                onClick={() => onLocate(book)}
-                                className="w-full flex items-center justify-center gap-1.5 text-xs font-bold text-primary-600 bg-primary-50 px-3 py-2 rounded-lg"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onLocate(book);
+                                }}
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 transition-all group/btn border border-white/10"
                             >
-                                <MapPin size={14} /> Locate
+                                <MapPin size={16} className="group-hover/btn:animate-bounce" /> Find on Shelf
                             </button>
                         ) : (
-                            <div className="text-center text-xs font-bold text-rose-500 bg-rose-50 py-2 rounded-lg">
-                                Out of Stock
-                            </div>
+                            <button disabled className="w-full py-3 bg-white/5 text-white/40 rounded-xl font-bold text-sm cursor-not-allowed border border-white/5">
+                                Currently Unavailable
+                            </button>
                         )}
                     </div>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 }

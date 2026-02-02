@@ -122,7 +122,7 @@ const LibrarianAvatar = () => {
     );
 };
 
-export default function KioskLayout({ children }) {
+export default function KioskLayout({ children, disableBackground = false }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     // const location = useLocation(); // REMOVED
     const currentPath = window.location.pathname; // Manual check
@@ -137,8 +137,8 @@ export default function KioskLayout({ children }) {
 
     return (
         <div className="min-h-screen font-sans flex flex-col relative overflow-x-hidden text-slate-200">
-            {/* Background */}
-            <KioskBackground />
+            {/* Background - Optional */}
+            {!disableBackground && <KioskBackground />}
 
             {/* Librarian Avatar (Fixed Right) */}
             <LibrarianAvatar />
