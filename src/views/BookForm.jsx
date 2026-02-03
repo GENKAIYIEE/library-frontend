@@ -161,6 +161,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
       formData.append("_method", "PUT");
       axiosClient.post(`/books/${bookToEdit.id}`, formData)
         .then(() => {
+          setLoading(false);
           toast.success("Book updated successfully");
           onSuccess(book); // Pass back updated data if needed, or just trigger refresh
           onClose();
@@ -174,6 +175,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
       // CREATE MODE - Barcode auto-generated in backend
       axiosClient.post("/books/title", formData)
         .then((res) => {
+          setLoading(false);
           const newBook = res.data.book;
           const copiesCreated = res.data.copies_created || 0;
           const isbn = newBook?.isbn || 'Auto-generated';

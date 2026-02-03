@@ -94,7 +94,8 @@ export default function Settings() {
         } finally {
             setSettingsLoading(false);
         }
-    }, [toast]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Removed toast dependency - it was causing infinite re-renders
 
     // Fetch all data on mount and setup auto-refresh
     useEffect(() => {
@@ -102,7 +103,8 @@ export default function Settings() {
         refreshAllData();
         const interval = setInterval(refreshAllData, 30000);
         return () => clearInterval(interval);
-    }, [fetchSettings]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Run only once on mount - fetchSettings is stable now
 
     const refreshAllData = useCallback(async () => {
         await Promise.all([

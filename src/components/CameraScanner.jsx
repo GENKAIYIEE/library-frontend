@@ -143,7 +143,7 @@ export default function CameraScanner({ onResult, onClose }) {
                 // Auto-retry once if camera is busy (likely due to fast unmount/remount cleanup lag)
                 if (!window.cameraRetryAttempted) {
                     window.cameraRetryAttempted = true;
-                    console.log("Camera busy, retrying in 1s...");
+                    // Camera busy, retrying silently
                     setTimeout(() => startScanner(), 1000);
                     return;
                 }
