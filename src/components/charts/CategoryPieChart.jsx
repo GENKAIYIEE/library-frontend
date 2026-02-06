@@ -28,7 +28,7 @@ export default function CategoryPieChart() {
                     labels: data.labels,
                     datasets: [
                         {
-                            label: '# of Borrows',
+                            label: 'Total Titles',
                             data: data.data,
                             backgroundColor: [
                                 'rgba(99, 102, 241, 0.8)', // Indigo

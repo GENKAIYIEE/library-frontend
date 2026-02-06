@@ -250,9 +250,9 @@ export default function PrintLibraryCard() {
                             <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                                 <div style={{ fontSize: '6px', color: '#94a3b8', fontFamily: 'monospace' }}>A.Y. {new Date().getFullYear()}-{new Date().getFullYear() + 1}</div>
                                 <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontFamily: 'cursive', fontSize: '13px', color: '#00008B', marginBottom: '-3px' }}>Alethe Backid</div>
+                                    <div style={{ fontFamily: 'cursive', fontSize: '13px', color: '#00008B', marginBottom: '-3px' }}>Leah Camso</div>
                                     <div style={{ width: '100px', borderBottom: '1.5px solid #00008B', marginBottom: '3px' }}></div>
-                                    <div style={{ fontSize: '7px', fontWeight: 'bold', color: '#00008B', textTransform: 'uppercase' }}>Alethe Joy K. Backid, RL, MLIS</div>
+                                    <div style={{ fontSize: '7px', fontWeight: 'bold', color: '#00008B', textTransform: 'uppercase' }}>LEAH E. CAMSO.RL MLIS</div>
                                     <div style={{ fontSize: '6px', fontWeight: 'bold', color: 'white', backgroundColor: '#00008B', padding: '2px 5px', borderRadius: '2px', marginTop: '2px', display: 'inline-block' }}>Chief Librarian</div>
                                 </div>
                             </div>

@@ -173,7 +173,7 @@ export default function PublicAttendance() {
         if (navigator.vibrate) navigator.vibrate(200);
 
         if (html5QrcodeRef.current) {
-            try { await html5QrcodeRef.current.pause(true); } catch (e) { }
+            try { await html5QrcodeRef.current.pause(true); } catch (e) { console.warn('Scanner pause failed:', e); }
         }
 
         setIsLoading(true);
@@ -226,7 +226,7 @@ export default function PublicAttendance() {
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.3);
             }
-        } catch (e) { }
+        } catch (e) { console.warn('Audio playback failed:', e); }
     };
 
     const resetScanner = async () => {

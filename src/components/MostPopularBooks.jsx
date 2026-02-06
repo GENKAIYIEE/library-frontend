@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axiosClient, { ASSET_URL } from "../axios-client";
 import { Trophy, TrendingUp, BookOpen, Crown } from "lucide-react";
 import { motion } from "framer-motion";
-import { cn } from "../lib/utils";
+import { cn, getStorageUrl } from "../lib/utils";
 
 export default function MostPopularBooks() {
     const [books, setBooks] = useState([]);
@@ -54,9 +54,7 @@ export default function MostPopularBooks() {
 
 function PopularBookCard({ book, index }) {
     const imagePath = book.image_path;
-    const imageUrl = imagePath
-        ? (imagePath.startsWith('http') ? imagePath : `${ASSET_URL}/${imagePath}`)
-        : null;
+    const imageUrl = getStorageUrl(imagePath);
 
     // Rank Colors
     const getRankStyle = (idx) => {

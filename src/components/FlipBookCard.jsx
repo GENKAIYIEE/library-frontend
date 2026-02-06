@@ -2,13 +2,11 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, Calendar, Building2, Tag, Hash, CheckCircle, AlertCircle } from "lucide-react";
 import { ASSET_URL } from "../axios-client";
-import { cn } from "../lib/utils";
+import { cn, getStorageUrl } from "../lib/utils";
 
 export default function FlipBookCard({ book, index }) {
     const imagePath = book.image_path || book.cover_image;
-    const imageUrl = imagePath
-        ? (imagePath.startsWith('http') ? imagePath : `${ASSET_URL}/${imagePath}`)
-        : null;
+    const imageUrl = getStorageUrl(imagePath);
 
     const [isFlipped, setIsFlipped] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
@@ -63,9 +61,16 @@ export default function FlipBookCard({ book, index }) {
                                 "text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider backdrop-blur-md shadow-sm border border-white/20",
                                 book.available_copies > 0
                                     ? "bg-emerald-500/90 text-white"
-                                    : "bg-red-500/90 text-white"
+                                    : book.damaged_copies > 0
+                                        ? "bg-orange-500/90 text-white" // Damaged color
+                                        : "bg-red-500/90 text-white"
                             )}>
-                                {book.available_copies > 0 ? "Available" : "Borrowed"}
+                                {book.available_copies > 0
+                                    ? "Available"
+                                    : book.damaged_copies > 0
+                                        ? "DAMAGED BOOK"
+                                        : "Borrowed"
+                                }
                             </span>
                         </div>
                     </div>
@@ -128,11 +133,15 @@ export default function FlipBookCard({ book, index }) {
                             "mt-2 w-full py-1.5 rounded-lg text-xs font-bold text-center flex items-center justify-center gap-1.5",
                             book.available_copies > 0
                                 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                : book.damaged_copies > 0
+                                    ? "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+                                    : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                         )}>
                             {book.available_copies > 0
                                 ? <><CheckCircle size={12} /> AVAILABLE NOW</>
-                                : <><AlertCircle size={12} /> OUT OF STOCK</>
+                                : book.damaged_copies > 0
+                                    ? <><AlertCircle size={12} /> DAMAGED BOOK</>
+                                    : <><AlertCircle size={12} /> OUT OF STOCK</>
                             }
                         </div>
                     </div>

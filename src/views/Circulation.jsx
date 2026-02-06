@@ -48,6 +48,7 @@ export default function Circulation({ onNavigateToBooks }) {
   // PAYMENT MODAL STATE
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingTransaction, setPendingTransaction] = useState(null);
+  const [isLostBookPayment, setIsLostBookPayment] = useState(false);
   const [showFineModal, setShowFineModal] = useState(false);
 
   // CLEARANCE STATE
@@ -158,7 +159,7 @@ export default function Circulation({ onNavigateToBooks }) {
         setBorrowedBooks(data);
         setFilteredBorrowedBooks(data);
       })
-      .catch(() => { });
+      .catch((err) => { console.warn('Failed to fetch borrowed books:', err); });
   };
 
   const fetchStudents = () => {
@@ -167,7 +168,7 @@ export default function Circulation({ onNavigateToBooks }) {
         setStudents(data);
         setFilteredStudents(data);
       })
-      .catch(() => { });
+      .catch((err) => { console.warn('Failed to fetch students:', err); });
   };
 
   const handleSelectBook = (assetCode) => {
@@ -297,6 +298,7 @@ export default function Circulation({ onNavigateToBooks }) {
               );
               if (transaction) {
                 setPendingTransaction(transaction);
+                setIsLostBookPayment(false);
                 setShowPaymentModal(true);
               }
             });
@@ -339,7 +341,7 @@ export default function Circulation({ onNavigateToBooks }) {
       .then(({ data }) => {
         setClearance(data);
       })
-      .catch(() => { });
+      .catch((err) => { console.warn('Failed to refresh clearance:', err); });
   };
 
   // --- HANDLE MARK AS LOST ---
@@ -381,6 +383,7 @@ export default function Circulation({ onNavigateToBooks }) {
               );
               if (transaction) {
                 setPendingTransaction(transaction);
+                setIsLostBookPayment(true);
                 setShowPaymentModal(true);
               }
             });
@@ -400,13 +403,11 @@ export default function Circulation({ onNavigateToBooks }) {
           setStudentName(data.transaction.user.name);
           setIsNewStudent(false);
           handleSelectStudent(sId, sCourse);
-
-          if (data.penalty > 0) {
-            setShowFineModal(true);
-          }
+          // Note: PaymentModal already shown above if there's a penalty
         } else if (studentId) {
           refreshClearance();
         }
+
       })
       .catch(err => {
         toast.error(err.response?.data?.message || "Failed to mark as lost.");
@@ -1024,9 +1025,11 @@ export default function Circulation({ onNavigateToBooks }) {
           showPaymentModal && pendingTransaction && (
             <PaymentModal
               transaction={pendingTransaction}
+              isLostBook={isLostBookPayment}
               onClose={() => {
                 setShowPaymentModal(false);
                 setPendingTransaction(null);
+                setIsLostBookPayment(false);
               }}
               onSuccess={handlePaymentSuccess}
             />
