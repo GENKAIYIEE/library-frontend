@@ -3,7 +3,7 @@ import axiosClient from "../axios-client";
 import { X, DollarSign, CheckCircle, XCircle } from "lucide-react";
 import WaiverModal from "./WaiverModal"; // Import WaiverModal
 
-export default function PaymentModal({ transaction, onClose, onSuccess }) {
+export default function PaymentModal({ transaction, isLostBook = false, onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [showWaiver, setShowWaiver] = useState(false);
@@ -51,16 +51,17 @@ export default function PaymentModal({ transaction, onClose, onSuccess }) {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-4 text-white">
+                    <div className={`p-4 text-white ${isLostBook ? 'bg-gradient-to-r from-red-600 to-rose-600' : 'bg-gradient-to-r from-yellow-500 to-orange-500'}`}>
                         <div className="flex justify-between items-center">
                             <h2 className="text-xl font-bold flex items-center gap-2">
-                                <DollarSign size={24} /> Late Return - Payment Due
+                                <DollarSign size={24} /> {isLostBook ? 'Lost Book - Replacement Fee' : 'Late Return - Payment Due'}
                             </h2>
                             <button onClick={onClose} className="hover:bg-white/20 rounded p-1 transition">
                                 <X size={20} />
                             </button>
                         </div>
                     </div>
+
 
                     {/* Content */}
                     <div className="p-6">
@@ -95,12 +96,14 @@ export default function PaymentModal({ transaction, onClose, onSuccess }) {
                         </div>
 
                         {/* Penalty Amount */}
-                        <div className="text-center py-4 border-2 border-dashed border-yellow-400 rounded-lg bg-yellow-50 mb-4">
-                            <p className="text-gray-600 text-sm">Amount Due</p>
-                            <p className="text-4xl font-bold text-yellow-600">
+                        <div className={`text-center py-4 border-2 border-dashed rounded-lg mb-4 ${isLostBook ? 'border-red-400 bg-red-50' : 'border-yellow-400 bg-yellow-50'}`}>
+                            <p className="text-gray-600 text-sm">{isLostBook ? 'Replacement Fee' : 'Amount Due'}</p>
+                            <p className={`text-4xl font-bold ${isLostBook ? 'text-red-600' : 'text-yellow-600'}`}>
                                 ₱{parseFloat(transaction.penalty_amount).toFixed(2)}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">Rate: ₱5.00 per day late</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                {isLostBook ? 'Book replacement price' : 'Rate: ₱5.00 per day late'}
+                            </p>
                         </div>
 
                         {/* Error */}

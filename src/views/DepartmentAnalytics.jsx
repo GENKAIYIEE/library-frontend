@@ -31,8 +31,8 @@ export default function DepartmentAnalytics() {
             params: { course, year_level: yearLevel, section }
         })
             .then(({ data }) => {
-                setStats(data.stats);
-                setStudents(data.students);
+                setStats(data.stats || { total_students: 0, active_borrowers: 0, late_returners: 0, pending_fines: 0 });
+                setStudents(data.students || []);
                 setLoading(false);
             })
             .catch(() => setLoading(false));

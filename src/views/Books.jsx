@@ -1,85 +1,143 @@
 import {
   AlertCircle,
+  ArrowLeft,
   BookOpen,
-  ChevronDown, ChevronRight,
+  ChevronLeft,
+  ChevronRight,
   Edit,
   Filter,
-  Maximize2, Minimize2,
+  Loader2,
   PlusCircle,
   Printer,
   Search,
   Trash2
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Swal from "sweetalert2";
-import axiosClient, { ASSET_URL } from "../axios-client";
+import axiosClient from "../axios-client";
+import { getStorageUrl } from "../lib/utils";
 import PrintLabelModal from "../components/PrintLabelModal";
 import Button from "../components/ui/Button";
-import FloatingSelect from "../components/ui/FloatingSelect";
 import { useToast } from "../components/ui/Toast";
 import AssetForm from "./AssetForm";
 import BookForm from "./BookForm";
-import LostBooksModal from "./LostBooksModal"; // NEW
+import DamagedBooksModal from "./DamagedBooksModal";
+import LostBooksModal from "./LostBooksModal";
 
 // Category color mapping for visual distinction
 const CATEGORY_COLORS = {
-  "Book": { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", badge: "bg-purple-100 text-purple-700 border-purple-200", icon: "text-purple-500" },
-  "Article": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700 border-blue-200", icon: "text-blue-500" },
-  "Thesis": { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: "text-emerald-500" },
-  "Map": { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-200", icon: "text-amber-500" },
-  "Visual Materials": { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700 border-rose-200", icon: "text-rose-500" },
-  "Computer File/Electronic Resources": { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: "text-indigo-500" },
-  "default": { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-500" }
+  "Book": { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", badge: "bg-purple-100 text-purple-700 border-purple-200", icon: "text-purple-500", gradient: "from-purple-500 to-purple-600" },
+  "Article": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", badge: "bg-blue-100 text-blue-700 border-blue-200", icon: "text-blue-500", gradient: "from-blue-500 to-blue-600" },
+  "Thesis": { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-700", badge: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: "text-emerald-500", gradient: "from-emerald-500 to-emerald-600" },
+  "Map": { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-200", icon: "text-amber-500", gradient: "from-amber-500 to-amber-600" },
+  "Visual Materials": { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700 border-rose-200", icon: "text-rose-500", gradient: "from-rose-500 to-rose-600" },
+  "Computer File/Electronic Resources": { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: "text-indigo-500", gradient: "from-indigo-500 to-indigo-600" },
+  "default": { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-500", gradient: "from-slate-500 to-slate-600" }
 };
 
 const getCategoryColors = (category) => CATEGORY_COLORS[category] || CATEGORY_COLORS.default;
 
 export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   const toast = useToast();
-  const [books, setBooks] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  // View Mode States
+  const [selectedCategory, setSelectedCategory] = useState(null); // null = category view, string = book list view
+  const [categories, setCategories] = useState([]);
+  const [categoryBooks, setCategoryBooks] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalBooks, setTotalBooks] = useState(0);
+  const [perPage] = useState(20);
+
+  // Search (within category)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // Modal states
   const [showTitleForm, setShowTitleForm] = useState(false);
-  const [showLostBooksModal, setShowLostBooksModal] = useState(false); // NEW
-
-  // Store the book we want to edit
+  const [showLostBooksModal, setShowLostBooksModal] = useState(false);
+  const [showDamagedBooksModal, setShowDamagedBooksModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
-
-  // Store barcode to pre-fill in form when adding from scanner
   const [prefillBarcode, setPrefillBarcode] = useState("");
-
   const [selectedBookForCopy, setSelectedBookForCopy] = useState(null);
   const [selectedBookForLabel, setSelectedBookForLabel] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all"); // all, available, borrowed
-  const [selectedCategory, setSelectedCategory] = useState(null); // Category filter from sidebar
+  const [imgErrors, setImgErrors] = useState({});
 
-  // Collapsed categories state
-  const [collapsedCategories, setCollapsedCategories] = useState({});
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  const getBooks = useCallback((silent = false) => {
-    if (!silent) setLoading(true);
-    axiosClient.get("/books")
+  // Fetch categories
+  const getCategories = useCallback((silent = false) => {
+    if (!silent) setLoadingCategories(true);
+    axiosClient.get("/books/categories/summary")
       .then(({ data }) => {
-        setBooks(data);
-        if (!silent) setLoading(false);
+        setCategories(data);
+        setLoadingCategories(false);
       })
       .catch(() => {
-        if (!silent) setLoading(false);
+        setLoadingCategories(false);
       });
   }, []);
 
+  // Fetch books by category with pagination
+  const getBooksByCategory = useCallback((category, page = 1, search = "") => {
+    setLoadingBooks(true);
+    axiosClient.get(`/books/by-category/${encodeURIComponent(category)}`, {
+      params: { page, per_page: perPage, search }
+    })
+      .then(({ data }) => {
+        setCategoryBooks(data.data);
+        setCurrentPage(data.current_page);
+        setTotalPages(data.last_page);
+        setTotalBooks(data.total);
+        setLoadingBooks(false);
+      })
+      .catch(() => {
+        setLoadingBooks(false);
+      });
+  }, [perPage]);
+
+  // Initial load - fetch categories
   useEffect(() => {
-    getBooks();
+    getCategories();
+  }, [getCategories]);
 
-    // Poll every 5 seconds (reduced from 1s)
-    const interval = setInterval(() => {
-      getBooks(true); // Silent update
-    }, 5000);
+  // When category is selected, load its books
+  useEffect(() => {
+    if (selectedCategory) {
+      getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+    }
+  }, [selectedCategory, currentPage, debouncedSearch, getBooksByCategory]);
 
-    return () => clearInterval(interval);
-  }, [getBooks]);
+  // Handle category card click
+  const handleCategoryClick = (category) => {
+    setSelectedCategory(category);
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setCurrentPage(1);
+  };
 
-  // DELETE FUNCTION
+  // Handle back to categories
+  const handleBackToCategories = () => {
+    setSelectedCategory(null);
+    setCategoryBooks([]);
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setCurrentPage(1);
+    getCategories(); // Refresh categories when going back
+  };
+
+  // CRUD Operations
   const onDelete = (book) => {
     Swal.fire({
       title: 'Delete Book?',
@@ -95,7 +153,10 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         axiosClient.delete(`/books/${book.id}`)
           .then(() => {
             toast.success('The book has been removed.');
-            getBooks();
+            if (selectedCategory) {
+              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            }
+            getCategories(); // Refresh category counts
           })
           .catch((err) => {
             toast.error(err.response?.data?.message || 'Failed to delete book.');
@@ -104,221 +165,136 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     });
   };
 
-  // EDIT FUNCTION
   const onEdit = (book) => {
     setEditingBook(book);
     setShowTitleForm(true);
   };
 
-  // OPEN "ADD NEW" (Clear editing data)
   const onAddNew = () => {
     setEditingBook(null);
     setShowTitleForm(true);
-  }
-
-  // Enhanced filtering: Title, Author, ISBN, and Category
-  const filteredBooks = useMemo(() => {
-    return books.filter(book => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        book.title.toLowerCase().includes(searchLower) ||
-        book.author.toLowerCase().includes(searchLower) ||
-        (book.isbn && book.isbn.toLowerCase().includes(searchLower)) ||
-        book.category.toLowerCase().includes(searchLower);
-
-      // Status filter
-      if (filterStatus === "available") {
-        return matchesSearch && book.available_copies > 0;
-      } else if (filterStatus === "borrowed") {
-        return matchesSearch && book.available_copies === 0;
-      }
-
-      return matchesSearch;
-    });
-  }, [books, searchTerm, filterStatus]);
-
-  // Group books by category
-  const booksByCategory = useMemo(() => {
-    const grouped = {};
-    filteredBooks.forEach(book => {
-      const category = book.category || "Uncategorized";
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(book);
-    });
-    // Sort categories alphabetically
-    return Object.keys(grouped).sort().reduce((acc, key) => {
-      acc[key] = grouped[key];
-      return acc;
-    }, {});
-  }, [filteredBooks]);
-
-  // Category stats
-  const categoryStats = useMemo(() => {
-    return Object.entries(booksByCategory).map(([category, categoryBooks]) => ({
-      category,
-      totalBooks: categoryBooks.length,
-      available: categoryBooks.filter(b => b.available_copies > 0).length,
-      borrowed: categoryBooks.filter(b => b.available_copies === 0).length
-    }));
-  }, [booksByCategory]);
-
-  // Toggle category collapse
-  const toggleCategory = (category) => {
-    setCollapsedCategories(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
   };
 
-  // Expand/Collapse all
-  const expandAll = () => setCollapsedCategories({});
-  const collapseAll = () => {
-    const all = {};
-    Object.keys(booksByCategory).forEach(cat => all[cat] = true);
-    setCollapsedCategories(all);
-  };
+  // Get status badge
+  const getStatusBadge = (book) => {
+    const available = book.available_copies || 0;
+    const damaged = book.damaged_copies || 0;
+    const lost = book.lost_copies || 0;
+    const borrowed = book.borrowed_copies || 0;
+    const total = book.total_copies || (available + damaged + lost + borrowed);
 
-  // Get status badge style
-  const getStatusBadge = (availableCopies) => {
-    if (availableCopies > 0) {
-      return {
-        className: "bg-green-100 text-green-700 border border-green-200",
-        text: `${availableCopies} Available`
-      };
-    } else {
-      return {
-        className: "bg-amber-100 text-amber-700 border border-amber-200",
-        text: "All Borrowed"
-      };
+    if (available > 0) {
+      return { className: "bg-green-100 text-green-700 border border-green-200", text: `${available} Available` };
     }
+    if (damaged > 0 && borrowed === 0) {
+      return { className: "bg-rose-100 text-rose-700 border border-rose-200", text: damaged === total ? "All Damaged" : `${damaged} Damaged` };
+    }
+    if (lost > 0 && borrowed === 0 && damaged === 0) {
+      return { className: "bg-red-100 text-red-700 border border-red-200", text: lost === total ? "All Lost" : `${lost} Lost` };
+    }
+    if (borrowed > 0) {
+      let text = `${borrowed} Borrowed`;
+      if (damaged > 0) text += `, ${damaged} Damaged`;
+      if (lost > 0) text += `, ${lost} Lost`;
+      return { className: "bg-amber-100 text-amber-700 border border-amber-200", text };
+    }
+    return { className: "bg-gray-100 text-gray-600 border border-gray-200", text: "No Copies" };
   };
 
-  // Category Section Component
-  const CategorySection = ({ category, categoryBooks }) => {
-    const isCollapsed = collapsedCategories[category];
-    const colors = getCategoryColors(category);
-    const availableCount = categoryBooks.filter(b => b.available_copies > 0).length;
-    const totalCopies = categoryBooks.reduce((sum, b) => sum + (b.available_copies || 0), 0);
+  // Pagination controls
+  const PaginationControls = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start < maxVisible - 1) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
 
     return (
-      <div className={`mb-4 rounded-xl overflow-hidden border-2 ${colors.border} transition-all duration-200`}>
-        {/* Category Header */}
-        <button
-          onClick={() => toggleCategory(category)}
-          className={`w-full ${colors.bg} dark:bg-slate-800 px-4 py-3 flex items-center justify-between hover:brightness-95 dark:hover:bg-slate-700 transition-all`}
-        >
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${colors.bg} border ${colors.border}`}>
-              {isCollapsed ? (
-                <ChevronRight size={20} className={colors.icon} />
-              ) : (
-                <ChevronDown size={20} className={colors.icon} />
-              )}
-            </div>
-            <div className="text-left">
-              <h3 className={`font-bold text-lg ${colors.text} dark:text-slate-200`}>{category}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {categoryBooks.length} title{categoryBooks.length !== 1 ? 's' : ''} •
-                {availableCount} available • {totalCopies} total copies
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${colors.badge}`}>
-              {categoryBooks.length} Books
-            </span>
-          </div>
-        </button>
-
-        {/* Category Books Table */}
-        {!isCollapsed && (
-          <div className="overflow-x-auto bg-white dark:bg-slate-800">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 uppercase text-xs font-bold tracking-wider">
-                <tr>
-                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Title</th>
-                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Author</th>
-                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Publisher</th>
-                  <th className="p-4 border-b border-slate-100 dark:border-slate-600">Call No.</th>
-                  <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-center">Status</th>
-                  <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
-                {categoryBooks.map((book) => {
-                  const badge = getStatusBadge(book.available_copies);
-                  return (
-                    <tr key={book.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          {/* Book Cover Thumbnail */}
-                          {book.image_path ? (
-                            <img
-                              src={`${ASSET_URL}/${book.image_path}`}
-                              alt={book.title}
-                              className="w-10 h-14 object-cover rounded shadow-sm"
-                            />
-                          ) : (
-                            <div className="w-10 h-14 bg-gray-100 dark:bg-slate-700 rounded flex items-center justify-center">
-                              <BookOpen size={16} className="text-gray-400 dark:text-gray-500" />
-                            </div>
-                          )}
-                          <div>
-                            <p className="font-semibold text-slate-800 dark:text-white">{book.title}</p>
-                            {book.subtitle && (
-                              <p className="text-xs text-slate-500 dark:text-slate-400 italic">{book.subtitle}</p>
-                            )}
-                            {book.isbn && (
-                              <p className="text-xs text-slate-400 font-mono">{book.isbn}</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4 text-slate-600 dark:text-slate-300">{book.author}</td>
-                      <td className="p-4 text-slate-500 dark:text-slate-400 text-sm">{book.publisher || '-'}</td>
-                      <td className="p-4 font-mono text-xs text-slate-500 dark:text-slate-400">{book.call_number || '-'}</td>
-                      <td className="p-4 text-center">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${badge.className}`}>
-                          {badge.text}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          {/* PRINT LABEL BUTTON */}
-                          <button
-                            onClick={() => setSelectedBookForLabel(book)}
-                            className="text-xs bg-[#020463] text-white px-3 py-1.5 rounded-lg hover:bg-[#1a1c7a] transition mr-1 font-medium flex items-center gap-1"
-                            title="Print Label"
-                          >
-                            <Printer size={12} /> Label
-                          </button>
-                          {/* ADD COPY BUTTON */}
-                          <button
-                            onClick={() => setSelectedBookForCopy(book)}
-                            className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition mr-1 font-medium"
-                          >
-                            + Copy
-                          </button>
-                          {/* EDIT BUTTON */}
-                          <button onClick={() => onEdit(book)} className="text-slate-400 hover:text-[#020463] dark:hover:text-blue-400 p-2 rounded hover:bg-blue-50 dark:hover:bg-slate-700 transition" title="Edit">
-                            <Edit size={16} />
-                          </button>
-                          {/* DELETE BUTTON */}
-                          <button onClick={() => onDelete(book)} className="text-slate-400 hover:text-[#020463] dark:hover:text-red-400 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Delete">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-100 dark:border-slate-700">
+        <p className="text-sm text-gray-500 dark:text-slate-400">
+          Showing {((currentPage - 1) * perPage) + 1} - {Math.min(currentPage * perPage, totalBooks)} of {totalBooks} books
+        </p>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            <ChevronLeft size={18} className="text-gray-600 dark:text-slate-300" />
+          </button>
+          {start > 1 && (
+            <>
+              <button onClick={() => setCurrentPage(1)} className="px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-sm font-medium text-gray-600 dark:text-slate-300">1</button>
+              {start > 2 && <span className="px-2 text-gray-400">...</span>}
+            </>
+          )}
+          {pages.map(page => (
+            <button
+              key={page}
+              onClick={() => setCurrentPage(page)}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition ${page === currentPage
+                ? "bg-primary-600 text-white"
+                : "hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300"
+                }`}
+            >
+              {page}
+            </button>
+          ))}
+          {end < totalPages && (
+            <>
+              {end < totalPages - 1 && <span className="px-2 text-gray-400">...</span>}
+              <button onClick={() => setCurrentPage(totalPages)} className="px-3 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 text-sm font-medium text-gray-600 dark:text-slate-300">{totalPages}</button>
+            </>
+          )}
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          >
+            <ChevronRight size={18} className="text-gray-600 dark:text-slate-300" />
+          </button>
+        </div>
       </div>
+    );
+  };
+
+  // Category Card Component
+  const CategoryCard = ({ category, totalBooks, availableTitles, totalCopies, availableCopies }) => {
+    const colors = getCategoryColors(category);
+    return (
+      <button
+        onClick={() => handleCategoryClick(category)}
+        className={`group relative overflow-hidden rounded-3xl p-6 text-left transition-all duration-300 hover:scale-105 hover:shadow-2xl ${colors.bg} dark:bg-slate-800 border-2 ${colors.border} dark:border-slate-700`}
+      >
+        {/* Background gradient accent */}
+        <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${colors.gradient} opacity-10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500`} />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`p-3 rounded-xl bg-gradient-to-br ${colors.gradient} shadow-lg`}>
+              <BookOpen size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className={`text-lg font-bold ${colors.text} dark:text-white mb-2 truncate`}>{category}</h3>
+          <div className="space-y-1">
+            <p className="text-3xl font-bold text-gray-800 dark:text-white">{totalBooks}</p>
+            <p className="text-xs text-gray-500 dark:text-slate-400">
+              {availableTitles} available
+            </p>
+          </div>
+        </div>
+
+        {/* Arrow indicator */}
+        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+          <ChevronRight size={24} className={colors.icon} />
+        </div>
+      </button>
     );
   };
 
@@ -327,16 +303,38 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       {/* HEADER & CONTROLS */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
+          {selectedCategory && (
+            <button
+              onClick={handleBackToCategories}
+              className="p-3 rounded-xl bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition shadow-sm"
+            >
+              <ArrowLeft size={24} className="text-gray-600 dark:text-slate-300" />
+            </button>
+          )}
           <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
             <BookOpen size={28} className="text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Book Inventory</h2>
-            <p className="text-gray-500 dark:text-slate-400 text-sm">Organized by category • {filteredBooks.length} books total</p>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+              {selectedCategory ? selectedCategory : "Book Inventory"}
+            </h2>
+            <p className="text-gray-500 dark:text-slate-400 text-sm">
+              {selectedCategory
+                ? `${totalBooks} titles in this category`
+                : `${categories.length} categories • Click to browse`
+              }
+            </p>
           </div>
         </div>
 
         <div className="flex gap-2">
+          <Button
+            onClick={() => setShowDamagedBooksModal(true)}
+            variant="outline"
+            className="border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800"
+          >
+            <AlertCircle size={18} className="mr-2" /> Damaged Books
+          </Button>
           <Button
             onClick={() => setShowLostBooksModal(true)}
             variant="outline"
@@ -344,115 +342,165 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
           >
             <AlertCircle size={18} className="mr-2" /> Lost Books
           </Button>
-          <Button
-            onClick={onAddNew}
-            icon={PlusCircle}
-          >
+          <Button onClick={onAddNew} icon={PlusCircle}>
             Add New Book
           </Button>
         </div>
       </div>
 
-      {/* CATEGORY SUMMARY CARDS */}
-      {categoryStats.length > 0 && !searchTerm && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {categoryStats.map(({ category, totalBooks, available }) => {
-            const colors = getCategoryColors(category);
-            return (
-              <button
-                key={category}
-                onClick={() => {
-                  // Expand this category and scroll to it
-                  setCollapsedCategories(prev => ({ ...prev, [category]: false }));
-                }}
-                className={`${colors.bg} dark:bg-slate-800 ${colors.border} dark:border-slate-700 border-2 rounded-2xl p-4 text-left hover:brightness-95 dark:hover:bg-slate-700 transition-all duration-200 hover:shadow-lg`}
-              >
-                <div className={`text-xs font-bold ${colors.text} dark:text-slate-200 uppercase tracking-wide mb-2`}>{category}</div>
-                <div className="text-3xl font-bold text-gray-800 dark:text-white">{totalBooks}</div>
-                <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">{available} available</div>
-              </button>
-            );
-          })}
-        </div>
+      {/* CATEGORY VIEW (when no category selected) */}
+      {!selectedCategory && (
+        <>
+          {loadingCategories ? (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
+              <Loader2 className="animate-spin h-10 w-10 mx-auto mb-4 text-primary-600" />
+              <p>Loading categories...</p>
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
+              <Filter size={40} strokeWidth={1.5} className="mx-auto mb-4" />
+              <p className="text-lg font-medium">No categories found</p>
+              <p className="text-sm">Add new books using the button above</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {categories.map((cat) => (
+                <CategoryCard
+                  key={cat.category}
+                  category={cat.category}
+                  totalBooks={cat.total_books}
+                  availableTitles={cat.available_titles}
+                  totalCopies={cat.total_copies}
+                  availableCopies={cat.available_copies}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {/* SEARCH & FILTERS BAR */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-slate-700">
-        <div className="flex flex-col md:flex-row gap-4 items-end">
-          <div className="flex-1 w-full">
-            <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wide mb-2 block">Search Books</label>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-primary-400" size={18} />
+      {/* BOOK LIST VIEW (when category selected) */}
+      {selectedCategory && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 overflow-hidden">
+          {/* Search Bar */}
+          <div className="p-6 border-b border-gray-100 dark:border-slate-700">
+            <div className="relative max-w-md">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Search by Title, Author, ISBN, Category..."
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 outline-none text-sm transition-all bg-gray-50 dark:bg-slate-900 dark:text-white hover:bg-white dark:hover:bg-slate-800"
+                placeholder="Search by title, author, ISBN..."
+                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 outline-none text-sm transition-all bg-gray-50 dark:bg-slate-900 dark:text-white"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="w-full md:w-56">
-            <FloatingSelect
-              label="Status Filter"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="all">Show All</option>
-              <option value="available">Available</option>
-              <option value="borrowed">Borrowed</option>
-            </FloatingSelect>
-          </div>
+          {/* Book Table */}
+          {loadingBooks ? (
+            <div className="p-12 text-center">
+              <Loader2 className="animate-spin h-10 w-10 mx-auto mb-4 text-primary-600" />
+              <p className="text-gray-400 dark:text-slate-500">Loading books...</p>
+            </div>
+          ) : categoryBooks.length === 0 ? (
+            <div className="p-12 text-center text-gray-400 dark:text-slate-500">
+              <Filter size={40} strokeWidth={1.5} className="mx-auto mb-4" />
+              <p className="text-lg font-medium">
+                {searchTerm ? `No books found matching "${searchTerm}"` : "No books in this category"}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 uppercase text-xs font-bold tracking-wider">
+                  <tr>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600">Title</th>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600">Author</th>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600">Publisher</th>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600">Call No.</th>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-center">Status</th>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+                  {categoryBooks.map((book) => {
+                    const badge = getStatusBadge(book);
+                    return (
+                      <tr key={book.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            {book.image_path && !imgErrors[book.id] ? (
+                              <img
+                                src={getStorageUrl(book.image_path)}
+                                alt={book.title}
+                                className="w-10 h-14 object-cover rounded shadow-sm"
+                                onError={() => setImgErrors(prev => ({ ...prev, [book.id]: true }))}
+                              />
+                            ) : (
+                              <div className="w-10 h-14 bg-gray-100 dark:bg-slate-700 rounded flex items-center justify-center">
+                                <BookOpen size={16} className="text-gray-400 dark:text-gray-500" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-semibold text-slate-800 dark:text-white">{book.title}</p>
+                              {book.subtitle && (
+                                <p className="text-xs text-slate-500 dark:text-slate-400 italic">{book.subtitle}</p>
+                              )}
+                              {book.isbn && (
+                                <p className="text-xs text-slate-400 font-mono">{book.isbn}</p>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 text-slate-600 dark:text-slate-300">{book.author}</td>
+                        <td className="p-4 text-slate-500 dark:text-slate-400 text-sm">{book.publisher || '-'}</td>
+                        <td className="p-4 font-mono text-xs text-slate-500 dark:text-slate-400">{book.call_number || '-'}</td>
+                        <td className="p-4 text-center">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${badge.className}`}>
+                            {badge.text}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-1">
+                            <button
+                              onClick={() => setSelectedBookForLabel(book)}
+                              className="text-xs bg-[#020463] text-white px-3 py-1.5 rounded-lg hover:bg-[#1a1c7a] transition mr-1 font-medium flex items-center gap-1"
+                              title="Print Label"
+                            >
+                              <Printer size={12} /> Label
+                            </button>
+                            <button
+                              onClick={() => setSelectedBookForCopy(book)}
+                              className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition mr-1 font-medium"
+                            >
+                              + Copy
+                            </button>
+                            <button onClick={() => onEdit(book)} className="text-slate-400 hover:text-[#020463] dark:hover:text-blue-400 p-2 rounded hover:bg-blue-50 dark:hover:bg-slate-700 transition" title="Edit">
+                              <Edit size={16} />
+                            </button>
+                            <button onClick={() => onDelete(book)} className="text-slate-400 hover:text-[#020463] dark:hover:text-red-400 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Delete">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-          {/* Expand/Collapse Controls */}
-          <div className="flex gap-2">
-            <button
-              onClick={expandAll}
-              className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
-              title="Expand All Categories"
-            >
-              <Maximize2 size={16} /> Expand
-            </button>
-            <button
-              onClick={collapseAll}
-              className="flex items-center gap-2 px-4 py-3 text-sm font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-all"
-              title="Collapse All Categories"
-            >
-              <Minimize2 size={16} /> Collapse
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* CATEGORY SECTIONS */}
-      {loading ? (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p>Loading inventory...</p>
-        </div>
-      ) : Object.keys(booksByCategory).length === 0 ? (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
-          <div className="flex flex-col items-center gap-2">
-            <Filter size={40} strokeWidth={1.5} />
-            <p className="text-lg font-medium">
-              {searchTerm ? `No books found matching "${searchTerm}"` : "No books in inventory"}
-            </p>
-            <p className="text-sm">Add new books using the button above</p>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {Object.entries(booksByCategory).map(([category, categoryBooks]) => (
-            <CategorySection
-              key={category}
-              category={category}
-              categoryBooks={categoryBooks}
-            />
-          ))}
+          {/* Pagination */}
+          {categoryBooks.length > 0 && totalPages > 1 && (
+            <div className="px-6 pb-6">
+              <PaginationControls />
+            </div>
+          )}
         </div>
       )}
 
+      {/* MODALS */}
       {showTitleForm && (
         <BookForm
           bookToEdit={editingBook}
@@ -462,9 +510,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
             setPrefillBarcode("");
           }}
           onSuccess={(newBook) => {
-            getBooks();
+            if (selectedCategory) {
+              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            }
+            getCategories();
             if (newBook && newBook.id) {
-              // Immediately show print label modal for the new book
               setSelectedBookForLabel(newBook);
             }
           }}
@@ -472,7 +522,16 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       )}
 
       {selectedBookForCopy && (
-        <AssetForm book={selectedBookForCopy} onClose={() => setSelectedBookForCopy(null)} onSuccess={getBooks} />
+        <AssetForm
+          book={selectedBookForCopy}
+          onClose={() => setSelectedBookForCopy(null)}
+          onSuccess={() => {
+            if (selectedCategory) {
+              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            }
+            getCategories();
+          }}
+        />
       )}
 
       {selectedBookForLabel && (
@@ -483,9 +542,22 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         <LostBooksModal
           onClose={() => setShowLostBooksModal(false)}
           onSuccess={() => {
-            getBooks();
-            // We keep the modal open or closed? Usually keep open to restore more, 
-            // but if we want to reflect changes in background, getBooks() handles it.
+            if (selectedCategory) {
+              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            }
+            getCategories();
+          }}
+        />
+      )}
+
+      {showDamagedBooksModal && (
+        <DamagedBooksModal
+          onClose={() => setShowDamagedBooksModal(false)}
+          onSuccess={() => {
+            if (selectedCategory) {
+              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            }
+            getCategories();
           }}
         />
       )}

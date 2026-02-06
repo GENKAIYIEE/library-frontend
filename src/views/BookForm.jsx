@@ -41,6 +41,8 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     copies: "1"
   });
 
+  const [isDamaged, setIsDamaged] = useState(false);
+
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -150,6 +152,9 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
 
     if (!bookToEdit) {
       formData.append("copies", book.copies || "1");
+      if (isDamaged) {
+        formData.append("is_damaged", "1");
+      }
     }
 
     if (imageFile) {
@@ -462,6 +467,32 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                   icon={FileText}
                 />
               </div>
+
+              {/* DAMAGED BOOK TOGGLE (Only for new books) */}
+              {!bookToEdit && (
+                <div
+                  className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all ${isDamaged
+                    ? "border-rose-400 bg-rose-50"
+                    : "border-gray-200 hover:border-rose-200"
+                    }`}
+                  onClick={() => setIsDamaged(!isDamaged)}
+                >
+                  <div className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${isDamaged
+                    ? "bg-rose-500 border-rose-500 text-white"
+                    : "bg-white border-gray-300"
+                    }`}>
+                    {isDamaged && <CheckCircle size={14} strokeWidth={3} />}
+                  </div>
+                  <div>
+                    <p className={`font-bold text-sm ${isDamaged ? "text-rose-700" : "text-gray-700"}`}>
+                      MARK THIS AS A DAMAGED BOOK
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      The copies will be automatically added to the damaged inventory.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* 18. Copy & 19. Volume */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

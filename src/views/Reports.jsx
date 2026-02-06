@@ -5,7 +5,11 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
+
+
 export default function Reports() {
+
+
     // Date Filter State
     const [dateRange, setDateRange] = useState("30");
     const [customStart, setCustomStart] = useState("");
@@ -15,9 +19,12 @@ export default function Reports() {
     const [mostBorrowed, setMostBorrowed] = useState([]);
     const [topStudents, setTopStudents] = useState([]);
     const [penalties, setPenalties] = useState({ monthly: [], summary: {} });
-    const [demographics, setDemographics] = useState({ by_course: [], by_year: [] }); // NEW
+    const [demographics, setDemographics] = useState({ by_course: [], by_year: [] });
+    const [statistics, setStatistics] = useState({ ranges: [], months: [], data: [], academic_year: "" }); // NEW
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("books");
+
+
 
     // Calculate date range
     const getDateParams = () => {
@@ -59,13 +66,15 @@ export default function Reports() {
             axiosClient.get("/reports/most-borrowed", { params }),
             axiosClient.get("/reports/top-students", { params }),
             axiosClient.get("/reports/penalties", { params }),
-            axiosClient.get("/reports/demographics", { params }) // NEW
+            axiosClient.get("/reports/demographics", { params }),
+            axiosClient.get("/reports/statistics") // Let backend determine correct academic year
         ])
-            .then(([booksRes, studentsRes, penaltiesRes, demoRes]) => {
+            .then(([booksRes, studentsRes, penaltiesRes, demoRes, statsRes]) => {
                 setMostBorrowed(booksRes.data);
                 setTopStudents(studentsRes.data);
                 setPenalties(penaltiesRes.data);
-                setDemographics(demoRes.data); // NEW
+                setDemographics(demoRes.data);
+                setStatistics(statsRes.data); // NEW
                 setLoading(false);
             })
             .catch(() => setLoading(false));
@@ -105,7 +114,244 @@ export default function Reports() {
         window.print();
     };
 
+    const handlePrintStatistics = () => {
+        // Month number to display label mapping
+        const monthLabels = {
+            6: "JUNE", 7: "JULY", 8: "AUG.", 9: "SEPT.", 10: "OCT.", 11: "NOV.",
+            12: "DEC.", 1: "JAN", 2: "FEB.", 3: "MAR.", 4: "APR.", 5: "MAY"
+        };
+
+        // Use the actual months from statistics (these are numeric keys from backend)
+        const months = statistics.months || [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5];
+
+        // Generate table rows for each call number range
+        const tableRows = statistics.ranges.map(range => {
+            const rowTotal = months.reduce((sum, month) => {
+                return sum + (statistics.data[range]?.[month] || 0);
+            }, 0);
+
+            const monthCells = months.map(month => {
+                const value = statistics.data[range]?.[month] || 0;
+                return `<td class="num-col">${value > 0 ? value : ''}</td>`;
+            }).join('');
+
+            return `
+                <tr>
+                    <td class="range-col">${range}</td>
+                    ${monthCells}
+                    <td class="num-col total-col">${rowTotal > 0 ? rowTotal : ''}</td>
+                </tr>
+            `;
+        }).join('');
+
+        // Calculate column totals
+        const monthTotals = months.map(month => {
+            const total = statistics.ranges.reduce((sum, range) => {
+                return sum + (statistics.data[range]?.[month] || 0);
+            }, 0);
+            return `<td class="num-col">${total > 0 ? total : ''}</td>`;
+        }).join('');
+
+        // Grand total
+        const grandTotal = statistics.ranges.reduce((total, range) => {
+            return total + statistics.months.reduce((sum, month) => {
+                return sum + (statistics.data[range]?.[month] || 0);
+            }, 0);
+        }, 0);
+
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Statistics of Borrowed Books - ${statistics.academic_year || 'A.Y. 2025-2026'}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    @page { size: portrait; margin: 0.3in; }
+                    html, body { height: 99%; }
+                    body { 
+                        font-family: 'Times New Roman', serif; 
+                        padding: 15px; 
+                        background: white;
+                        color: #000;
+                        font-size: 11px;
+                        display: flex;
+                        flex-direction: column;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    .header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 15px;
+                        padding-bottom: 8px;
+                        border-bottom: 2px solid #1e3a8a;
+                    }
+                    .header-logo img {
+                        width: 70px;
+                        height: 70px;
+                    }
+                    .header-text { 
+                        flex: 1; 
+                        text-align: center; 
+                        padding: 0 10px;
+                    }
+                    .header-text h1 { font-size: 14px; color: #1e3a8a; font-weight: bold; margin-bottom: 2px; }
+                    .header-text p { font-size: 10px; color: #334155; margin-top: 1px; }
+                    
+                    .title {
+                        text-align: center;
+                        margin: 15px 0;
+                    }
+                    .title h2 { font-size: 14px; font-weight: bold; color: #000; margin: 0; }
+                    .title p { font-size: 12px; margin-top: 2px; color: #000; }
+
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin-bottom: 20px;
+                        font-size: 11px;
+                    }
+                    th, td {
+                        border: 1px solid #333;
+                        padding: 5px 4px;
+                        text-align: center;
+                    }
+                    th {
+                        background: #f0f0f0;
+                        font-weight: bold;
+                        padding: 6px 4px;
+                    }
+                    .range-col { 
+                        width: 70px; 
+                        font-weight: bold; 
+                        text-align: left;
+                        padding-left: 6px;
+                    }
+                    .num-col { width: 42px; }
+                    .total-col { font-weight: bold; }
+                    .month-header { font-size: 10px; }
+                    .grand-total { font-weight: bold; background: #f0f0f0; }
+                    
+                    .signatures {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        margin-top: 50px;
+                        padding-left: 30px;
+                    }
+                    .signature-box { 
+                        text-align: left; 
+                        margin-bottom: 15px;
+                    }
+                    .signature-box .label { font-size: 11px; margin-bottom: 20px; }
+                    .signature-box .name { 
+                        font-size: 11px; 
+                        font-weight: bold; 
+                        text-decoration: underline;
+                    }
+                    .signature-box .title-text { 
+                        font-size: 10px; 
+                        font-style: italic; 
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="header-logo" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                        <img src="${window.location.origin}/pclu-logo.png" alt="PCLU" style="width: 100%; height: 100%; object-fit: contain;" />
+                    </div>
+                    <div class="header-text">
+                        <h1>POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
+                        <p>(Formerly PAMETS COLLEGES)</p>
+                        <p>Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
+                        <p>Tel. No. (072) 2061761 Mobile No.09171623141/09260953781</p>
+                        <p>Email: pclucollege@pclu.com.ph</p>
+                        <p>https://www.facebook.com/PCLUOfficialpage</p>
+                    </div>
+                    <div class="iso-badge" style="min-width: 80px; border: 1px solid #999; padding: 2px; display: inline-flex; flex-direction: column; align-items: center; background: white;">
+                        <div style="background: #1e3a8a; width: 100%; padding: 4px; display: flex; flex-direction: column; align-items: center;">
+                            <div style="display: flex; align-items: center; justify-content: center; width: 100%; border-bottom: 1px solid #ffffff40; padding-bottom: 2px; margin-bottom: 2px;">
+                                <span style="font-size: 24px; font-weight: 900; line-height: 1; color: white; font-family: Arial, sans-serif;">ISO</span>
+                                <div style="display: flex; flex-direction: column; margin-left: 4px; border-left: 1px solid white; padding-left: 4px;">
+                                    <span style="font-size: 10px; font-weight: bold; line-height: 1; color: #22d3ee;">9001</span>
+                                    <span style="font-size: 10px; font-weight: bold; line-height: 1; color: #22d3ee;">2015</span>
+                                </div>
+                            </div>
+                            <span style="font-size: 9px; font-weight: 900; color: white; letter-spacing: 1px; font-family: Arial, sans-serif; width: 100%; text-align: center;">CERTIFIED</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="title">
+                    <h2>Statistics of Borrowed Books by Faculty</h2>
+                    <p>${statistics.academic_year || 'A.Y. 2025-2026'}</p>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="range-col"></th>
+                            <th colspan="12" style="text-align: center;">MONTH</th>
+                            <th rowspan="2" class="num-col"></th>
+                        </tr>
+                        <tr>
+                            ${months.map(m => `<th class="num-col month-header">${monthLabels[m]}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                        <tr class="grand-total">
+                            <td class="range-col">TOTAL</td>
+                            ${monthTotals}
+                            <td class="num-col total-col">${grandTotal > 0 ? grandTotal : ''}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="signatures">
+                    <div class="signature-box">
+                        <p class="label">Prepared by:</p>
+                        <p class="name">PATRICIA NIKOLE C. MASILANG</p>
+                        <p class="title-text">College Library Clerk</p>
+                    </div>
+                    <div class="signature-box">
+                        <p class="label">Noted by:</p>
+                        <p class="name">LEAH E. CAMSO.RL MLIS</p>
+                        <p class="title-text">Chief Librarian</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const printFrame = document.createElement('iframe');
+        printFrame.style.position = 'absolute';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = 'none';
+        printFrame.style.left = '-9999px';
+        printFrame.srcdoc = printContent;
+        document.body.appendChild(printFrame);
+
+        printFrame.onload = () => {
+            try {
+                printFrame.contentWindow.focus();
+                printFrame.contentWindow.print();
+            } catch (e) {
+                console.error('Print error:', e);
+            }
+            setTimeout(() => {
+                if (printFrame.parentNode) {
+                    document.body.removeChild(printFrame);
+                }
+            }, 2000);
+        };
+    };
+
     // Custom Tooltip for Charts
+
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             return (
@@ -222,93 +468,103 @@ export default function Reports() {
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-8">
 
-                    {/* Most Borrowed Books Section */}
+                    {/* Borrowed Books Statistics (Replaces Popularity) */}
                     {activeTab === "books" && (
                         <div className="space-y-6">
-                            {/* CHART CARD */}
-                            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 p-8">
-                                <div className="flex justify-between items-center mb-8">
+                            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden">
+                                <div className="p-8 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
                                     <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                            <BarChart3 className="text-indigo-500" size={24} /> Popularity Analysis
+                                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                                            Statistics of Borrowed Books by Faculty
                                         </h3>
-                                        <p className="text-gray-400 text-sm mt-1">Top 10 most borrowed titles</p>
+                                        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                            {statistics.academic_year || "A.Y. 2025-2026"}
+                                        </p>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => exportCsv("books")} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors text-gray-500" title="Download CSV">
-                                            <Download size={20} />
-                                        </button>
-                                    </div>
+                                    <button
+                                        onClick={handlePrintStatistics}
+                                        className="print:hidden flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-indigo-500/20"
+                                    >
+                                        <Download size={16} />
+                                        Print Statistics
+                                    </button>
                                 </div>
-                                <div className="h-[400px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart
-                                            data={mostBorrowed.slice(0, 10)}
-                                            layout="vertical"
-                                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                                            <XAxis type="number" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis
-                                                dataKey="title"
-                                                type="category"
-                                                width={150}
-                                                stroke="#475569"
-                                                fontSize={12}
-                                                tickLine={false}
-                                                axisLine={false}
-                                                tickFormatter={(value) => value.length > 20 ? `${value.substring(0, 20)}...` : value}
-                                            />
-                                            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9', opacity: 0.4 }} />
-                                            <Bar dataKey="borrow_count" name="Times Borrowed" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={20} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
 
-                            {/* TABLE CARD */}
-                            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg border border-gray-100 dark:border-slate-700 overflow-hidden">
-                                <div className="p-6 border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50">
-                                    <h3 className="font-bold text-gray-800 dark:text-white">Detailed Book Rankings</h3>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left">
-                                        <thead className="bg-white dark:bg-slate-800 text-gray-400 dark:text-slate-500 text-xs font-bold uppercase tracking-wider">
-                                            <tr>
-                                                <th className="p-6 font-medium">Rank</th>
-                                                <th className="p-6 font-medium">Book Details</th>
-                                                <th className="p-6 font-medium">Category</th>
-                                                <th className="p-6 font-medium text-right">Activity</th>
+                                <div className="overflow-x-auto p-2">
+                                    <table className="w-full text-center border-collapse border border-gray-300 dark:border-slate-600">
+                                        <thead>
+                                            {/* Header Row */}
+                                            <tr className="bg-gray-100 dark:bg-slate-700">
+                                                <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[100px] bg-gray-200 dark:bg-slate-800">
+                                                    {/* Empty for Category/Range */}
+                                                </th>
+                                                <th colSpan={12} className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-gray-700 dark:text-white uppercase">
+                                                    MONTH
+                                                </th>
+                                                <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[60px] bg-gray-200 dark:bg-slate-800">
+                                                    {/* Total Header */}
+                                                </th>
+                                            </tr>
+                                            <tr className="bg-gray-50 dark:bg-slate-700/50 text-xs font-bold uppercase">
+                                                <th className="border border-gray-300 dark:border-slate-600 p-2 text-left">Category / Range</th>
+                                                {/* Months: June to May */}
+                                                {["JUNE", "JULY", "AUG.", "SEPT.", "OCT.", "NOV.", "DEC.", "JAN", "FEB.", "MAR.", "APR.", "MAY"].map(month => (
+                                                    <th key={month} className="border border-gray-300 dark:border-slate-600 p-2">{month}</th>
+                                                ))}
+                                                <th className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-50 dark:bg-yellow-900/10">TOTAL</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
-                                            {mostBorrowed.map((book, index) => (
-                                                <tr key={book.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition duration-150">
-                                                    <td className="p-6">
-                                                        <span className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm 
-                                                            ${index < 3 ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400' : 'bg-gray-100 text-gray-500 dark:bg-slate-700 dark:text-slate-400'}`}>
-                                                            {index + 1}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-6">
-                                                        <div>
-                                                            <p className="font-bold text-gray-800 dark:text-white mb-1">{book.title}</p>
-                                                            <p className="text-xs text-gray-500 dark:text-slate-400">{book.author}</p>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-6">
-                                                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 dark:bg-slate-700 dark:text-slate-300">
-                                                            {book.category}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-6 text-right">
-                                                        <div className="inline-flex flex-col items-end">
-                                                            <span className="font-bold text-lg text-indigo-600 dark:text-indigo-400">{book.borrow_count}</span>
-                                                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Loans</span>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                        <tbody className="text-sm">
+                                            {statistics.ranges && statistics.ranges.map((range) => {
+                                                // Calculate Row Total
+                                                const rowTotal = statistics.months.reduce((sum, month) => {
+                                                    return sum + (statistics.data[range]?.[month] || 0);
+                                                }, 0);
+
+                                                return (
+                                                    <tr key={range} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                        <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-left bg-gray-50 dark:bg-slate-800">
+                                                            {range}
+                                                        </td>
+                                                        {statistics.months.map(month => (
+                                                            <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">
+                                                                {(statistics.data[range]?.[month] || 0) > 0 ? (
+                                                                    <span className="font-semibold text-gray-800 dark:text-white">
+                                                                        {statistics.data[range][month]}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-300 dark:text-slate-600">-</span>
+                                                                )}
+                                                            </td>
+                                                        ))}
+                                                        <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold bg-yellow-50 dark:bg-yellow-900/10">
+                                                            {rowTotal > 0 ? rowTotal : "-"}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+
+                                            {/* Grand Total Row */}
+                                            <tr className="bg-gray-100 dark:bg-slate-700 font-bold">
+                                                <td className="border border-gray-300 dark:border-slate-600 p-3 text-left">TOTAL</td>
+                                                {statistics.months && statistics.months.map(month => {
+                                                    const colTotal = statistics.ranges.reduce((sum, range) => {
+                                                        return sum + (statistics.data[range]?.[month] || 0);
+                                                    }, 0);
+                                                    return (
+                                                        <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">
+                                                            {colTotal > 0 ? colTotal : ""}
+                                                        </td>
+                                                    );
+                                                })}
+                                                <td className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-100 dark:bg-yellow-900/20">
+                                                    {statistics.ranges && statistics.ranges.reduce((grandTotal, range) => {
+                                                        return grandTotal + statistics.months.reduce((sum, month) => {
+                                                            return sum + (statistics.data[range]?.[month] || 0);
+                                                        }, 0);
+                                                    }, 0)}
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -334,7 +590,7 @@ export default function Reports() {
                                         </button>
                                     </div>
                                     <div className="h-[350px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height={350}>
                                             <BarChart data={topStudents.slice(0, 15)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
                                                 <XAxis dataKey="name" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => value.split(' ')[0]} />
@@ -410,6 +666,8 @@ export default function Reports() {
                     {/* NEW: Demographics Section */}
                     {activeTab === "demographics" && (
                         <div className="space-y-6">
+
+
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {/* Course Distribution Chart */}
                                 <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 p-8">
@@ -417,7 +675,7 @@ export default function Reports() {
                                         <PieChartIcon className="text-purple-500" size={24} /> Borrowers by Course
                                     </h3>
                                     <div className="h-[350px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height={350}>
                                             <PieChart>
                                                 <Pie
                                                     data={demographics.by_course}
@@ -447,7 +705,7 @@ export default function Reports() {
                                         <BarChart3 className="text-pink-500" size={24} /> Borrowers by Year Level
                                     </h3>
                                     <div className="h-[350px] w-full">
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" height={350}>
                                             <BarChart data={demographics.by_year} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
                                                 <XAxis dataKey="year_level" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
@@ -505,7 +763,7 @@ export default function Reports() {
                                 </div>
 
                                 <div className="h-[400px] w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height={400}>
                                         <AreaChart data={penalties.monthly} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">

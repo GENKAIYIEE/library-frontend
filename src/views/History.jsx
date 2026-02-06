@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/ui/Toast";
 import axiosClient from "../axios-client";
-import { DollarSign, CheckCircle, History as HistoryIcon, Search, BookOpen, User } from "lucide-react";
+import { DollarSign, CheckCircle, History as HistoryIcon, Search, BookOpen, User, Trash2 } from "lucide-react";
 import Pagination from "../components/ui/Pagination";
 import WaiverModal from "./WaiverModal";
+import ConfirmationModal from "../components/ui/ConfirmationModal";
 
 export default function History() {
   const toast = useToast();
@@ -16,6 +17,11 @@ export default function History() {
   const [activeTab, setActiveTab] = useState('all');
   const [isWaiverModalOpen, setIsWaiverModalOpen] = useState(false);
   const [waivingTransactionId, setWaivingTransactionId] = useState(null);
+
+  // Bulk Selection State
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Status Badge Component
   const StatusBadge = ({ transaction }) => {
@@ -40,10 +46,6 @@ export default function History() {
       const returnedDate = new Date(transaction.returned_at);
       const diffTime = Math.abs(returnedDate - dueDate);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      const isLost = transaction.book_asset?.status === 'lost'; // Or infer from high penalty?
-      // Better: if penalty == book price? But let's stick to simple "Late" vs "Lost" if we knew. 
-      // For now, just show "Returned Late" and maybe days.
 
       return (
         <div className="flex flex-col items-end">
@@ -112,11 +114,9 @@ export default function History() {
       // Silent Fetch
       axiosClient.get("/transactions")
         .then(({ data }) => {
-          // Only update if data changed (simple length check or deep compare if needed, 
-          // here we just set it to keep it fresh)
           setTransactions(data);
         })
-        .catch(() => { });
+        .catch((err) => { console.warn('Silent poll failed:', err); });
     }, 5000); // 5 seconds
 
     return () => clearInterval(interval);
@@ -169,8 +169,6 @@ export default function History() {
     }
   };
 
-
-
   // Get image URL helper
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
@@ -183,21 +181,25 @@ export default function History() {
   const filteredTransactions = transactions.filter(t => {
     // 1. apply Tab filter
     let matchesTab = true;
+    const isDeleted = !t.book_asset || !t.book_asset.book_title;
+
     switch (activeTab) {
       case 'active':
-        matchesTab = !t.returned_at;
+        matchesTab = !t.returned_at && !isDeleted;
         break;
       case 'returned':
-        matchesTab = !!t.returned_at && t.book_asset?.status !== 'lost' && (!t.penalty_amount || parseFloat(t.penalty_amount) === 0);
+        matchesTab = !!t.returned_at && t.book_asset?.status !== 'lost' && (!t.penalty_amount || parseFloat(t.penalty_amount) === 0) && !isDeleted;
         break;
       case 'fines': // Renamed from 'unpaid'
-        matchesTab = t.penalty_amount > 0; // Show ALL fines (Paid, Unpaid, Waived)
+        matchesTab = t.penalty_amount > 0 && !isDeleted; // Show ALL fines (Paid, Unpaid, Waived)
         break;
       case 'deleted':
-        matchesTab = !t.book_asset; // Assumes deleted book assets are null in transaction
+        // Check if book asset is missing OR if book title is missing (soft deleted title)
+        matchesTab = isDeleted;
         break;
       default:
-        matchesTab = true;
+        // Exclude deleted books from "All Records" so they ONLY appear in "Deleted Books"
+        matchesTab = !isDeleted;
     }
 
     if (!matchesTab) return false;
@@ -216,12 +218,59 @@ export default function History() {
   // Resets page when filters change
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds(new Set()); // Clear selection on tab change
   }, [searchTerm, activeTab]);
 
   // Pagination Logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentTransactions = filteredTransactions.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Bulk Deletion Handlers
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = new Set(filteredTransactions.map(t => t.id));
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDeleteClick = () => {
+    if (selectedIds.size === 0) return;
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleConfirmBulkDelete = () => {
+    setIsBulkDeleting(true);
+    axiosClient.post('/transactions/force-delete-bulk', { ids: Array.from(selectedIds) })
+      .then(({ data }) => {
+        toast.success(data.message || "Records deleted successfully");
+
+        // Remove from local state
+        setTransactions(prev => prev.filter(t => !selectedIds.has(t.id)));
+
+        // Reset selection
+        setSelectedIds(new Set());
+        setIsBulkDeleting(false);
+        setIsDeleteModalOpen(false);
+      })
+      .catch((err) => {
+        toast.error(err.response?.data?.message || "Failed to delete records");
+        setIsBulkDeleting(false);
+        setIsDeleteModalOpen(false);
+      });
+  };
 
   return (
     <div className="space-y-8 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
@@ -238,6 +287,17 @@ export default function History() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Bulk Delete Action */}
+          {activeTab === 'deleted' && selectedIds.size > 0 && (
+            <button
+              onClick={handleBulkDeleteClick}
+              disabled={isBulkDeleting}
+              className="bg-red-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-red-700 transition flex items-center gap-2 shadow-lg animate-fade-in"
+            >
+              {isBulkDeleting ? 'Deleting...' : <><Trash2 size={18} /> Delete Selected ({selectedIds.size})</>}
+            </button>
+          )}
+
           {/* Search */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -258,7 +318,7 @@ export default function History() {
           { id: 'all', label: 'All Records' },
           { id: 'active', label: 'Active Loans' },
           { id: 'returned', label: 'Returned Books' },
-          { id: 'fines', label: 'Violations & Fines' }, // Renamed
+          { id: 'fines', label: 'Violations & Fines' },
           { id: 'deleted', label: 'Deleted Books' }
         ].map(tab => (
           <button
@@ -281,6 +341,17 @@ export default function History() {
           <table className="w-full text-left">
             <thead className="bg-gray-50 dark:bg-slate-700 text-gray-600 dark:text-slate-300 uppercase text-xs font-bold border-b border-gray-100 dark:border-slate-600">
               <tr>
+                {/* Checkbox Header for Deleted Tab */}
+                {activeTab === 'deleted' && (
+                  <th className="p-4 w-10">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                      checked={filteredTransactions.length > 0 && selectedIds.size === filteredTransactions.length}
+                      onChange={handleSelectAll}
+                    />
+                  </th>
+                )}
                 <th className="p-4">Date Borrowed</th>
                 <th className="p-4">Student</th>
                 <th className="p-4">Book</th>
@@ -293,7 +364,7 @@ export default function History() {
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {loading && (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-gray-500 dark:text-slate-400">
+                  <td colSpan={activeTab === 'deleted' ? "8" : "7"} className="p-8 text-center text-gray-500 dark:text-slate-400">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
                       Loading logs...
@@ -304,7 +375,7 @@ export default function History() {
 
               {!loading && filteredTransactions.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="p-12 text-center text-gray-500 dark:text-slate-400">
+                  <td colSpan={activeTab === 'deleted' ? "8" : "7"} className="p-12 text-center text-gray-500 dark:text-slate-400">
                     <HistoryIcon size={48} className="mx-auto mb-3 opacity-20" />
                     <p>{searchTerm ? `No records matching "${searchTerm}"` : 'No transaction records found.'}</p>
                   </td>
@@ -316,8 +387,22 @@ export default function History() {
                 const imagePath = bookTitle?.image_path || bookTitle?.cover_image;
                 const imageUrl = getImageUrl(imagePath);
 
+                // Re-calculate isDeleted for row-level actions
+                const isDeleted = !t.book_asset || !t.book_asset.book_title;
+
                 return (
-                  <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
+                  <tr key={t.id} className={`hover:bg-gray-50 dark:hover:bg-slate-700/50 transition ${selectedIds.has(t.id) ? 'bg-blue-50 dark:bg-slate-700/80' : ''}`}>
+                    {/* Checkbox Cell */}
+                    {activeTab === 'deleted' && (
+                      <td className="p-4">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                          checked={selectedIds.has(t.id)}
+                          onChange={() => handleSelectOne(t.id)}
+                        />
+                      </td>
+                    )}
                     <td className="p-4 text-gray-600 dark:text-slate-300 text-sm">
                       {new Date(t.borrowed_at).toLocaleDateString()}
                     </td>
@@ -376,7 +461,10 @@ export default function History() {
                       <div className="flex items-center gap-2">
                         {getPaymentBadge(t)}
                         <div className="flex items-center gap-1 flex-wrap">
-                          {t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'pending' && (
+
+                          {/* Note: Individual Delete Button REMOVED as per request */}
+
+                          {!isDeleted && t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'pending' && (
                             <>
                               <button
                                 onClick={() => handleMarkAsPaid(t.id)}
@@ -396,7 +484,7 @@ export default function History() {
                               </button>
                             </>
                           )}
-                          {t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'paid' && (
+                          {!isDeleted && t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'paid' && (
                             <button
                               onClick={() => handleMarkAsUnpaid(t.id)}
                               disabled={processingId === t.id}
@@ -406,7 +494,7 @@ export default function History() {
                               {processingId === t.id ? "..." : <><HistoryIcon size={12} /> Revert</>}
                             </button>
                           )}
-                          {t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'waived' && (
+                          {!isDeleted && t.penalty_amount && parseFloat(t.penalty_amount) > 0 && t.payment_status === 'waived' && (
                             <>
                               <button
                                 onClick={() => handleMarkAsUnpaid(t.id)}
@@ -454,6 +542,18 @@ export default function History() {
         onClose={() => setIsWaiverModalOpen(false)}
         onConfirm={confirmWaiver}
         loading={processingId === waivingTransactionId}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmBulkDelete}
+        loading={isBulkDeleting}
+        title="Delete Permanently?"
+        message={`Are you sure you want to permanently delete these ${selectedIds.size} records? This action cannot be undone.`}
+        confirmText="Yes, Delete Permanently"
+        isDanger={true}
       />
     </div >
   );

@@ -81,9 +81,9 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
         // Checking StudentController: it validates name, course, etc. as REQUIRED.
         // So we MUST send them again.
         formData.append('name', student.name);
-        formData.append('course', student.course);
+        formData.append('course', student.course || 'N/A');
         formData.append('year_level', student.year_level || 1);
-        formData.append('section', student.section);
+        formData.append('section', student.section || 'N/A');
         if (student.email) formData.append('email', student.email);
         if (student.phone_number) formData.append('phone_number', student.phone_number);
 
