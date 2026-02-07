@@ -57,20 +57,18 @@ export default function PrintLibraryCard() {
                     width: 323px;
                     height: 204px;
                     background: white;
-                    border-radius: 8px;
+                    border-radius: 4px;
                     overflow: hidden;
-                    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
                     margin: 0 auto 20px auto;
-                    border: 1px solid #cbd5e1;
+                    border: 1px solid #000;
+                    position: relative;
                 }
                 .header-front {
                     width: 100%;
-                    height: 54px;
-                    background: #00008B;
+                    background: white;
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
-                    padding: 0 12px;
                 }
                 .header-back {
                     width: 100%;
@@ -168,21 +166,45 @@ export default function PrintLibraryCard() {
 
                     {/* CARD FRONT */}
                     <div className="card">
-                        <div className="header-front">
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid rgba(255,255,255,0.3)' }}>
-                                    <span style={{ fontSize: '8px', fontWeight: 'bold', color: '#FCD34D' }}>PCLU</span>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: '10px', fontWeight: '800', color: 'white', textTransform: 'uppercase' }}>Polytechnic College</div>
-                                    <div style={{ fontSize: '8px', fontWeight: '700', color: '#FCD34D', textTransform: 'uppercase' }}>of La Union</div>
-                                </div>
+                        <div className="header-front" style={{ backgroundColor: 'white', height: '60px', padding: '5px 10px', alignItems: 'flex-start', borderBottom: '1px solid #ccc' }}>
+                            {/* Left Logo (PCLU) */}
+                            <div style={{ width: '40px', height: '40px', flexShrink: 0 }}>
+                                <img src="/pclu-logo.png" alt="PCLU Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={(e) => e.target.style.display = 'none'} />
                             </div>
-                            <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: '6px', color: 'rgba(255,255,255,0.6)', fontWeight: '600', textTransform: 'uppercase' }}>Library System</div>
-                                <div style={{ fontSize: '7px', fontWeight: '700', color: '#00008B', backgroundColor: '#FCD34D', padding: '2px 6px', borderRadius: '2px', marginTop: '2px', display: 'inline-block' }}>STUDENT ID</div>
+
+                            {/* Center Text */}
+                            <div style={{ flex: 1, textAlign: 'center', padding: '0 5px' }}>
+                                <h1 style={{ fontSize: '9px', fontWeight: 'bold', color: '#000', margin: 0, fontFamily: 'Times New Roman, serif', textTransform: 'uppercase', lineHeight: '1.1' }}>POLYTECHNIC COLLEGE OF LA UNION</h1>
+                                <h2 style={{ fontSize: '7px', fontWeight: 'bold', color: '#000', margin: '0 0 2px 0', fontFamily: 'Arial, sans-serif' }}>(Formerly PAMETS COLLEGES)</h2>
+                                <p style={{ fontSize: '5px', color: '#000', margin: 0, lineHeight: '1.1', fontFamily: 'Arial, sans-serif' }}>
+                                    Don Pastor L. Panay St. South, San Nicolas Sur, Agoo, La Union 2504
+                                </p>
+                                <p style={{ fontSize: '5px', color: '#000', margin: 0, lineHeight: '1.1', fontFamily: 'Arial, sans-serif' }}>
+                                    Reg. No. (072) 607-0101 Mobile No. 09176847581 Email: pclu_launion@yahoo.com.ph
+                                </p>
+                                <p style={{ fontSize: '5px', color: '#000', margin: 0, lineHeight: '1.1', fontFamily: 'Arial, sans-serif' }}>
+                                    Member: Philippine Association of Colleges & Universities
+                                </p>
+                            </div>
+
+                            {/* Right Logo (ISO/GCL) */}
+                            <div style={{ width: '40px', height: '40px', flexShrink: 0 }}>
+                                <img
+                                    src="/iso-logo.png"
+                                    alt="ISO Logo"
+                                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                    }}
+                                />
+                                <div style={{ width: '100%', height: '100%', border: '1px solid #ccc', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '5px', textAlign: 'center', color: '#000' }}>
+                                    GCL<br />LOGO
+                                </div>
                             </div>
                         </div>
+
+                        {/* Restored Body Design as requested */}
                         <div className="content">
                             <div className="photo-box">
                                 <img
@@ -195,23 +217,28 @@ export default function PrintLibraryCard() {
                                 />
                             </div>
                             <div className="details">
+                                {/* Student Name */}
                                 <div>
-                                    <div className="label">Student Name</div>
-                                    <div className="value-large">{student.name}</div>
+                                    <div className="label">STUDENT NAME</div>
+                                    <div className="value-large">{student.name || 'N/A'}</div>
                                 </div>
-                                <div style={{ display: 'flex', gap: '12px' }}>
+                                {/* ID Number and Course/Year Row */}
+                                <div style={{ display: 'flex', gap: '15px', marginTop: '4px' }}>
+                                    {/* ID Number */}
                                     <div>
-                                        <div className="label">ID Number</div>
-                                        <div className="value" style={{ fontFamily: 'monospace' }}>{student.student_id}</div>
+                                        <div className="label">ID NUMBER</div>
+                                        <div className="value">{student.student_id || 'N/A'}</div>
                                     </div>
+                                    {/* Course / Year */}
                                     <div>
-                                        <div className="label">Course / Year</div>
-                                        <div className="value">{student.course || 'N/A'} - {student.year_level || '1'}</div>
+                                        <div className="label">COURSE / YEAR</div>
+                                        <div className="value">{student.course || 'N/A'} - {student.year_level || 'N/A'}</div>
                                     </div>
                                 </div>
-                                <div>
+                                {/* Student Signature */}
+                                <div style={{ marginTop: 'auto' }}>
+                                    <div className="label">STUDENT SIGNATURE</div>
                                     <div className="sig-line"></div>
-                                    <div className="label" style={{ marginTop: '2px' }}>Student Signature</div>
                                 </div>
                             </div>
                             {/* QR CODE for Attendance */}
@@ -232,32 +259,62 @@ export default function PrintLibraryCard() {
                                 <div style={{ fontSize: '5px', color: '#64748b', marginTop: '2px', fontWeight: 'bold', textTransform: 'uppercase' }}>Scan for Attendance</div>
                             </div>
                         </div>
-                        <div className="gold-bar"></div>
                     </div>
 
+                    {/* GAP between cards for print */}
+                    <div style={{ height: '20px' }}></div>
+
                     {/* CARD BACK */}
-                    <div className="card">
-                        <div className="header-back">
-                            <span style={{ fontSize: '8px', fontWeight: 'bold', color: 'white', textTransform: 'uppercase', letterSpacing: '1px' }}>Terms & Conditions</span>
-                        </div>
-                        <div className="content-back">
-                            <ul style={{ margin: 0, paddingLeft: '14px', fontSize: '7.5px', color: '#334155', lineHeight: '1.6' }}>
-                                <li style={{ marginBottom: '3px' }}><strong style={{ color: '#00008B' }}>Non-Transferable:</strong> For the exclusive use of the named cardholder.</li>
-                                <li style={{ marginBottom: '3px' }}><strong style={{ color: '#00008B' }}>Lost Cards:</strong> Report to the Library Office immediately.</li>
-                                <li style={{ marginBottom: '3px' }}><strong style={{ color: '#00008B' }}>Validity:</strong> Valid for the current academic year.</li>
-                                <li>Surrender upon withdrawal, graduation, or transfer.</li>
-                            </ul>
-                            <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                                <div style={{ fontSize: '6px', color: '#94a3b8', fontFamily: 'monospace' }}>A.Y. {new Date().getFullYear()}-{new Date().getFullYear() + 1}</div>
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontFamily: 'cursive', fontSize: '13px', color: '#00008B', marginBottom: '-3px' }}>Leah Camso</div>
-                                    <div style={{ width: '100px', borderBottom: '1.5px solid #00008B', marginBottom: '3px' }}></div>
-                                    <div style={{ fontSize: '7px', fontWeight: 'bold', color: '#00008B', textTransform: 'uppercase' }}>LEAH E. CAMSO.RL MLIS</div>
-                                    <div style={{ fontSize: '6px', fontWeight: 'bold', color: 'white', backgroundColor: '#00008B', padding: '2px 5px', borderRadius: '2px', marginTop: '2px', display: 'inline-block' }}>Chief Librarian</div>
+                    <div className="card back-card" style={{ position: 'relative' }}>
+                        <div style={{ padding: '10px 15px 5px 15px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+
+                            {/* Header */}
+                            <div style={{ textAlign: 'center', marginBottom: '6px' }}>
+                                <h2 style={{ fontSize: '14px', fontWeight: '900', letterSpacing: '3px', fontFamily: 'Times New Roman, serif', color: '#000', textTransform: 'uppercase' }}>IMPORTANT</h2>
+                            </div>
+
+                            {/* Rules List */}
+                            <div style={{ fontSize: '7.5px', fontFamily: 'Arial, sans-serif', lineHeight: '1.2', color: '#000' }}>
+                                <div style={{ display: 'flex', marginBottom: '3px' }}>
+                                    <span style={{ marginRight: '4px' }}>1.</span>
+                                    <span>The owner of this card should be a bona-fide student of Polytechnic College of La Union.</span>
+                                </div>
+                                <div style={{ display: 'flex', marginBottom: '3px' }}>
+                                    <span style={{ marginRight: '4px' }}>2.</span>
+                                    <span>This card entitles the holder to all library privileges and is subject to the rules and regulations of the library.</span>
+                                </div>
+                                <div style={{ display: 'flex', marginBottom: '3px' }}>
+                                    <span style={{ marginRight: '4px' }}>3.</span>
+                                    <span>This card is for the exclusive use of the owner and non-transferable.</span>
+                                </div>
+                                <div style={{ display: 'flex' }}>
+                                    <span style={{ marginRight: '4px' }}>4.</span>
+                                    <span>In case of loss of this card, please notify the librarian and apply for replacement.</span>
                                 </div>
                             </div>
+
+                            {/* Validation Section */}
+                            <div style={{ marginTop: '5px', marginBottom: '5px' }}>
+                                <div style={{ fontSize: '8.5px', fontWeight: '900', fontFamily: 'Arial, sans-serif', textTransform: 'uppercase', marginBottom: '1px', color: '#000' }}>VALIDATION</div>
+                                <div style={{ display: 'flex', border: '1px solid black', height: '18px' }}>
+                                    <div style={{ flex: 1, borderRight: '1px solid black', position: 'relative' }}>
+                                        <span style={{ position: 'absolute', bottom: '-10px', width: '100%', textAlign: 'center', fontSize: '7.5px', fontFamily: 'Arial, sans-serif' }}>1st</span>
+                                    </div>
+                                    <div style={{ flex: 1, borderRight: '1px solid black', position: 'relative' }}>
+                                        <span style={{ position: 'absolute', bottom: '-10px', width: '100%', textAlign: 'center', fontSize: '7.5px', fontFamily: 'Arial, sans-serif' }}>2nd</span>
+                                    </div>
+                                    <div style={{ flex: 1, position: 'relative' }}>
+                                        <span style={{ position: 'absolute', bottom: '-10px', width: '100%', textAlign: 'center', fontSize: '7.5px', fontFamily: 'Arial, sans-serif' }}>Summer</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Signatory */}
+                            <div style={{ textAlign: 'center', marginTop: 'auto', position: 'relative', paddingBottom: '0px' }}>
+                                <div style={{ fontSize: '10px', fontWeight: 'bold', fontFamily: 'Arial, sans-serif', color: '#000', marginTop: '5px' }}>LEAH E. CAMSO, RL, MLIS</div>
+                                <div style={{ fontSize: '10px', fontWeight: 'bold', fontFamily: 'Arial, sans-serif', color: '#000' }}>Chief Librarian</div>
+                            </div>
                         </div>
-                        <div className="gold-bar"></div>
                     </div>
                 </div>
             </div>
