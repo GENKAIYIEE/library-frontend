@@ -5,6 +5,8 @@ import Circulation from "./views/Circulation";
 import History from "./views/History";
 import Dashboard from "./views/Dashboard";
 import Students from "./views/Students";
+import Faculty from "./views/Faculty";
+import FacultyCirculation from "./views/FacultyCirculation";
 import Reports from "./views/Reports";
 import DepartmentAnalytics from "./views/DepartmentAnalytics";
 import UserManagement from "./views/UserManagement";
@@ -112,6 +114,8 @@ export default function App() {
           >
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'students' && <Students />}
+            {activeTab === 'faculty' && <Faculty />}
+            {activeTab === 'faculty-circulation' && <FacultyCirculation />}
             {activeTab === 'books' && <Books pendingBarcode={pendingBarcode} onClearPendingBarcode={handleClearPendingBarcode} />}
             {activeTab === 'circulation' && <Circulation onNavigateToBooks={handleNavigateToBooks} />}
             {activeTab === 'history' && <History />}

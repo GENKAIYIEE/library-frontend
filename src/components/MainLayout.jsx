@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
     BookOpen,
+    Building2,
     ChevronLeft,
     ChevronRight,
     ClipboardList,
@@ -152,7 +153,8 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                 <div className="space-y-0.5">
                     {!collapsed && <div className="px-3 mb-2 text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Workspace</div>}
                     <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
-                    <NavItem id="circulation" label="Circulation" icon={Repeat} />
+                    <NavItem id="circulation" label="Student Circulation" icon={Repeat} />
+                    <NavItem id="faculty-circulation" label="Faculty Circulation" icon={Repeat} />
                 </div>
 
                 {/* Management Section */}
@@ -160,6 +162,7 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                     {!collapsed && <div className="px-3 mb-2 text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Management</div>}
                     <NavItem id="books" label="Inventory" icon={BookOpen} />
                     <NavItem id="students" label="Students" icon={Users} />
+                    <NavItem id="faculty" label="Faculty" icon={Building2} />
                     <NavItem id="user-management" label="Add User" icon={UserPlus} />
                 </div>
 
