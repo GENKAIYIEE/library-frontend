@@ -3,14 +3,14 @@ import KioskLayout from "./KioskLayout";
 import FlipBookCard from "../components/FlipBookCard";
 import ShelfMapModal from "../components/ShelfMapModal";
 import axiosClient from "../axios-client";
-import { Search, Loader2, BookOpen, MapPin, Sparkles, TrendingUp, Star } from "lucide-react";
+import { Search, Loader2, BookOpen, MapPin, Library, BookMarked, X, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- Glass Card Helper ---
 const GlassCard = ({ children, className = "", onClick }) => (
     <div
         onClick={onClick}
-        className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-xl overflow-hidden hover:bg-white/10 transition-colors ${className} ${onClick ? 'cursor-pointer group' : ''}`}
+        className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl overflow-hidden hover:bg-white/10 transition-all duration-300 ${className} ${onClick ? 'cursor-pointer group' : ''}`}
     >
         {children}
     </div>
@@ -22,18 +22,15 @@ export default function PublicCatalog() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [selectedBook, setSelectedBook] = useState(null);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
-    const [categories, setCategories] = useState([]); // Dynamic categories
+    const [categories, setCategories] = useState([]);
     const [loadingCategories, setLoadingCategories] = useState(true);
-
-    // const categories = ["All", "Fiction", "Science", "Technology", "History", "Education", "Literature", "Reference"];
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
 
     useEffect(() => {
         // Fetch Categories
         setLoadingCategories(true);
         axiosClient.get('/public/books/categories')
             .then(({ data }) => {
-                // Ensure "All" is always first
                 const totalBooks = data.reduce((sum, cat) => sum + cat.count, 0);
                 const allCategory = { category: "All", count: totalBooks };
                 setCategories([allCategory, ...data]);
@@ -82,180 +79,254 @@ export default function PublicCatalog() {
             .catch(err => console.error(err));
     };
 
+    // Count stats
+    const totalBooks = categories.find(c => c.category === "All")?.count || 0;
+    const categoryCount = categories.length > 1 ? categories.length - 1 : 0;
+
     return (
         <KioskLayout>
-            {/* HERO DASHBOARD GRID */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
+            {/* HERO SECTION */}
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="relative mb-8"
+            >
+                {/* Decorative Background Glow */}
+                <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-br from-blue-500/20 via-purple-500/15 to-pink-500/10 blur-[100px] rounded-full pointer-events-none" />
 
-                {/* 1. GREETING & STATUS (Left - Large) */}
+                {/* Title Section */}
+                <div className="relative text-center mb-8">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="inline-flex items-center gap-3 mb-4"
+                    >
+                        <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10">
+                            <Library className="text-blue-400" size={28} />
+                        </div>
+                        <div className="text-left">
+                            <h1 className="text-3xl font-black text-white tracking-tight">
+                                Book Catalog
+                            </h1>
+                            <p className="text-sm text-slate-400">
+                                {totalBooks.toLocaleString()} books across {categoryCount} categories
+                            </p>
+                        </div>
+                    </motion.div>
+                </div>
+
+                {/* HERO SEARCH BAR */}
                 <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="lg:col-span-8 flex flex-col gap-6"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="max-w-3xl mx-auto"
                 >
-                    {/* Welcome Card */}
-                    <GlassCard className="p-10 flex items-center justify-between bg-gradient-to-r from-blue-900/40 to-indigo-900/40 border-blue-500/20 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-32 bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
-                        <div className="relative z-10">
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                            >
-                                <h2 className="text-4xl font-black text-white mb-3 tracking-tight">Welcome Area.</h2>
-                                <p className="text-blue-200 text-lg max-w-md leading-relaxed">
-                                    Access a world of knowledge. You have <span className="text-white font-bold">0 pending fines</span> and <span className="text-emerald-400 font-bold">3 active loans</span>.
-                                </p>
-                            </motion.div>
+                    <GlassCard
+                        className={`p-1 relative transition-all duration-500 ${isSearchFocused
+                            ? 'bg-slate-900/80 border-blue-500/30 shadow-2xl shadow-blue-500/10 scale-[1.02]'
+                            : 'bg-slate-900/60'
+                            }`}
+                    >
+                        {/* Animated Border Gradient */}
+                        <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 opacity-0 transition-opacity duration-500 ${isSearchFocused ? 'opacity-100' : ''}`} style={{ padding: '1px' }}>
+                            <div className="w-full h-full bg-slate-900 rounded-2xl" />
                         </div>
-                        <div className="hidden md:flex items-center gap-6">
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-white mb-1">3</div>
-                                <div className="text-xs text-blue-300 uppercase tracking-wider font-bold">Borrowed</div>
-                            </div>
-                            <div className="w-px h-12 bg-white/10" />
-                            <div className="text-center">
-                                <div className="text-3xl font-bold text-emerald-400 mb-1">0</div>
-                                <div className="text-xs text-emerald-400/70 uppercase tracking-wider font-bold">Fines</div>
-                            </div>
-                        </div>
-                    </GlassCard>
 
-                    {/* HERO SEARCH BAR (Moved into Grid) */}
-                    <GlassCard className="p-1 relative group bg-slate-900/60 transition-all hover:bg-slate-900/80 hover:shadow-blue-500/10">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-xl" />
                         <div className="relative flex items-center px-6 py-4">
-                            <Search className="text-blue-400 mr-4" size={28} />
+                            <Search className={`mr-4 transition-colors duration-300 ${isSearchFocused ? 'text-blue-400' : 'text-slate-500'}`} size={24} />
                             <input
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search the catalog (Title, Author, ISBN)..."
-                                className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-xl font-medium"
+                                onFocus={() => setIsSearchFocused(true)}
+                                onBlur={() => setIsSearchFocused(false)}
+                                placeholder="Search by title, author, or ISBN..."
+                                className="bg-transparent border-none outline-none text-white w-full placeholder:text-slate-500 text-lg font-medium"
                                 autoFocus
                             />
                             {searchTerm && (
-                                <button onClick={() => setSearchTerm('')} className="text-slate-500 hover:text-white transition-colors text-sm font-bold uppercase tracking-wider">
-                                    Clear
-                                </button>
+                                <motion.button
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    onClick={() => setSearchTerm('')}
+                                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                                >
+                                    <X size={16} />
+                                </motion.button>
                             )}
                         </div>
                     </GlassCard>
                 </motion.div>
+            </motion.div>
 
-                {/* 2. SIDE WIDGETS (Right - Vertical) */}
-                <div className="lg:col-span-4 flex flex-col gap-6">
-                    {/* Featured / Trending */}
-                    <GlassCard className="flex-1 p-6 relative overflow-hidden group border-amber-500/10 bg-amber-900/5">
-                        <div className="absolute -right-4 -top-4 text-amber-500/10">
-                            <Sparkles size={120} />
-                        </div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <TrendingUp className="text-amber-400" size={18} />
-                            <h3 className="text-amber-100 font-bold text-sm tracking-wide uppercase">Trending Now</h3>
-                        </div>
-
-                        <div className="space-y-4">
-                            {[
-                                { title: "The Pragmatic Programmer", author: "Andrew Hunt", views: "1.2k views" },
-                                { title: "Clean Code", author: "Robert C. Martin", views: "900 views" }
-                            ].map((book, i) => (
-                                <div key={i} className="flex items-center gap-3 group/item cursor-pointer">
-                                    <div className="w-10 h-14 bg-slate-800 rounded shadow-md border border-white/5 flex items-center justify-center text-xs text-slate-600 font-serif">
-                                        COVER
-                                    </div>
-                                    <div>
-                                        <p className="text-slate-200 font-bold text-sm group-hover/item:text-amber-400 transition-colors">{book.title}</p>
-                                        <p className="text-slate-500 text-xs">{book.author}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-6 pt-4 border-t border-white/5 flex justify-between items-end">
-                            <span className="text-xs text-slate-500">Updated hourly</span>
-                            <button className="text-amber-400 text-xs font-bold hover:underline">View Top 100</button>
-                        </div>
-                    </GlassCard>
+            {/* CATEGORY NAVIGATION */}
+            <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="mb-8"
+            >
+                <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                    {loadingCategories ? (
+                        // Skeleton loaders
+                        [...Array(6)].map((_, i) => (
+                            <div
+                                key={i}
+                                className="h-10 w-28 bg-white/5 rounded-xl animate-pulse flex-shrink-0"
+                                style={{ animationDelay: `${i * 0.1}s` }}
+                            />
+                        ))
+                    ) : (
+                        categories.map((cat, index) => (
+                            <motion.button
+                                key={cat.category}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ delay: 0.1 * index }}
+                                onClick={() => setSelectedCategory(cat.category)}
+                                className={`group relative px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 whitespace-nowrap flex items-center gap-2 flex-shrink-0 ${selectedCategory === cat.category
+                                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/25'
+                                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/5 hover:border-white/10'
+                                    }`}
+                            >
+                                {cat.category === "All" && <BookMarked size={14} className="opacity-70" />}
+                                <span>{cat.category}</span>
+                                <span className={`px-2 py-0.5 rounded-lg text-xs font-bold transition-colors ${selectedCategory === cat.category
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-white/5 text-slate-500 group-hover:bg-white/10'
+                                    }`}>
+                                    {cat.count || 0}
+                                </span>
+                            </motion.button>
+                        ))
+                    )}
                 </div>
-            </div>
+            </motion.div>
 
-            {/* CATALOG SECTION */}
-            <div className="relative z-10">
+            {/* BOOKS CATALOG GRID */}
+            <div className="relative">
                 {/* Section Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                        <Star className="text-yellow-400 fill-yellow-400" size={20} />
-                        Explore Collection
-                    </h2>
-
-                    {/* Category Tags */}
-                    {/* Category Tags */}
-                    <div className="hidden md:flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                        {loadingCategories ? (
-                            // Skeleton loaders for categories
-                            [1, 2, 3, 4, 5].map(i => (
-                                <div key={i} className="h-9 w-24 bg-white/5 rounded-xl animate-pulse" />
-                            ))
-                        ) : (
-                            categories.map(cat => (
-                                <button
-                                    key={cat.category}
-                                    onClick={() => setSelectedCategory(cat.category)}
-                                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border whitespace-nowrap flex items-center gap-2 ${selectedCategory === cat.category
-                                        ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-900/50'
-                                        : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10 hover:text-white'
-                                        }`}
-                                >
-                                    {cat.category}
-                                    <span className={`px-1.5 py-0.5 rounded-md text-[10px] ${selectedCategory === cat.category ? 'bg-white/20 text-white' : 'bg-white/5 text-slate-500'
-                                        }`}>
-                                        {cat.count || 0}
-                                    </span>
-                                </button>
-                            ))
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="flex items-center justify-between mb-6"
+                >
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-white">
+                            {selectedCategory === "All" ? "All Books" : selectedCategory}
+                        </h2>
+                        {!loading && (
+                            <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+                                {books.length} {books.length === 1 ? 'book' : 'books'}
+                            </span>
                         )}
                     </div>
-                </div>
 
-                {/* BOOKS GRID */}
-                <div className="min-h-[300px]">
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <Loader2 size={40} className="animate-spin text-blue-500 mb-4" />
-                            <p className="text-slate-500 animate-pulse">Scanning archives...</p>
-                        </div>
-                    ) : books.length > 0 ? (
-                        <motion.div
-                            initial="hidden" animate="visible"
-                            variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-                            className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
-                        >
-                            {books.map((book, i) => (
-                                <motion.div
-                                    key={book.id}
-                                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                                >
-                                    <div className="relative group">
-                                        <FlipBookCard book={book} index={i} /> {/* Ideally, FlipBookCard should be styled for dark mode too */}
-
-                                        {/* Quick Locate Button Overlay */}
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); handleLocate(book); }}
-                                            className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-full shadow-lg opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all flex items-center gap-1 z-30 whitespace-nowrap"
-                                        >
-                                            <MapPin size={10} /> LOCATE
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </motion.div>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                            <BookOpen size={48} className="mb-4 text-slate-700" />
-                            <p>No results found for "{searchTerm || selectedCategory}".</p>
+                    {searchTerm && (
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                            <span>Results for:</span>
+                            <span className="px-3 py-1 rounded-lg bg-white/5 text-white font-medium border border-white/10">
+                                "{searchTerm}"
+                            </span>
                         </div>
                     )}
+                </motion.div>
+
+                {/* BOOKS GRID */}
+                <div className="min-h-[400px]">
+                    <AnimatePresence mode="wait">
+                        {loading ? (
+                            <motion.div
+                                key="loading"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="flex flex-col items-center justify-center py-24"
+                            >
+                                <div className="relative">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                                        <Loader2 size={32} className="animate-spin text-blue-400" />
+                                    </div>
+                                    <div className="absolute inset-0 rounded-2xl bg-blue-500/20 animate-ping" />
+                                </div>
+                                <p className="text-slate-500 mt-6 font-medium">Searching catalog...</p>
+                            </motion.div>
+                        ) : books.length > 0 ? (
+                            <motion.div
+                                key="books"
+                                initial="hidden"
+                                animate="visible"
+                                exit="hidden"
+                                variants={{
+                                    visible: {
+                                        transition: { staggerChildren: 0.04 }
+                                    },
+                                    hidden: {
+                                        transition: { staggerChildren: 0.02, staggerDirection: -1 }
+                                    }
+                                }}
+                                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5"
+                            >
+                                {books.map((book, i) => (
+                                    <motion.div
+                                        key={book.id}
+                                        variants={{
+                                            hidden: { opacity: 0, y: 20, scale: 0.95 },
+                                            visible: { opacity: 1, y: 0, scale: 1 }
+                                        }}
+                                        transition={{ duration: 0.3 }}
+                                        className="group"
+                                    >
+                                        <div className="relative">
+                                            <FlipBookCard book={book} index={i} />
+
+                                            {/* Quick Locate Button Overlay */}
+                                            <motion.button
+                                                onClick={(e) => { e.stopPropagation(); handleLocate(book); }}
+                                                className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-[11px] font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-500/25 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-1.5 z-30 whitespace-nowrap"
+                                            >
+                                                <MapPin size={12} />
+                                                <span>Locate Book</span>
+                                                <ChevronRight size={12} className="opacity-60" />
+                                            </motion.button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                key="empty"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="flex flex-col items-center justify-center py-24"
+                            >
+                                <div className="w-20 h-20 rounded-2xl bg-slate-800/50 border border-white/5 flex items-center justify-center mb-6">
+                                    <BookOpen size={40} className="text-slate-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-slate-400 mb-2">No books found</h3>
+                                <p className="text-slate-500 text-center max-w-md">
+                                    {searchTerm
+                                        ? `No results for "${searchTerm}" in ${selectedCategory === "All" ? "all categories" : selectedCategory}.`
+                                        : `No books available in ${selectedCategory}.`
+                                    }
+                                </p>
+                                {searchTerm && (
+                                    <button
+                                        onClick={() => setSearchTerm('')}
+                                        className="mt-6 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-all border border-white/10"
+                                    >
+                                        Clear Search
+                                    </button>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
 
