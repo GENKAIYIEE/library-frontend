@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo, lazy, Suspense } from "react";
 import axiosClient from "../axios-client";
 import {
   User, Lock, AlertCircle, ArrowRight, BookOpen,
@@ -6,23 +6,132 @@ import {
 } from "lucide-react";
 import FloatingInput from "../components/ui/FloatingInput";
 import Button from "../components/ui/Button";
-import LoginTransition from "../components/LoginTransition";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useLibrarySettings } from "../context/LibrarySettingsContext";
 
-// --- Internal Components ---
+import LoginTransition from "../components/LoginTransition";
 
-const GlassCard = ({ children, className = "", delay = 0, onClick }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
-    className={`relative overflow-hidden bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12] shadow-2xl ${className}`}
-    onClick={onClick}
-  >
-    {children}
-  </motion.div>
-);
+// --- Memoized Glass Card Component ---
+const GlassCard = memo(({ children, className = "", delay = 0, onClick }) => {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: shouldReduceMotion ? 0.2 : 0.6,
+        delay: shouldReduceMotion ? 0 : delay,
+        ease: [0.22, 1, 0.36, 1]
+      }}
+      className={`relative overflow-hidden bg-white/[0.08] backdrop-blur-xl border border-white/[0.12] shadow-2xl ${className}`}
+      onClick={onClick}
+      style={{ willChange: 'transform, opacity' }}
+    >
+      {children}
+    </motion.div>
+  );
+});
+
+GlassCard.displayName = 'GlassCard';
+
+// --- Optimized Background Component ---
+const OptimizedBackground = memo(() => {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    // Static background for reduced motion preference
+    return (
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-30%] left-[-15%] w-[80vw] h-[80vw] bg-gradient-to-br from-blue-600/20 via-blue-500/10 to-transparent rounded-full blur-[80px]" />
+        <div className="absolute bottom-[-30%] right-[-15%] w-[70vw] h-[70vw] bg-gradient-to-tl from-indigo-600/15 via-purple-500/10 to-transparent rounded-full blur-[70px]" />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)',
+            backgroundSize: '48px 48px'
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+      {/* CSS-animated background orbs - significantly more performant than JS */}
+      <style>{`
+        @keyframes orb-pulse-1 {
+          0%, 100% { transform: scale(1) translateZ(0); opacity: 0.15; }
+          50% { transform: scale(1.15) translateZ(0); opacity: 0.22; }
+        }
+        @keyframes orb-pulse-2 {
+          0%, 100% { transform: scale(1.1) translateZ(0); opacity: 0.1; }
+          50% { transform: scale(1) translateZ(0); opacity: 0.18; }
+        }
+        @keyframes orb-float {
+          0%, 100% { transform: translate(0, 0) translateZ(0); }
+          50% { transform: translate(30px, -20px) translateZ(0); }
+        }
+        .orb-1 {
+          animation: orb-pulse-1 10s ease-in-out infinite;
+          will-change: transform, opacity;
+          transform: translateZ(0);
+        }
+        .orb-2 {
+          animation: orb-pulse-2 12s ease-in-out 1s infinite;
+          will-change: transform, opacity;
+          transform: translateZ(0);
+        }
+        .orb-3 {
+          animation: orb-float 18s ease-in-out infinite;
+          will-change: transform;
+          transform: translateZ(0);
+        }
+      `}</style>
+
+      {/* Primary Gradient Orbs - Using CSS animations */}
+      <div className="orb-1 absolute top-[-30%] left-[-15%] w-[80vw] h-[80vw] bg-gradient-to-br from-blue-600/25 via-blue-500/15 to-transparent rounded-full blur-[80px]" />
+      <div className="orb-2 absolute bottom-[-30%] right-[-15%] w-[70vw] h-[70vw] bg-gradient-to-tl from-indigo-600/20 via-purple-500/10 to-transparent rounded-full blur-[70px]" />
+      <div className="orb-3 absolute top-[30%] right-[20%] w-[30vw] h-[30vw] bg-cyan-500/8 rounded-full blur-[60px]" />
+
+      {/* Subtle Grid Pattern */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)',
+          backgroundSize: '48px 48px'
+        }}
+      />
+
+      {/* Vignette Effect */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
+    </div>
+  );
+});
+
+OptimizedBackground.displayName = 'OptimizedBackground';
+
+// --- Arrow Animation Component (CSS-based) ---
+const AnimatedArrow = memo(() => (
+  <>
+    <style>{`
+      @keyframes arrow-bounce {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(5px); }
+      }
+      .arrow-animated {
+        animation: arrow-bounce 1.5s ease-in-out infinite;
+        will-change: transform;
+      }
+    `}</style>
+    <span className="arrow-animated inline-block">
+      <ArrowRight className="text-amber-400 opacity-70" size={22} />
+    </span>
+  </>
+));
+
+AnimatedArrow.displayName = 'AnimatedArrow';
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -33,12 +142,15 @@ export default function Login() {
   const [showTransition, setShowTransition] = useState(false);
   const [secureConnection, setSecureConnection] = useState(false);
   const { libraryName, libraryShortName } = useLibrarySettings();
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
-    setTimeout(() => setSecureConnection(true), 1200);
+    const timer = setTimeout(() => setSecureConnection(true), 1200);
+    return () => clearTimeout(timer);
   }, []);
 
-  const validateForm = () => {
+  // Memoized validation function
+  const validateForm = useCallback(() => {
     const errors = {};
     if (!username) errors.username = "Username is required";
     else if (username.length < 3) errors.username = "Min 3 characters";
@@ -48,9 +160,10 @@ export default function Login() {
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
-  };
+  }, [username, password]);
 
-  const onSubmit = (ev) => {
+  // Memoized submit handler
+  const onSubmit = useCallback((ev) => {
     ev.preventDefault();
     setError(null);
     if (!validateForm()) return;
@@ -73,74 +186,60 @@ export default function Login() {
           setError("Server unreachable.");
         }
       });
+  }, [username, password, validateForm]);
+
+  // Memoized input handlers
+  const handleUsernameChange = useCallback((e) => setUsername(e.target.value), []);
+  const handlePasswordChange = useCallback((e) => setPassword(e.target.value), []);
+  const handleStudentAccess = useCallback(() => window.location.href = '/catalog', []);
+  const handleTransitionFinish = useCallback(() => window.location.reload(), []);
+
+  // Animation variants with reduced motion support
+  const headerVariants = {
+    initial: shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: -20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: shouldReduceMotion ? 0.2 : 0.8, ease: [0.22, 1, 0.36, 1] }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0f1a] via-[#0f172a] to-[#0c1322] text-white font-sans selection:bg-blue-500/30 overflow-hidden relative flex items-center justify-center p-4 lg:p-8">
 
-      {/* --- BACKGROUND EFFECTS --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Primary Gradient Orbs */}
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.15, 0.25, 0.15]
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-30%] left-[-15%] w-[80vw] h-[80vw] bg-gradient-to-br from-blue-600/30 via-blue-500/20 to-transparent rounded-full blur-[150px]"
-        />
-        <motion.div
-          animate={{
-            scale: [1.1, 1, 1.1],
-            opacity: [0.1, 0.2, 0.1]
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          className="absolute bottom-[-30%] right-[-15%] w-[70vw] h-[70vw] bg-gradient-to-tl from-indigo-600/25 via-purple-500/15 to-transparent rounded-full blur-[130px]"
-        />
-        <motion.div
-          animate={{
-            x: [0, 50, 0],
-            y: [0, -30, 0]
-          }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[30%] right-[20%] w-[30vw] h-[30vw] bg-cyan-500/10 rounded-full blur-[100px]"
-        />
+      {/* --- OPTIMIZED BACKGROUND --- */}
+      <OptimizedBackground />
 
-        {/* Subtle Grid Pattern */}
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)',
-          backgroundSize: '48px 48px'
-        }} />
-
-        {/* Vignette Effect */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
-      </div>
-
-      {/* --- TRANSITION --- */}
-      {showTransition && <LoginTransition onFinish={() => window.location.reload()} />}
+      {/* --- DIRECT LOAD TRANSITION --- */}
+      <AnimatePresence>
+        {showTransition && (
+          <LoginTransition onFinish={handleTransitionFinish} />
+        )}
+      </AnimatePresence>
 
       {/* --- MAIN LAYOUT --- */}
       <div className="relative z-10 w-full max-w-5xl">
 
         {/* School Branding Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          initial={headerVariants.initial}
+          animate={headerVariants.animate}
+          transition={headerVariants.transition}
           className="text-center mb-10"
         >
           {/* Logo with Glow Effect */}
           <motion.div
             className="relative inline-block mb-6"
-            whileHover={{ scale: 1.05 }}
+            whileHover={shouldReduceMotion ? {} : { scale: 1.05 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <div className="absolute inset-0 bg-blue-500/30 rounded-full blur-2xl scale-150 opacity-60" />
-            <div className="relative w-24 h-24 mx-auto bg-gradient-to-br from-white/15 to-white/5 rounded-3xl border border-white/20 backdrop-blur-xl flex items-center justify-center shadow-2xl shadow-blue-500/20">
+            <div className="absolute inset-0 bg-blue-500/30 rounded-full blur-xl scale-150 opacity-60" />
+            <div
+              className="relative w-24 h-24 mx-auto bg-gradient-to-br from-white/15 to-white/5 rounded-3xl border border-white/20 backdrop-blur-lg flex items-center justify-center shadow-2xl shadow-blue-500/20"
+              style={{ transform: 'translateZ(0)' }}
+            >
               <img
                 src="/pclu-logo.png"
                 alt="School Logo"
                 className="w-16 h-16 object-contain drop-shadow-lg"
+                loading="eager"
               />
             </div>
           </motion.div>
@@ -149,7 +248,7 @@ export default function Login() {
           <motion.h1
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.3, duration: 0.8 }}
+            transition={{ delay: shouldReduceMotion ? 0 : 0.3, duration: shouldReduceMotion ? 0.2 : 0.8 }}
             className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-3"
           >
             <span className="bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent">
@@ -159,7 +258,7 @@ export default function Login() {
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
+            transition={{ delay: shouldReduceMotion ? 0 : 0.4, duration: shouldReduceMotion ? 0.2 : 0.8 }}
             className="text-slate-400 text-sm md:text-base font-medium tracking-wide uppercase"
           >
             Library Management System
@@ -178,7 +277,7 @@ export default function Login() {
             <div className="mb-8 text-center">
               <motion.div
                 className="w-16 h-16 mx-auto mb-5 relative"
-                whileHover={{ scale: 1.1, rotate: 5 }}
+                whileHover={shouldReduceMotion ? {} : { scale: 1.1, rotate: 5 }}
                 transition={{ type: "spring", stiffness: 400 }}
               >
                 <div className="absolute inset-0 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-2xl blur-lg opacity-60" />
@@ -210,7 +309,7 @@ export default function Login() {
               <FloatingInput
                 label="Username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={handleUsernameChange}
                 icon={User}
                 error={fieldErrors.username}
                 className="bg-slate-800/50 border-slate-700/50 text-white focus:border-blue-500 focus:ring-blue-500/20"
@@ -219,7 +318,7 @@ export default function Login() {
                 label="Password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
                 icon={Lock}
                 error={fieldErrors.password}
                 className="bg-slate-800/50 border-slate-700/50 text-white focus:border-blue-500 focus:ring-blue-500/20"
@@ -229,7 +328,7 @@ export default function Login() {
                 <div className="flex items-center gap-2 text-slate-400">
                   {secureConnection ? (
                     <motion.div
-                      initial={{ scale: 0 }}
+                      initial={shouldReduceMotion ? {} : { scale: 0 }}
                       animate={{ scale: 1 }}
                       className="flex items-center gap-1.5"
                     >
@@ -268,14 +367,14 @@ export default function Login() {
           <GlassCard
             className="rounded-3xl p-8 md:p-10 cursor-pointer group border-l-4 border-l-amber-400/80 hover:border-l-amber-300 hover:bg-white/[0.12] transition-all duration-500"
             delay={0.3}
-            onClick={() => window.location.href = '/catalog'}
+            onClick={handleStudentAccess}
           >
             <div className="h-full flex flex-col">
               {/* Card Header */}
               <div className="mb-6">
                 <motion.div
                   className="w-16 h-16 mb-5 relative"
-                  whileHover={{ scale: 1.1, rotate: -5 }}
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.1, rotate: -5 }}
                   transition={{ type: "spring", stiffness: 400 }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-tr from-amber-500 to-yellow-400 rounded-2xl blur-lg opacity-50" />
@@ -285,12 +384,7 @@ export default function Login() {
                 </motion.div>
                 <h2 className="text-2xl font-bold text-white mb-1 flex items-center gap-3">
                   Student Access
-                  <motion.div
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <ArrowRight className="text-amber-400 opacity-70" size={22} />
-                  </motion.div>
+                  <AnimatedArrow />
                 </h2>
                 <p className="text-slate-400 text-sm">Public library kiosk</p>
               </div>
@@ -319,7 +413,7 @@ export default function Login() {
                   <span className="text-sm font-medium">Enter Library Kiosk</span>
                   <motion.div
                     className="w-10 h-10 rounded-full bg-amber-400/10 flex items-center justify-center group-hover:bg-amber-400/20 transition-colors"
-                    whileHover={{ scale: 1.1 }}
+                    whileHover={shouldReduceMotion ? {} : { scale: 1.1 }}
                   >
                     <ArrowRight size={18} className="text-amber-400" />
                   </motion.div>
@@ -333,7 +427,7 @@ export default function Login() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.6, duration: 0.8 }}
+          transition={{ delay: shouldReduceMotion ? 0 : 0.6, duration: shouldReduceMotion ? 0.2 : 0.8 }}
           className="text-center mt-10 text-xs text-slate-600 font-medium"
         >
           {libraryShortName} LMS v2.0

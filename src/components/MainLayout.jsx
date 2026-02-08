@@ -138,7 +138,7 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                     {!collapsed && (
                         <div className="flex-1 min-w-0">
                             <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-none tracking-tight truncate" title={libraryName}>{libraryName}</h1>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">OF PCLU</p>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider font-semibold">College Library</p>
                         </div>
                     )}
                 </div>
