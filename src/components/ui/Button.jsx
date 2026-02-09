@@ -8,10 +8,12 @@ export default function Button({
     className = '',
     disabled = false,
     loading = false,
+    isLoading = false,
     icon: Icon,
     fullWidth = false,
     ...props
 }) {
+    const isComponentLoading = loading || isLoading;
     const baseStyles = "px-4 py-2.5 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed";
 
     // Blue theme color palette
@@ -44,13 +46,13 @@ export default function Button({
     } : {};
 
     const handleMouseEnter = (e) => {
-        if (isPrimaryOrForm && !disabled && !loading) {
+        if (isPrimaryOrForm && !disabled && !isComponentLoading) {
             e.currentTarget.style.backgroundColor = primaryBlueHover;
         }
     };
 
     const handleMouseLeave = (e) => {
-        if (isPrimaryOrForm && !disabled && !loading) {
+        if (isPrimaryOrForm && !disabled && !isComponentLoading) {
             e.currentTarget.style.backgroundColor = primaryBlue;
         }
     };
@@ -59,14 +61,14 @@ export default function Button({
         <button
             type={type}
             onClick={onClick}
-            disabled={disabled || loading}
+            disabled={disabled || isComponentLoading}
             className={`${baseStyles} ${variants[variant]} ${widthClass} ${className}`}
             style={inlineStyle}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             {...props}
         >
-            {loading ? (
+            {isComponentLoading ? (
                 <>
                     <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
