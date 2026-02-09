@@ -17,9 +17,6 @@ const FloatingLogo = ({ logoSrc }) => {
 
   return (
     <div className="relative z-10 flex flex-col items-center justify-center h-full">
-      {/* Glow Effect behind logo */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/20 rounded-full blur-[100px] pointer-events-none" />
-
       <motion.div
         animate={shouldReduceMotion ? {} : {
           y: [-15, 15, -15],
@@ -32,15 +29,11 @@ const FloatingLogo = ({ logoSrc }) => {
         }}
         className="relative z-20"
       >
-        <div className="w-64 h-64 bg-white/10 backdrop-blur-2xl rounded-3xl border border-white/20 shadow-2xl flex items-center justify-center p-8 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-
-          <img
-            src={logoSrc || "/pclu-logo.png"}
-            alt="School Logo"
-            className="w-full h-full object-contain drop-shadow-2xl"
-          />
-        </div>
+        <img
+          src={logoSrc || "/pclu-logo.png"}
+          alt="School Logo"
+          className="w-80 h-80 object-contain drop-shadow-2xl"
+        />
       </motion.div>
 
       {/* Floating particles around logo */}
@@ -141,7 +134,7 @@ export default function Login() {
           <div className="p-12">
             <h2 className="text-2xl font-bold tracking-tight text-white/90 flex items-center gap-3">
               <Library className="text-blue-400" />
-              {libraryShortName || "LMS"}
+              Polytechnic College of La Union
             </h2>
           </div>
 
