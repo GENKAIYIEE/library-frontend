@@ -1,264 +1,269 @@
+import { useState, useEffect, useCallback } from "react";
 import {
-    ChevronRight,
-    Eye, EyeOff,
-    Lock,
-    Mail,
-    RefreshCw,
-    Shield,
+    Plus,
+    Search,
     User,
-    UserPlus
+    Mail,
+    Shield,
+    MoreVertical,
+    Edit2,
+    Trash2,
+    ChevronLeft,
+    ChevronRight,
+    Loader2
 } from "lucide-react";
-import { useCallback, useState } from "react";
-import Swal from "sweetalert2";
 import axiosClient from "../axios-client";
-import Button from "../components/ui/Button";
-import FloatingInput from "../components/ui/FloatingInput";
+import UserFormModal from "./UserFormModal";
+import Swal from "sweetalert2";
+import { Menu } from "@headlessui/react"; // Assuming headlessui is installed, or I can use a simple custom dropdown if not. 
+// Wait, I don't see headlessui in the imports of the original file. 
+// I'll stick to standard simpler UI or just buttons if I don't want to introduce new deps blindly.
+// Check if I can use a simple absolute div for dropdown or just inline actions.
+// Inline actions are safer.
 
 export default function UserManagement() {
-    // Form Fields
-    const [name, setName] = useState("");
-    const [email, setEmail] = useState("");
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
-    const [permissions, setPermissions] = useState("");
-
-    // Form State
+    const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({});
+    const [search, setSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [userToEdit, setUserToEdit] = useState(null);
 
-    // Generate secure password
-    const generatePassword = () => {
-        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-        let result = "";
-        const array = new Uint32Array(16);
-        crypto.getRandomValues(array);
-        for (let i = 0; i < 16; i++) {
-            result += chars[array[i] % chars.length];
-        }
-        setPassword(result);
-        setShowPassword(true);
-    };
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchUsers(1, search);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search]);
 
-    // Validate unique fields
-    const checkUnique = useCallback(async (field, value) => {
-        if (!value) return true;
-        try {
-            const { data } = await axiosClient.post("/users/check-unique", { field, value });
-            if (!data.is_unique) {
-                setErrors(prev => ({ ...prev, [field]: data.message }));
-                return false;
-            }
-            setErrors(prev => ({ ...prev, [field]: null }));
-            return true;
-        } catch {
-            return true;
-        }
-    }, []);
-
-    // Reset form
-    const resetForm = () => {
-        setName("");
-        setEmail("");
-        setUsername("");
-        setPassword("");
-        setPermissions("");
-        setErrors({});
-        setShowPassword(false);
-    };
-
-    // Handle form submission
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const fetchUsers = async (pageNum = 1, searchQuery = "") => {
         setLoading(true);
-        setErrors({});
-
-        // Validate unique fields
-        const emailUnique = await checkUnique("email", email);
-        const usernameUnique = await checkUnique("username", username);
-
-        if (!emailUnique || !usernameUnique) {
-            setLoading(false);
-            return;
-        }
-
-        const payload = {
-            account_type: "admin",
-            name,
-            email,
-            username,
-            password,
-            permissions,
-        };
-
         try {
-            const { data } = await axiosClient.post("/users", payload);
-
-            Swal.fire({
-                title: "Account Created!",
-                html: `<p class="text-gray-600">New Admin <strong>${data.user.name}</strong> created successfully.</p>
-               <p class="mt-2 text-sm text-gray-500">Username: <code class="bg-gray-100 px-2 py-1 rounded">${username}</code></p>`,
-                icon: "success",
-                confirmButtonColor: "#2563eb",
+            const { data } = await axiosClient.get(`/users`, {
+                params: {
+                    page: pageNum,
+                    search: searchQuery
+                }
             });
-
-            resetForm();
-        } catch (err) {
-            const message = err.response?.data?.message || "Failed to create account.";
-            Swal.fire("Error", message, "error");
-
-            if (err.response?.data?.errors) {
-                setErrors(err.response.data.errors);
-            }
+            setUsers(data.data);
+            setPage(data.current_page);
+            setTotalPages(data.last_page);
+        } catch (error) {
+            console.error("Failed to fetch users", error);
         } finally {
             setLoading(false);
         }
     };
 
+    const handleDelete = (user) => {
+        Swal.fire({
+            title: 'Are you sure?',
+            text: `You are about to delete ${user.name}. This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, delete it!'
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                try {
+                    await axiosClient.delete(`/users/${user.id}`);
+                    Swal.fire(
+                        'Deleted!',
+                        'User has been deleted.',
+                        'success'
+                    );
+                    fetchUsers(page, search);
+                } catch (error) {
+                    Swal.fire(
+                        'Error!',
+                        error.response?.data?.message || 'Failed to delete user.',
+                        'error'
+                    );
+                }
+            }
+        });
+    };
+
+    const handleEdit = (user) => {
+        setUserToEdit(user);
+        setIsModalOpen(true);
+    };
+
+    const handleCreate = () => {
+        setUserToEdit(null);
+        setIsModalOpen(true);
+    };
+
+    const handleModalSuccess = () => {
+        fetchUsers(page, search);
+    };
+
     return (
-        <div className="space-y-8 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
-            {/* Page Header */}
-            <div className="flex items-center gap-4">
-                <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
-                    <UserPlus size={28} className="text-white" />
-                </div>
+        <div className="space-y-6 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400 mb-1">
-                        <span>User Management</span>
-                        <ChevronRight size={14} />
-                        <span className="text-primary-600 dark:text-primary-400 font-semibold">Add New Account</span>
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Create Administrator Account</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
+                        <div className="p-2 bg-primary-600 rounded-lg shadow-lg shadow-primary-500/30">
+                            <User size={24} className="text-white" />
+                        </div>
+                        User Management
+                    </h2>
+                    <p className="text-gray-500 dark:text-slate-400 mt-1 ml-14">
+                        Manage administrators and view registered users
+                    </p>
+                </div>
+                <button
+                    onClick={handleCreate}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-lg shadow-primary-600/20 transition-all active:scale-95"
+                >
+                    <Plus size={20} />
+                    <span className="font-semibold">Add New User</span>
+                </button>
+            </div>
+
+            {/* Controls */}
+            <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <input
+                        type="text"
+                        placeholder="Search users by name, email, or username..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all"
+                    />
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Side - Form */}
-                <div className="lg:col-span-2">
-                    <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8 border border-gray-100 dark:border-slate-700">
-                        {/* Header */}
-                        <div className="flex items-center gap-3 mb-8 pb-6 border-b border-gray-100 dark:border-slate-700">
-                            <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-xl">
-                                <Shield size={24} className="text-primary-600 dark:text-primary-400" />
-                            </div>
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-800 dark:text-white">New Administrator</h3>
-                                <p className="text-sm text-gray-500 dark:text-slate-400">Create a new admin account with system access</p>
-                            </div>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <FloatingInput
-                                label="Full Name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                icon={User}
-                                required
-                                error={errors.name}
-                            />
-
-                            <FloatingInput
-                                label="Email Address"
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                onBlur={() => checkUnique("email", email)}
-                                icon={Mail}
-                                required
-                                error={errors.email}
-                            />
-
-                            <FloatingInput
-                                label="Username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                onBlur={() => checkUnique("username", username)}
-                                icon={User}
-                                required
-                                error={errors.username}
-                            />
-
-                            <div className="relative">
-                                <FloatingInput
-                                    label="Password"
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    icon={Lock}
-                                    required
-                                    error={errors.password}
-                                />
-                                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="p-2 text-gray-400 hover:text-gray-600 transition"
-                                        title={showPassword ? "Hide password" : "Show password"}
+            {/* Table */}
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 dark:bg-slate-700/50">
+                            <tr>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">User</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Date Added</th>
+                                <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                            {loading ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-12 text-center">
+                                        <div className="flex flex-col items-center gap-3">
+                                            <Loader2 className="animate-spin text-primary-500" size={32} />
+                                            <p className="text-gray-500 dark:text-slate-400">Loading users...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : users.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
+                                        No users found matching your search.
+                                    </td>
+                                </tr>
+                            ) : (
+                                users.map((user) => (
+                                    <tr
+                                        key={user.id}
+                                        className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors group"
                                     >
-                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={generatePassword}
-                                        className="p-2 text-primary-500 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition"
-                                        title="Generate Secure Password"
-                                    >
-                                        <RefreshCw size={18} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            
-
-                            <Button
-                                type="submit"
-                                variant="form"
-                                fullWidth
-                                loading={loading}
-                            >
-                                Create Administrator Account
-                            </Button>
-                        </form>
-                    </div>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-lg">
+                                                    {user.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-gray-800 dark:text-white">{user.name}</p>
+                                                    <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400">
+                                                        <Mail size={12} />
+                                                        {user.email}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span
+                                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize
+                                                ${user.role === 'admin'
+                                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                                                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                                    }`}
+                                            >
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                                Active
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-slate-400">
+                                            {new Date(user.created_at).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleEdit(user)}
+                                                    className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                                                    title="Edit User"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                {user.id !== 1 && ( // Prevent deleting main admin if id=1 (optional safeguard)
+                                                    <button
+                                                        onClick={() => handleDelete(user)}
+                                                        className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        title="Delete User"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
-                {/* Right Side - Info Panel */}
-                <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl shadow-lg p-6 border border-primary-500">
-                        <div className="text-white">
-                            <Shield size={48} className="mb-4 opacity-80" />
-                            <h3 className="text-xl font-bold mb-2">Administrator Account</h3>
-                            <p className="text-sm opacity-80 mb-4">
-                                Administrators can access the dashboard, manage books, students, and view reports.
-                            </p>
-                            <div className="space-y-2 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-white/60" />
-                                    <span className="opacity-80">Full Access: All features</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-white/60" />
-                                    <span className="opacity-80">Read Only: View only</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Password Tips */}
-                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl p-6 border-2 border-amber-200 dark:border-amber-800/50">
-                        <h4 className="font-bold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
-                            <Lock size={18} />
-                            Password Security Tips
-                        </h4>
-                        <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
-                            <li>• Use the Generate button for a secure password</li>
-                            <li>• Minimum 8 characters recommended</li>
-                            <li>• Share credentials securely with the user</li>
-                        </ul>
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-6 py-4 bg-gray-50 dark:bg-slate-700/30 border-t border-gray-100 dark:border-slate-700">
+                    <p className="text-sm text-gray-500 dark:text-slate-400">
+                        Page <span className="font-medium">{page}</span> of <span className="font-medium">{totalPages}</span>
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => fetchUsers(page - 1, search)}
+                            disabled={page === 1}
+                            className="p-2 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <button
+                            onClick={() => fetchUsers(page + 1, search)}
+                            disabled={page === totalPages}
+                            className="p-2 rounded-lg border border-gray-200 dark:border-slate-600 text-gray-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
                     </div>
                 </div>
             </div>
+
+            <UserFormModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSuccess={handleModalSuccess}
+                userToEdit={userToEdit}
+            />
         </div>
     );
 }

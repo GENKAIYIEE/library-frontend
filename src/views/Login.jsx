@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback, memo } from "react";
-import axiosClient from "../axios-client";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
-  User, Lock, AlertCircle, ArrowRight, BookOpen,
-  ShieldCheck, CheckCircle2, Library
+  AlertCircle, ArrowRight, BookOpen,
+  CheckCircle2, Library,
+  Lock,
+  User
 } from "lucide-react";
-import FloatingInput from "../components/ui/FloatingInput";
-import Button from "../components/ui/Button";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { useLibrarySettings } from "../context/LibrarySettingsContext";
+import { memo, useCallback, useEffect, useState } from "react";
+import axiosClient from "../axios-client";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import LoginTransition from "../components/LoginTransition";
+import Button from "../components/ui/Button";
+import FloatingInput from "../components/ui/FloatingInput";
+import { useLibrarySettings } from "../context/LibrarySettingsContext";
 
 // --- Components ---
 
@@ -74,6 +77,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const [secureConnection, setSecureConnection] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { libraryName, libraryShortName } = useLibrarySettings();
 
   useEffect(() => {
@@ -123,6 +127,8 @@ export default function Login() {
       <AnimatePresence>
         {showTransition && <LoginTransition onFinish={handleTransitionFinish} />}
       </AnimatePresence>
+
+      <ForgotPasswordModal isOpen={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
 
       {/* --- LEFT PANEL (Visual & Branding) --- */}
       <div className="hidden lg:flex w-1/2 relative flex-col text-white">
@@ -215,7 +221,13 @@ export default function Login() {
                     className="bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-blue-500 transition-all"
                   />
                   <div className="absolute right-0 top-full mt-2">
-                    {/* Forgot Password placeholder could go here */}
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotPassword(true)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                    >
+                      Forgot Password?
+                    </button>
                   </div>
                 </div>
               </div>
