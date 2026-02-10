@@ -100,22 +100,14 @@ export default function FacultyProfileModal({ faculty, onClose }) {
                     </div>
 
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-4 gap-4 p-6 bg-gray-50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-700">
-                        <div className="text-center">
+                    <div className="grid grid-cols-2 gap-4 p-6 bg-gray-50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-700 text-center">
+                        <div>
                             <p className="text-2xl font-bold text-gray-800 dark:text-white">{stats.total_borrowed}</p>
                             <p className="text-xs text-gray-500 dark:text-slate-400">Total Borrowed</p>
                         </div>
-                        <div className="text-center">
+                        <div>
                             <p className="text-2xl font-bold text-amber-600">{stats.active_loans}</p>
                             <p className="text-xs text-gray-500 dark:text-slate-400">Active Loans</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-2xl font-bold text-emerald-600">₱{(stats.total_fines || 0).toFixed(2)}</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Total Fines</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-2xl font-bold text-red-600">₱{(stats.pending_fines || 0).toFixed(2)}</p>
-                            <p className="text-xs text-gray-500 dark:text-slate-400">Pending</p>
                         </div>
                     </div>
 
@@ -154,12 +146,6 @@ export default function FacultyProfileModal({ faculty, onClose }) {
                                             )}
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            {tx.penalty_amount > 0 && (
-                                                <span className="flex items-center gap-1 text-sm text-red-600">
-                                                    <DollarSign size={14} />
-                                                    ₱{tx.penalty_amount}
-                                                </span>
-                                            )}
                                             {getStatusBadge(tx)}
                                         </div>
                                     </div>

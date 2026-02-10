@@ -117,6 +117,41 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     }
   };
 
+  // Helper to generate preview of accession numbers
+  const getAccPreview = () => {
+    const base = book.accession_no;
+    const count = parseInt(book.copies) || 0;
+
+    if (!base || count < 1) return [];
+
+    const previews = [];
+    const match = base.match(/^(.*?)(\d+)$/);
+
+    if (match) {
+      // Numeric suffix found - Smart Increment
+      const prefix = match[1];
+      const numberStr = match[2];
+      const numberLen = numberStr.length;
+      const startNum = parseInt(numberStr, 10);
+
+      for (let i = 0; i < count; i++) {
+        const nextNum = startNum + i;
+        const padded = nextNum.toString().padStart(numberLen, '0');
+        previews.push(`${prefix}${padded}`);
+      }
+    } else {
+      // Non-numeric suffix - Append sequence
+      // Copy 1 is base, Copy 2 is base-2, etc.
+      for (let i = 0; i < count; i++) {
+        if (i === 0) previews.push(base);
+        else previews.push(`${base}-${i + 1}`);
+      }
+    }
+    return previews;
+  };
+
+  const accPreviews = getAccPreview();
+
   const handleSubmit = (ev) => {
     ev.preventDefault();
     setLoading(true);
@@ -505,6 +540,33 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                   min="1"
                 // disabled={!!bookToEdit} // Usually copies are handled separately on updates, but kept here for input match
                 />
+
+                {/* Live Accession Preview */}
+                {!bookToEdit && book.accession_no && book.copies > 0 && (
+                  <div className="col-span-1 md:col-span-2 mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm">
+                    <p className="font-bold text-[#020463] mb-1 flex items-center gap-2">
+                      <CheckCircle size={14} className="text-emerald-500" />
+                      Will generate these Accession Numbers:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {accPreviews.slice(0, 5).map(acc => (
+                        <span key={acc} className="px-2 py-1 bg-white border border-blue-200 rounded text-xs font-mono text-blue-700">
+                          {acc}
+                        </span>
+                      ))}
+                      {accPreviews.length > 5 && (
+                        <span className="px-2 py-1 text-xs text-gray-500 italic">
+                          ...and {accPreviews.length - 5} more
+                        </span>
+                      )}
+                    </div>
+                    {!book.accession_no.match(/^(.*?)(\d+)$/) && (
+                      <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                        ⚠️ Tip: End with a number (e.g. "LIB-01") to auto-increment correctly.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <FloatingInput
                   label="Volume"
                   value={book.volume}

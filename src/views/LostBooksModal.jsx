@@ -91,66 +91,102 @@ export default function LostBooksModal({ onClose, onSuccess }) {
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {lostBooks.map((asset) => (
-                                <div key={asset.id} className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-xl border border-gray-100 dark:border-slate-600 flex justify-between items-center group hover:border-amber-200 dark:hover:border-amber-700 transition-colors">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-16 bg-gray-200 dark:bg-slate-600 rounded flex-shrink-0 overflow-hidden">
-                                            {asset.book_title?.image_path ? (
-                                                <img src={`${ASSET_URL}/${asset.book_title.image_path}`} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                                    <BookOpen size={16} />
+                            {lostBooks.map((asset) => {
+                                // Extract simplified variables using the new latest_transaction relationship
+                                const latestTx = asset.latest_transaction;
+                                const borrower = latestTx?.user;
+                                const penaltyAmount = latestTx ? parseFloat(latestTx.penalty_amount) : 0;
+                                // Strict check: Payment status must be 'paid' or 'waived'
+                                const isPaid = latestTx && (latestTx.payment_status === 'paid' || latestTx.payment_status === 'waived');
+                                const hasUnpaidFine = latestTx && penaltyAmount > 0 && !isPaid;
+                                const noFine = !latestTx || penaltyAmount <= 0;
+
+                                // Can restore ONLY if fine is paid OR if there's no fine to pay
+                                const canRestore = isPaid || noFine;
+
+                                return (
+                                    <div key={asset.id} className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-xl border border-gray-100 dark:border-slate-600 flex justify-between items-start group hover:border-amber-200 dark:hover:border-amber-700 transition-colors">
+                                        <div className="flex gap-4">
+                                            {/* Book Cover */}
+                                            <div className="w-16 h-24 bg-gray-200 dark:bg-slate-600 rounded-md flex-shrink-0 overflow-hidden shadow-sm">
+                                                {asset.book_title?.image_path ? (
+                                                    <img src={`${ASSET_URL}/${asset.book_title.image_path}`} className="w-full h-full object-cover" alt="Cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                                                        <BookOpen size={20} />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Book & Borrower Details */}
+                                            <div>
+                                                <h4 className="font-bold text-lg text-gray-800 dark:text-white line-clamp-1">{asset.book_title?.title}</h4>
+                                                <div className="text-sm text-gray-500 dark:text-slate-400 space-y-1 mt-1">
+                                                    <p>Code: <span className="font-mono text-amber-600 dark:text-amber-400">{asset.asset_code}</span></p>
+                                                    <p>Lost since: {new Date(asset.updated_at).toLocaleDateString()}</p>
+
+                                                    {borrower && (
+                                                        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-slate-600">
+                                                            <p className="font-medium text-gray-700 dark:text-slate-300">Lost by:</p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="font-bold text-amber-700 dark:text-amber-500">{borrower.name}</span>
+                                                                <span className="text-xs bg-gray-200 dark:bg-slate-600 px-1.5 py-0.5 rounded text-gray-600 dark:text-slate-300 font-mono">
+                                                                    {borrower.student_id}
+                                                                </span>
+                                                            </div>
+                                                            <div className="text-xs text-gray-400 mt-0.5">{borrower.course}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Actions Panel */}
+                                        <div className="flex flex-col items-end gap-3 min-w-[140px]">
+                                            {/* Status Badges */}
+                                            {hasUnpaidFine && (
+                                                <div className="flex flex-col items-end">
+                                                    <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/30 px-2 py-1 rounded border border-red-200 dark:border-red-800">
+                                                        Unpaid: ₱{parseFloat(latestTx.penalty_amount).toFixed(2)}
+                                                    </span>
+                                                    <span className="text-[10px] text-red-400 mt-1 max-w-[120px] text-right leading-tight">
+                                                        * Settle in Payment Mgt
+                                                    </span>
                                                 </div>
                                             )}
-                                        </div>
-                                        <div>
-                                            <h4 className="font-bold text-gray-800 dark:text-white line-clamp-1">{asset.book_title?.title}</h4>
-                                            <p className="text-sm text-gray-500 dark:text-slate-400">Code: <span className="font-mono text-amber-600 dark:text-amber-400">{asset.asset_code}</span></p>
-                                            <p className="text-xs text-start text-gray-400">Lost since: {new Date(asset.updated_at).toLocaleDateString()}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col items-end gap-2">
-                                        {/* Show Fine Logic */}
-                                        {(() => {
-                                            const latestTx = asset.transactions && asset.transactions[0];
-                                            const hasUnpaidFine = latestTx && latestTx.penalty_amount > 0 && latestTx.payment_status === 'pending';
-
-                                            if (hasUnpaidFine) {
-                                                return (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded border border-red-200">
-                                                            Unpaid: ₱{latestTx.penalty_amount}
-                                                        </span>
-                                                        <button
-                                                            onClick={() => handlePay(latestTx.id)}
-                                                            disabled={payingId === latestTx.id}
-                                                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all shadow-sm"
-                                                        >
-                                                            {payingId === latestTx.id ? "..." : <><CheckCircle size={12} /> Pay Now</>}
-                                                        </button>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-
-                                        <button
-                                            onClick={() => handleRestore(asset.id)}
-                                            disabled={restoringId === asset.id || (asset.transactions && asset.transactions[0] && asset.transactions[0].payment_status === 'pending' && asset.transactions[0].penalty_amount > 0)}
-                                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2 transition-all shadow-sm hover:shadow active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400"
-                                            title={asset.transactions && asset.transactions[0]?.payment_status === 'pending' ? "Pay fine first" : "Restore to inventory"}
-                                        >
-                                            {restoringId === asset.id ? (
-                                                "Restoring..."
-                                            ) : (
-                                                <>
-                                                    <RefreshCw size={16} /> Restore
-                                                </>
+                                            {isPaid && (
+                                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 rounded border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                                                    <CheckCircle size={12} /> PAID
+                                                </span>
                                             )}
-                                        </button>
+                                            {noFine && (
+                                                <span className="text-xs font-bold text-amber-600 bg-amber-50 dark:bg-amber-900/30 px-2 py-1 rounded border border-amber-200 dark:border-amber-800">
+                                                    ⚠️ Needs Fine
+                                                </span>
+                                            )}
+
+                                            {/* RESTORE BUTTON - ONLY enabled when fine is PAID */}
+                                            <button
+                                                onClick={() => handleRestore(asset.id)}
+                                                disabled={restoringId === asset.id || !canRestore}
+                                                className={`w-full px-3 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${canRestore
+                                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow active:scale-95'
+                                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-600'
+                                                    }`}
+                                                title={canRestore ? "Restore to inventory" : "Action Blocked: Please pay the fine in Payment Management/Outstanding Fines first."}
+                                            >
+                                                {restoringId === asset.id ? (
+                                                    "Restoring..."
+                                                ) : (
+                                                    <>
+                                                        <RefreshCw size={14} /> Restore
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

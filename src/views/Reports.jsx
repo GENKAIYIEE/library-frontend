@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../axios-client";
-import { FileText, Users, DollarSign, Download, Calendar, FileBarChart, TrendingUp, PieChart as PieChartIcon, BarChart3, AlertCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
+import { FileText, Users, DollarSign, Download, Calendar, FileBarChart, TrendingUp, PieChart as PieChartIcon, BarChart3, AlertCircle, ChevronRight, GraduationCap, ArrowLeft } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, LabelList } from "recharts";
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -23,6 +23,12 @@ export default function Reports() {
     const [statistics, setStatistics] = useState({ ranges: [], months: [], data: [], academic_year: "" }); // NEW
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("books");
+    const [selectedStatType, setSelectedStatType] = useState(null); // 'faculty', 'student', or null
+
+    // Financial Tracking State
+    const [financialCurrent, setFinancialCurrent] = useState(null);
+    const [financialHistory, setFinancialHistory] = useState({ records: [], totals: {} });
+    const [financialView, setFinancialView] = useState("current"); // "current" or "history"
 
 
 
@@ -67,14 +73,18 @@ export default function Reports() {
             axiosClient.get("/reports/top-students", { params }),
             axiosClient.get("/reports/penalties", { params }),
             axiosClient.get("/reports/demographics", { params }),
-            axiosClient.get("/reports/statistics") // Let backend determine correct academic year
+            axiosClient.get("/reports/statistics"), // Let backend determine correct academic year
+            axiosClient.get("/reports/financial-current"),
+            axiosClient.get("/reports/financial-history"),
         ])
-            .then(([booksRes, studentsRes, penaltiesRes, demoRes, statsRes]) => {
+            .then(([booksRes, studentsRes, penaltiesRes, demoRes, statsRes, financialCurrentRes, financialHistoryRes]) => {
                 setMostBorrowed(booksRes.data);
                 setTopStudents(studentsRes.data);
                 setPenalties(penaltiesRes.data);
                 setDemographics(demoRes.data);
-                setStatistics(statsRes.data); // NEW
+                setStatistics(statsRes.data);
+                setFinancialCurrent(financialCurrentRes.data);
+                setFinancialHistory(financialHistoryRes.data);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
@@ -114,7 +124,7 @@ export default function Reports() {
         window.print();
     };
 
-    const handlePrintStatistics = () => {
+    const handlePrintStatistics = (type = 'all') => {
         // Month number to display label mapping
         const monthLabels = {
             6: "JUNE", 7: "JULY", 8: "AUG.", 9: "SEPT.", 10: "OCT.", 11: "NOV.",
@@ -124,40 +134,133 @@ export default function Reports() {
         // Use the actual months from statistics (these are numeric keys from backend)
         const months = statistics.months || [6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5];
 
-        // Generate table rows for each call number range
-        const tableRows = statistics.ranges.map(range => {
-            const rowTotal = months.reduce((sum, month) => {
-                return sum + (statistics.data[range]?.[month] || 0);
-            }, 0);
+        // 1. Define Header HTML
+        const headerHtml = `
+            <div class="header">
+                <div class="header-logo" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
+                    <img src="${window.location.origin}/pclu-logo.png" alt="PCLU" style="width: 100%; height: 100%; object-fit: contain;" />
+                </div>
+                <div class="header-text">
+                    <h1>POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
+                    <p>(Formerly PAMETS COLLEGES)</p>
+                    <p>Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
+                    <p>Tel. No. (072) 2061761 Mobile No.09171623141/09260953781</p>
+                    <p>Email: pclucollege@pclu.com.ph</p>
+                    <p>https://www.facebook.com/PCLUOfficialpage</p>
+                </div>
+                <div class="iso-badge" style="min-width: 80px; border: 1px solid #999; padding: 2px; display: inline-flex; flex-direction: column; align-items: center; background: white;">
+                    <div style="background: #1e3a8a; width: 100%; padding: 4px; display: flex; flex-direction: column; align-items: center;">
+                        <div style="display: flex; align-items: center; justify-content: center; width: 100%; border-bottom: 1px solid #ffffff40; padding-bottom: 2px; margin-bottom: 2px;">
+                            <span style="font-size: 24px; font-weight: 900; line-height: 1; color: white; font-family: Arial, sans-serif;">ISO</span>
+                            <div style="display: flex; flex-direction: column; margin-left: 4px; border-left: 1px solid white; padding-left: 4px;">
+                                <span style="font-size: 10px; font-weight: bold; line-height: 1; color: #22d3ee;">9001</span>
+                                <span style="font-size: 10px; font-weight: bold; line-height: 1; color: #22d3ee;">2015</span>
+                            </div>
+                        </div>
+                        <span style="font-size: 9px; font-weight: 900; color: white; letter-spacing: 1px; font-family: Arial, sans-serif; width: 100%; text-align: center;">CERTIFIED</span>
+                    </div>
+                </div>
+            </div>
+        `;
 
-            const monthCells = months.map(month => {
-                const value = statistics.data[range]?.[month] || 0;
-                return `<td class="num-col">${value > 0 ? value : ''}</td>`;
-            }).join('');
+        // 2. Define Signatures HTML
+        const signaturesHtml = `
+            <div class="signatures">
+                <div class="signature-box">
+                    <p class="label">Prepared by:</p>
+                    <p class="name">PATRICIA NIKOLE C. MASILANG</p>
+                    <p class="title-text">College Library Clerk</p>
+                </div>
+                <div class="signature-box">
+                    <p class="label">Noted by:</p>
+                    <p class="name">LEAH E. CAMSO.RL MLIS</p>
+                    <p class="title-text">Chief Librarian</p>
+                </div>
+            </div>
+        `;
 
-            return `
-                <tr>
+        // Helper function to generate table HTML
+        const generateTableHtml = (title, dataKey) => {
+            const tableRows = statistics.ranges.map(range => {
+                // Determine which dataset to use based on key
+                const sourceData = statistics[dataKey];
+                const rowTotal = months.reduce((sum, month) => {
+                    return sum + (sourceData?.[range]?.[month] || 0);
+                }, 0);
+
+                const monthCells = months.map(month => {
+                    const value = sourceData?.[range]?.[month] || 0;
+                    return `<td class="num-col">${value > 0 ? value : ''}</td>`;
+                }).join('');
+
+                return `<tr>
                     <td class="range-col">${range}</td>
                     ${monthCells}
                     <td class="num-col total-col">${rowTotal > 0 ? rowTotal : ''}</td>
-                </tr>
+                </tr>`;
+            }).join('');
+
+            const monthTotals = months.map(month => {
+                const total = statistics.ranges.reduce((sum, range) => {
+                    return sum + (statistics[dataKey]?.[range]?.[month] || 0);
+                }, 0);
+                return `<td class="num-col">${total > 0 ? total : ''}</td>`;
+            }).join('');
+
+            const grandTotal = statistics.ranges.reduce((total, range) => {
+                return total + statistics.months.reduce((sum, month) => {
+                    return sum + (statistics[dataKey]?.[range]?.[month] || 0);
+                }, 0);
+            }, 0);
+
+            return `
+                <div class="title">
+                    <h2>${title}</h2>
+                    <p>${statistics.academic_year || 'A.Y. 2025-2026'}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="range-col"></th>
+                            <th colspan="12" style="text-align: center;">MONTH</th>
+                            <th rowspan="2" class="num-col"></th>
+                        </tr>
+                        <tr>
+                            ${months.map(m => `<th class="num-col month-header">${monthLabels[m]}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                        <tr class="grand-total">
+                            <td class="range-col">TOTAL</td>
+                            ${monthTotals}
+                            <td class="num-col total-col">${grandTotal > 0 ? grandTotal : ''}</td>
+                        </tr>
+                    </tbody>
+                </table>
             `;
-        }).join('');
+        };
 
-        // Calculate column totals
-        const monthTotals = months.map(month => {
-            const total = statistics.ranges.reduce((sum, range) => {
-                return sum + (statistics.data[range]?.[month] || 0);
-            }, 0);
-            return `<td class="num-col">${total > 0 ? total : ''}</td>`;
-        }).join('');
+        let bodyContent = "";
+        const facultyTable = generateTableHtml("Statistics of Borrowed Books by Faculty", "faculty_data");
+        const studentTable = generateTableHtml("Statistics of Borrowed Books by Students", "student_data");
 
-        // Grand total
-        const grandTotal = statistics.ranges.reduce((total, range) => {
-            return total + statistics.months.reduce((sum, month) => {
-                return sum + (statistics.data[range]?.[month] || 0);
-            }, 0);
-        }, 0);
+        if (type === 'faculty') {
+            bodyContent = `${headerHtml}${facultyTable}${signaturesHtml}`;
+        } else if (type === 'student') {
+            bodyContent = `${headerHtml}${studentTable}${signaturesHtml}`;
+        } else {
+            // Print All
+            bodyContent = `
+                ${headerHtml}
+                ${facultyTable}
+                ${signaturesHtml}
+                <div style="page-break-before: always; height: 30px;"></div>
+                ${headerHtml}
+                ${studentTable}
+                ${signaturesHtml}
+            `;
+        }
 
         const printContent = `
             <!DOCTYPE html>
@@ -258,70 +361,7 @@ export default function Reports() {
                 </style>
             </head>
             <body>
-                <div class="header">
-                    <div class="header-logo" style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
-                        <img src="${window.location.origin}/pclu-logo.png" alt="PCLU" style="width: 100%; height: 100%; object-fit: contain;" />
-                    </div>
-                    <div class="header-text">
-                        <h1>POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
-                        <p>(Formerly PAMETS COLLEGES)</p>
-                        <p>Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
-                        <p>Tel. No. (072) 2061761 Mobile No.09171623141/09260953781</p>
-                        <p>Email: pclucollege@pclu.com.ph</p>
-                        <p>https://www.facebook.com/PCLUOfficialpage</p>
-                    </div>
-                    <div class="iso-badge" style="min-width: 80px; border: 1px solid #999; padding: 2px; display: inline-flex; flex-direction: column; align-items: center; background: white;">
-                        <div style="background: #1e3a8a; width: 100%; padding: 4px; display: flex; flex-direction: column; align-items: center;">
-                            <div style="display: flex; align-items: center; justify-content: center; width: 100%; border-bottom: 1px solid #ffffff40; padding-bottom: 2px; margin-bottom: 2px;">
-                                <span style="font-size: 24px; font-weight: 900; line-height: 1; color: white; font-family: Arial, sans-serif;">ISO</span>
-                                <div style="display: flex; flex-direction: column; margin-left: 4px; border-left: 1px solid white; padding-left: 4px;">
-                                    <span style="font-size: 10px; font-weight: bold; line-height: 1; color: #22d3ee;">9001</span>
-                                    <span style="font-size: 10px; font-weight: bold; line-height: 1; color: #22d3ee;">2015</span>
-                                </div>
-                            </div>
-                            <span style="font-size: 9px; font-weight: 900; color: white; letter-spacing: 1px; font-family: Arial, sans-serif; width: 100%; text-align: center;">CERTIFIED</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="title">
-                    <h2>Statistics of Borrowed Books by Faculty</h2>
-                    <p>${statistics.academic_year || 'A.Y. 2025-2026'}</p>
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th rowspan="2" class="range-col"></th>
-                            <th colspan="12" style="text-align: center;">MONTH</th>
-                            <th rowspan="2" class="num-col"></th>
-                        </tr>
-                        <tr>
-                            ${months.map(m => `<th class="num-col month-header">${monthLabels[m]}</th>`).join('')}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tableRows}
-                        <tr class="grand-total">
-                            <td class="range-col">TOTAL</td>
-                            ${monthTotals}
-                            <td class="num-col total-col">${grandTotal > 0 ? grandTotal : ''}</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="signatures">
-                    <div class="signature-box">
-                        <p class="label">Prepared by:</p>
-                        <p class="name">PATRICIA NIKOLE C. MASILANG</p>
-                        <p class="title-text">College Library Clerk</p>
-                    </div>
-                    <div class="signature-box">
-                        <p class="label">Noted by:</p>
-                        <p class="name">LEAH E. CAMSO.RL MLIS</p>
-                        <p class="title-text">Chief Librarian</p>
-                    </div>
-                </div>
+                ${bodyContent}
             </body>
             </html>
         `;
@@ -468,107 +508,256 @@ export default function Reports() {
             ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-500 space-y-8">
 
+
                     {/* Borrowed Books Statistics (Replaces Popularity) */}
                     {activeTab === "books" && (
                         <div className="space-y-6">
-                            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden">
-                                <div className="p-8 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
+                            {/* Header for Detail View */}
+                            {selectedStatType && (
+                                <div className="flex items-center gap-4 mb-4">
+                                    <button
+                                        onClick={() => setSelectedStatType(null)}
+                                        className="p-3 rounded-xl bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition shadow-sm"
+                                    >
+                                        <ArrowLeft size={24} className="text-gray-600 dark:text-slate-300" />
+                                    </button>
                                     <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
-                                            Statistics of Borrowed Books by Faculty
-                                        </h3>
-                                        <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                                            {selectedStatType === "faculty" ? "Faculty Borrowing Statistics" : "Student Borrowing Statistics"}
+                                        </h2>
+                                        <p className="text-gray-500 dark:text-slate-400 text-sm">
                                             {statistics.academic_year || "A.Y. 2025-2026"}
                                         </p>
                                     </div>
-                                    <button
-                                        onClick={handlePrintStatistics}
-                                        className="print:hidden flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-indigo-500/20"
-                                    >
-                                        <Download size={16} />
-                                        Print Statistics
-                                    </button>
                                 </div>
+                            )}
 
-                                <div className="overflow-x-auto p-2">
-                                    <table className="w-full text-center border-collapse border border-gray-300 dark:border-slate-600">
-                                        <thead>
-                                            {/* Header Row */}
-                                            <tr className="bg-gray-100 dark:bg-slate-700">
-                                                <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[100px] bg-gray-200 dark:bg-slate-800">
-                                                    {/* Empty for Category/Range */}
-                                                </th>
-                                                <th colSpan={12} className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-gray-700 dark:text-white uppercase">
-                                                    MONTH
-                                                </th>
-                                                <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[60px] bg-gray-200 dark:bg-slate-800">
-                                                    {/* Total Header */}
-                                                </th>
-                                            </tr>
-                                            <tr className="bg-gray-50 dark:bg-slate-700/50 text-xs font-bold uppercase">
-                                                <th className="border border-gray-300 dark:border-slate-600 p-2 text-left">Category / Range</th>
-                                                {/* Months: June to May */}
-                                                {["JUNE", "JULY", "AUG.", "SEPT.", "OCT.", "NOV.", "DEC.", "JAN", "FEB.", "MAR.", "APR.", "MAY"].map(month => (
-                                                    <th key={month} className="border border-gray-300 dark:border-slate-600 p-2">{month}</th>
-                                                ))}
-                                                <th className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-50 dark:bg-yellow-900/10">TOTAL</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="text-sm">
-                                            {statistics.ranges && statistics.ranges.map((range) => {
-                                                // Calculate Row Total
-                                                const rowTotal = statistics.months.reduce((sum, month) => {
-                                                    return sum + (statistics.data[range]?.[month] || 0);
-                                                }, 0);
+                            {/* GRID VIEW */}
+                            {!selectedStatType && (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-700">
+                                        <div>
+                                            <h3 className="text-xl font-bold text-gray-800 dark:text-white">Borrowing Overview</h3>
+                                            <p className="text-sm text-gray-500 dark:text-slate-400">Monthly breakdown of borrowed books</p>
+                                        </div>
+                                        <button
+                                            onClick={() => handlePrintStatistics('all')}
+                                            className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-gray-900/20"
+                                        >
+                                            <Download size={18} />
+                                            Print All Reports
+                                        </button>
+                                    </div>
 
-                                                return (
-                                                    <tr key={range} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                                        <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-left bg-gray-50 dark:bg-slate-800">
-                                                            {range}
-                                                        </td>
-                                                        {statistics.months.map(month => (
-                                                            <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">
-                                                                {(statistics.data[range]?.[month] || 0) > 0 ? (
-                                                                    <span className="font-semibold text-gray-800 dark:text-white">
-                                                                        {statistics.data[range][month]}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-gray-300 dark:text-slate-600">-</span>
-                                                                )}
-                                                            </td>
-                                                        ))}
-                                                        <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold bg-yellow-50 dark:bg-yellow-900/10">
-                                                            {rowTotal > 0 ? rowTotal : "-"}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* Faculty Card */}
+                                        <button
+                                            onClick={() => setSelectedStatType("faculty")}
+                                            className="group relative overflow-hidden rounded-3xl p-8 text-left transition-all duration-300 hover:scale-105 hover:shadow-2xl bg-purple-50 dark:bg-slate-800 border-2 border-purple-200 dark:border-slate-700"
+                                        >
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500 to-purple-600 opacity-10 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500" />
 
-                                            {/* Grand Total Row */}
-                                            <tr className="bg-gray-100 dark:bg-slate-700 font-bold">
-                                                <td className="border border-gray-300 dark:border-slate-600 p-3 text-left">TOTAL</td>
-                                                {statistics.months && statistics.months.map(month => {
-                                                    const colTotal = statistics.ranges.reduce((sum, range) => {
-                                                        return sum + (statistics.data[range]?.[month] || 0);
+                                            <div className="relative z-10">
+                                                <div className="flex items-center gap-4 mb-6">
+                                                    <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
+                                                        <Users size={32} className="text-white" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-xl font-bold text-purple-700 dark:text-white">Faculty</h3>
+                                                        <p className="text-sm text-purple-600/80 dark:text-purple-300">Borrowing Trends</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <p className="text-4xl font-bold text-gray-800 dark:text-white">
+                                                        {statistics.ranges && statistics.ranges.reduce((grandTotal, range) => grandTotal + statistics.months.reduce((sum, month) => sum + (statistics.faculty_data?.[range]?.[month] || 0), 0), 0)}
+                                                    </p>
+                                                    <p className="text-sm text-gray-500 dark:text-slate-400">Total Books Borrowed</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <ChevronRight size={28} className="text-purple-500" />
+                                            </div>
+                                        </button>
+
+                                        {/* Student Card */}
+                                        <button
+                                            onClick={() => setSelectedStatType("student")}
+                                            className="group relative overflow-hidden rounded-3xl p-8 text-left transition-all duration-300 hover:scale-105 hover:shadow-2xl bg-blue-50 dark:bg-slate-800 border-2 border-blue-200 dark:border-slate-700"
+                                        >
+                                            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500 to-blue-600 opacity-10 rounded-full -translate-y-10 translate-x-10 group-hover:scale-150 transition-transform duration-500" />
+
+                                            <div className="relative z-10">
+                                                <div className="flex items-center gap-4 mb-6">
+                                                    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+                                                        <GraduationCap size={32} className="text-white" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-xl font-bold text-blue-700 dark:text-white">Students</h3>
+                                                        <p className="text-sm text-blue-600/80 dark:text-blue-300">Borrowing Trends</p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <p className="text-4xl font-bold text-gray-800 dark:text-white">
+                                                        {statistics.ranges && statistics.ranges.reduce((grandTotal, range) => grandTotal + statistics.months.reduce((sum, month) => sum + (statistics.student_data?.[range]?.[month] || 0), 0), 0)}
+                                                    </p>
+                                                    <p className="text-sm text-gray-500 dark:text-slate-400">Total Books Borrowed</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <ChevronRight size={28} className="text-blue-500" />
+                                            </div>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* DETAIL VIEW: FACULTY TABLE */}
+                            {selectedStatType === "faculty" && (
+                                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-right-8 duration-300">
+                                    <div className="p-8 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
+                                        <div>
+                                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                                                Monthly Statistics
+                                            </h3>
+                                            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                                Faculty Transactions
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handlePrintStatistics("faculty")}
+                                            className="print:hidden flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-indigo-500/20"
+                                        >
+                                            <Download size={16} />
+                                            Print Report
+                                        </button>
+                                    </div>
+
+                                    <div className="overflow-x-auto p-2">
+                                        <table className="w-full text-center border-collapse border border-gray-300 dark:border-slate-600">
+                                            <thead>
+                                                <tr className="bg-gray-100 dark:bg-slate-700">
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[100px] bg-gray-200 dark:bg-slate-800"></th>
+                                                    <th colSpan={12} className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-gray-700 dark:text-white uppercase">MONTH</th>
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[60px] bg-gray-200 dark:bg-slate-800"></th>
+                                                </tr>
+                                                <tr className="bg-gray-50 dark:bg-slate-700/50 text-xs font-bold uppercase">
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 text-left">Category / Range</th>
+                                                    {["JUNE", "JULY", "AUG.", "SEPT.", "OCT.", "NOV.", "DEC.", "JAN", "FEB.", "MAR.", "APR.", "MAY"].map(month => (
+                                                        <th key={month} className="border border-gray-300 dark:border-slate-600 p-2">{month}</th>
+                                                    ))}
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-50 dark:bg-yellow-900/10">TOTAL</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-sm">
+                                                {statistics.ranges && statistics.ranges.map((range) => {
+                                                    const rowTotal = statistics.months.reduce((sum, month) => {
+                                                        return sum + (statistics.faculty_data?.[range]?.[month] || 0);
                                                     }, 0);
                                                     return (
-                                                        <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">
-                                                            {colTotal > 0 ? colTotal : ""}
-                                                        </td>
+                                                        <tr key={range} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                            <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-left bg-gray-50 dark:bg-slate-800">{range}</td>
+                                                            {statistics.months.map(month => (
+                                                                <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">
+                                                                    {(statistics.faculty_data?.[range]?.[month] || 0) > 0 ? (
+                                                                        <span className="font-semibold text-gray-800 dark:text-white">{statistics.faculty_data[range][month]}</span>
+                                                                    ) : <span className="text-gray-300 dark:text-slate-600">-</span>}
+                                                                </td>
+                                                            ))}
+                                                            <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold bg-yellow-50 dark:bg-yellow-900/10">{rowTotal > 0 ? rowTotal : "-"}</td>
+                                                        </tr>
                                                     );
                                                 })}
-                                                <td className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-100 dark:bg-yellow-900/20">
-                                                    {statistics.ranges && statistics.ranges.reduce((grandTotal, range) => {
-                                                        return grandTotal + statistics.months.reduce((sum, month) => {
-                                                            return sum + (statistics.data[range]?.[month] || 0);
-                                                        }, 0);
-                                                    }, 0)}
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
+                                                <tr className="bg-gray-100 dark:bg-slate-700 font-bold">
+                                                    <td className="border border-gray-300 dark:border-slate-600 p-3 text-left">TOTAL</td>
+                                                    {statistics.months && statistics.months.map(month => {
+                                                        const colTotal = statistics.ranges.reduce((sum, range) => sum + (statistics.faculty_data?.[range]?.[month] || 0), 0);
+                                                        return <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">{colTotal > 0 ? colTotal : ""}</td>;
+                                                    })}
+                                                    <td className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-100 dark:bg-yellow-900/20">
+                                                        {statistics.ranges && statistics.ranges.reduce((grandTotal, range) => grandTotal + statistics.months.reduce((sum, month) => sum + (statistics.faculty_data?.[range]?.[month] || 0), 0), 0)}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* DETAIL VIEW: STUDENTS TABLE */}
+                            {selectedStatType === "student" && (
+                                <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden animate-in fade-in slide-in-from-right-8 duration-300">
+                                    <div className="p-8 border-b border-gray-100 dark:border-slate-700 flex justify-between items-center">
+                                        <div>
+                                            <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
+                                                Monthly Statistics
+                                            </h3>
+                                            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                                Student Transactions
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handlePrintStatistics("student")}
+                                            className="print:hidden flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold text-sm transition-all shadow-lg shadow-indigo-500/20"
+                                        >
+                                            <Download size={16} />
+                                            Print Report
+                                        </button>
+                                    </div>
+
+                                    <div className="overflow-x-auto p-2">
+                                        <table className="w-full text-center border-collapse border border-gray-300 dark:border-slate-600">
+                                            <thead>
+                                                <tr className="bg-gray-100 dark:bg-slate-700">
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[100px] bg-gray-200 dark:bg-slate-800"></th>
+                                                    <th colSpan={12} className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-gray-700 dark:text-white uppercase">MONTH</th>
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 min-w-[60px] bg-gray-200 dark:bg-slate-800"></th>
+                                                </tr>
+                                                <tr className="bg-gray-50 dark:bg-slate-700/50 text-xs font-bold uppercase">
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 text-left">Category / Range</th>
+                                                    {["JUNE", "JULY", "AUG.", "SEPT.", "OCT.", "NOV.", "DEC.", "JAN", "FEB.", "MAR.", "APR.", "MAY"].map(month => (
+                                                        <th key={month} className="border border-gray-300 dark:border-slate-600 p-2">{month}</th>
+                                                    ))}
+                                                    <th className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-50 dark:bg-yellow-900/10">TOTAL</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="text-sm">
+                                                {statistics.ranges && statistics.ranges.map((range) => {
+                                                    const rowTotal = statistics.months.reduce((sum, month) => {
+                                                        return sum + (statistics.student_data?.[range]?.[month] || 0);
+                                                    }, 0);
+                                                    return (
+                                                        <tr key={range} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                                                            <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold text-left bg-gray-50 dark:bg-slate-800">{range}</td>
+                                                            {statistics.months.map(month => (
+                                                                <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">
+                                                                    {(statistics.student_data?.[range]?.[month] || 0) > 0 ? (
+                                                                        <span className="font-semibold text-gray-800 dark:text-white">{statistics.student_data[range][month]}</span>
+                                                                    ) : <span className="text-gray-300 dark:text-slate-600">-</span>}
+                                                                </td>
+                                                            ))}
+                                                            <td className="border border-gray-300 dark:border-slate-600 p-2 font-bold bg-yellow-50 dark:bg-yellow-900/10">{rowTotal > 0 ? rowTotal : "-"}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                <tr className="bg-gray-100 dark:bg-slate-700 font-bold">
+                                                    <td className="border border-gray-300 dark:border-slate-600 p-3 text-left">TOTAL</td>
+                                                    {statistics.months && statistics.months.map(month => {
+                                                        const colTotal = statistics.ranges.reduce((sum, range) => sum + (statistics.student_data?.[range]?.[month] || 0), 0);
+                                                        return <td key={month} className="border border-gray-300 dark:border-slate-600 p-2">{colTotal > 0 ? colTotal : ""}</td>;
+                                                    })}
+                                                    <td className="border border-gray-300 dark:border-slate-600 p-2 bg-yellow-100 dark:bg-yellow-900/20">
+                                                        {statistics.ranges && statistics.ranges.reduce((grandTotal, range) => grandTotal + statistics.months.reduce((sum, month) => sum + (statistics.student_data?.[range]?.[month] || 0), 0), 0)}
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -723,72 +912,218 @@ export default function Reports() {
                     {/* Financial Report Section */}
                     {activeTab === "penalties" && (
                         <div className="space-y-6">
-                            {/* Summary Cards Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                        <DollarSign size={80} />
-                                    </div>
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Fines</p>
-                                    <h3 className="text-3xl font-bold text-gray-800 dark:text-white">₱{penalties.summary.total_fines?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
-                                </div>
-                                <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 rounded-2xl shadow-lg relative overflow-hidden text-white">
-                                    <p className="text-xs font-bold text-emerald-100 uppercase tracking-widest mb-1">Collected</p>
-                                    <h3 className="text-3xl font-bold">₱{penalties.summary.total_collected?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
-                                </div>
-                                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden">
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Pending Payment</p>
-                                    <h3 className="text-3xl font-bold text-amber-500">₱{penalties.summary.total_pending?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
-                                </div>
-                                <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden">
-                                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Late Returns</p>
-                                    <h3 className="text-3xl font-bold text-red-500">{penalties.summary.total_late_returns || 0}</h3>
-                                </div>
+                            {/* View Toggle */}
+                            <div className="flex gap-2 bg-white dark:bg-slate-800 p-2 rounded-xl w-fit border border-gray-100 dark:border-slate-700">
+                                <button
+                                    onClick={() => setFinancialView("current")}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${financialView === "current"
+                                        ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg"
+                                        : "text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                        }`}
+                                >
+                                    Current Month
+                                </button>
+                                <button
+                                    onClick={() => setFinancialView("history")}
+                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${financialView === "history"
+                                        ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg"
+                                        : "text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700"
+                                        }`}
+                                >
+                                    Financial History
+                                </button>
                             </div>
 
-                            {/* Revenue Chart */}
-                            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 p-8">
-                                <div className="flex justify-between items-center mb-8">
-                                    <div>
-                                        <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                            <TrendingUp className="text-emerald-500" size={24} /> Revenue Trend
-                                        </h3>
-                                        <p className="text-gray-400 text-sm mt-1">Monthly fine collection analysis</p>
+                            {/* Current Month View */}
+                            {financialView === "current" && financialCurrent && (
+                                <>
+                                    {/* Month Header */}
+                                    <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl p-6 text-white">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-emerald-100 text-sm font-medium uppercase tracking-wider">Current Period</p>
+                                                <h2 className="text-3xl font-bold mt-1">{financialCurrent.month_name} {financialCurrent.year}</h2>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-emerald-100 text-xs uppercase">Real-time Data</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="w-2 h-2 bg-green-300 rounded-full animate-pulse"></span>
+                                                    <span className="text-sm">Live</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => exportCsv("penalties")} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500">
-                                            <Download size={20} />
-                                        </button>
-                                    </div>
-                                </div>
 
-                                <div className="h-[400px] w-full">
-                                    <ResponsiveContainer width="100%" height={400}>
-                                        <AreaChart data={penalties.monthly} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                            <defs>
-                                                <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
-                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                                </linearGradient>
-                                                <linearGradient id="colorPending" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1} />
-                                                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                                                </linearGradient>
-                                            </defs>
-                                            <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                                            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₱${value}`} />
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                                            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: '#f1f5f9', opacity: 0.4 }} />
-                                            <Area type="monotone" dataKey="collected" name="Collected Revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCollected)" />
-                                            <Area type="monotone" dataKey="pending" name="Pending Fines" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorPending)" />
-                                        </AreaChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
+                                    {/* Current Month Cards */}
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden group">
+                                            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                                <DollarSign size={80} />
+                                            </div>
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Total Fines</p>
+                                            <h3 className="text-3xl font-bold text-gray-800 dark:text-white">₱{financialCurrent.total_fines?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
+                                        </div>
+                                        <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 rounded-2xl shadow-lg relative overflow-hidden text-white">
+                                            <p className="text-xs font-bold text-emerald-100 uppercase tracking-widest mb-1">Collected</p>
+                                            <h3 className="text-3xl font-bold">₱{financialCurrent.total_collected?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Pending Payment</p>
+                                            <h3 className="text-3xl font-bold text-amber-500">₱{financialCurrent.total_pending?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 relative overflow-hidden">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Late Returns</p>
+                                            <h3 className="text-3xl font-bold text-red-500">{financialCurrent.late_returns || 0}</h3>
+                                        </div>
+                                    </div>
+
+                                    {/* Revenue Chart */}
+                                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 p-8">
+                                        <div className="flex justify-between items-center mb-8">
+                                            <div>
+                                                <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                                                    <TrendingUp className="text-emerald-500" size={24} /> Revenue Trend (All Time)
+                                                </h3>
+                                                <p className="text-gray-400 text-sm mt-1">Monthly fine collection analysis</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => exportCsv("penalties")} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-gray-500">
+                                                    <Download size={20} />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="h-[400px] w-full">
+                                            <ResponsiveContainer width="100%" height={400}>
+                                                <BarChart data={penalties.monthly} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
+                                                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                                                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₱${value}`} />
+                                                    <RechartsTooltip cursor={{ fill: '#f1f5f9', opacity: 0.4 }} content={<CustomTooltip />} />
+                                                    <Legend />
+                                                    <Bar dataKey="collected" name="Collected Revenue" fill="#10b981" radius={[4, 4, 0, 0]} barSize={40}>
+                                                        <LabelList dataKey="collected" position="top" formatter={(value) => value > 0 ? `₱${value}` : ''} fontSize={12} fill="#059669" fontWeight="bold" />
+                                                    </Bar>
+                                                    <Bar dataKey="pending" name="Pending Fines" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={40}>
+                                                        <LabelList dataKey="pending" position="top" formatter={(value) => value > 0 ? `₱${value}` : ''} fontSize={12} fill="#d97706" fontWeight="bold" />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Financial History View */}
+                            {financialView === "history" && (
+                                <>
+                                    {/* History Header */}
+                                    <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-purple-100 text-sm font-medium uppercase tracking-wider">Financial History</p>
+                                                <h2 className="text-3xl font-bold mt-1">Monthly Breakdown</h2>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-purple-100 text-xs uppercase">Total Records</p>
+                                                <p className="text-2xl font-bold">{financialHistory.records?.length || 0}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Grand Totals */}
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">All-Time Fines</p>
+                                            <h3 className="text-3xl font-bold text-gray-800 dark:text-white">₱{financialHistory.totals?.total_fines?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
+                                        </div>
+                                        <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 p-6 rounded-2xl shadow-lg text-white">
+                                            <p className="text-xs font-bold text-emerald-100 uppercase tracking-widest mb-1">All-Time Collected</p>
+                                            <h3 className="text-3xl font-bold">₱{financialHistory.totals?.total_collected?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">All-Time Pending</p>
+                                            <h3 className="text-3xl font-bold text-amber-500">₱{financialHistory.totals?.total_pending?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0.00"}</h3>
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700">
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">All-Time Late Returns</p>
+                                            <h3 className="text-3xl font-bold text-red-500">{financialHistory.totals?.total_late_returns || 0}</h3>
+                                        </div>
+                                    </div>
+
+                                    {/* Monthly Records Table */}
+                                    <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-gray-100 dark:border-slate-700 overflow-hidden">
+                                        <div className="p-6 border-b border-gray-100 dark:border-slate-700">
+                                            <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                                                <Calendar className="text-purple-500" size={24} /> Monthly Records
+                                            </h3>
+                                            <p className="text-gray-400 text-sm mt-1">Track your financial performance month by month</p>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full">
+                                                <thead>
+                                                    <tr className="bg-gray-50 dark:bg-slate-900/50">
+                                                        <th className="text-left p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Period</th>
+                                                        <th className="text-right p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Total Fines</th>
+                                                        <th className="text-right p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Collected</th>
+                                                        <th className="text-right p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Pending</th>
+                                                        <th className="text-center p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Late Returns</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                                                    {financialHistory.records?.map((record, index) => (
+                                                        <tr key={record.id || index} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors">
+                                                            <td className="p-4">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                                                                        {record.month_name?.substring(0, 3)}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="font-bold text-gray-800 dark:text-white">{record.period}</p>
+                                                                        <p className="text-xs text-gray-400">{record.is_finalized ? "Finalized" : "Active"}</p>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <span className="font-bold text-gray-800 dark:text-white">₱{record.total_fines?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <span className="font-bold text-emerald-600">₱{record.total_collected?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <span className="font-bold text-amber-500">₱{record.total_pending?.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                {record.late_returns > 0 ? (
+                                                                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                                                                        {record.late_returns}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-gray-400">-</span>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {(!financialHistory.records || financialHistory.records.length === 0) && (
+                                                        <tr>
+                                                            <td colSpan={5} className="p-8 text-center text-gray-400">
+                                                                <AlertCircle size={48} className="mx-auto mb-4 opacity-50" />
+                                                                <p>No financial records found</p>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 }

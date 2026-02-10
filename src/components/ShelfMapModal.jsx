@@ -93,9 +93,11 @@ export default function ShelfMapModal({ book, location, onClose }) {
                         </div>
                         <div>
                             <div className="text-xs font-bold text-primary-400 uppercase tracking-wider">Exact Location</div>
-                            <div className="text-xl font-bold text-gray-800">{location.shelf || 'N/A'}</div>
+                            <div className="text-xl font-bold text-gray-800">
+                                {location.shelf || book.location || 'N/A'}
+                            </div>
                             <div className="text-sm text-gray-600">
-                                {[location.building, location.aisle].filter(Boolean).join(', ') || 'Location not specified'}
+                                {[location.building, location.aisle].filter(Boolean).join(', ') || 'Location details not specified'}
                             </div>
                         </div>
                     </div>
