@@ -29,6 +29,8 @@ import { useToast } from "../components/ui/Toast";
 import Button from "../components/ui/Button";
 import axiosClient from "../axios-client";
 import { useLibrarySettings } from "../context/LibrarySettingsContext";
+import ConfirmationModal from "../components/ui/ConfirmationModal";
+import Pagination from "../components/ui/Pagination";
 
 export default function Settings() {
     const toast = useToast();
@@ -76,6 +78,106 @@ export default function Settings() {
     const [settingsLoading, setSettingsLoading] = useState(true);
     const [settingsSaving, setSettingsSaving] = useState(false);
     const [settingsChanged, setSettingsChanged] = useState(false);
+
+    // Statistics Range State
+    const [newRange, setNewRange] = useState({ start: '', end: '', label: '' });
+    const [statsPage, setStatsPage] = useState(1);
+    const statsPerPage = 10;
+
+    // Deletion Modal State
+    const [deleteModal, setDeleteModal] = useState({ isOpen: false, index: null });
+
+    const handleStartChange = (e) => {
+        const startVal = e.target.value;
+        const updates = { start: startVal };
+
+        // Auto-fill End and Label logic
+        if (startVal && !isNaN(startVal) && startVal.trim() !== '') {
+            const startNum = parseInt(startVal);
+            // Default to 100-block size (e.g. 1000 -> 1099)
+            updates.end = startNum + 99;
+            updates.label = `${String(startNum).padStart(3, '0')}-${String(startNum + 99).padStart(3, '0')}`;
+        }
+
+        setNewRange(prev => ({ ...prev, ...updates }));
+    };
+
+    const handleAddRange = () => {
+        if (!newRange.start || !newRange.end || !newRange.label) {
+            toast.error("Please fill in all fields");
+            return;
+        }
+
+        const start = parseInt(newRange.start);
+        const end = parseInt(newRange.end);
+
+        if (isNaN(start) || isNaN(end)) {
+            toast.error("Invalid numbers");
+            return;
+        }
+
+        if (start > end) {
+            toast.error("Start cannot be greater than End");
+            return;
+        }
+
+        const currentRanges = librarySettings.statistics_ranges || [];
+
+        // Overlap Validation
+        const hasOverlap = currentRanges.some(r =>
+            (start >= r.start && start <= r.end) ||
+            (end >= r.start && end <= r.end) ||
+            (start <= r.start && end >= r.end)
+        );
+
+        if (hasOverlap) {
+            toast.error("Range overlaps with an existing range");
+            return;
+        }
+
+        const updatedRanges = [...currentRanges, {
+            start,
+            end,
+            label: newRange.label
+        }].sort((a, b) => a.start - b.start);
+
+        updateSetting('statistics_ranges', updatedRanges);
+        setNewRange({ start: '', end: '', label: '' });
+        toast.success("Range added");
+    };
+
+    const handleRemoveRange = (index) => {
+        setDeleteModal({ isOpen: true, index });
+    };
+
+    const confirmDeleteRange = () => {
+        if (deleteModal.index === null) return;
+
+        const currentRanges = librarySettings.statistics_ranges || [];
+        const updatedRanges = currentRanges.filter((_, i) => i !== deleteModal.index);
+        updateSetting('statistics_ranges', updatedRanges);
+        toast.success("Range removed");
+        setDeleteModal({ isOpen: false, index: null });
+    };
+
+
+
+    const handleQuickAdd = () => {
+        const currentRanges = librarySettings.statistics_ranges || [];
+        let nextStart = 0;
+
+        if (currentRanges.length > 0) {
+            const maxEnd = Math.max(...currentRanges.map(r => r.end));
+            nextStart = maxEnd + 1;
+        }
+
+        const nextEnd = nextStart + 99;
+        setNewRange({
+            start: nextStart.toString(),
+            end: nextEnd.toString(),
+            label: `${String(nextStart).padStart(3, '0')}-${String(nextEnd).padStart(3, '0')}`
+        });
+    };
 
     // Fetch settings from API on mount
     const fetchSettings = useCallback(async () => {
@@ -454,6 +556,7 @@ export default function Settings() {
                 <div className="w-full lg:w-56 flex-shrink-0">
                     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 p-3 space-y-1">
                         <SectionButton id="library" label="Configuration" icon={BookOpen} />
+                        <SectionButton id="statistics" label="Statistics Ranges" icon={BarChart3} />
                         <SectionButton id="data" label="Data Export" icon={Database} />
                     </div>
                 </div>
@@ -491,62 +594,102 @@ export default function Settings() {
                                                 <Info size={18} className="text-blue-600 mt-0.5 flex-shrink-0" />
                                                 <div className="text-sm text-blue-800 dark:text-blue-200">
                                                     <p className="font-medium">These settings control library operations</p>
-                                                    <p className="text-blue-600 dark:text-blue-300 mt-1">Changes will apply to all new transactions in the Circulation page.</p>
+                                                    <p className="text-blue-600 dark:text-blue-300 mt-1">Student and Faculty settings are managed separately. Changes apply to new transactions only.</p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Library Name</label>
-                                                <input
-                                                    type="text"
-                                                    value={librarySettings.library_name || ''}
-                                                    onChange={(e) => updateSetting('library_name', e.target.value)}
-                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                                />
+                                        {/* Library Name - Shared Setting */}
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-gray-700 dark:text-slate-300">Library Name</label>
+                                            <input
+                                                type="text"
+                                                value={librarySettings.library_name || ''}
+                                                onChange={(e) => updateSetting('library_name', e.target.value)}
+                                                className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                            />
+                                        </div>
+
+                                        {/* Role-Based Settings Tabs */}
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            {/* Student Settings */}
+                                            <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800/50">
+                                                <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-4 flex items-center gap-2">
+                                                    <Users size={18} />
+                                                    Student Settings
+                                                </h4>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                            <Clock size={14} /> Loan Period (days)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min="1" max="365"
+                                                            value={librarySettings.default_loan_days || 7}
+                                                            onChange={(e) => updateSetting('default_loan_days', parseInt(e.target.value) || 7)}
+                                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                            <BookOpen size={14} /> Max Loans
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min="1" max="20"
+                                                            value={librarySettings.max_loans_per_student || 3}
+                                                            onChange={(e) => updateSetting('max_loans_per_student', parseInt(e.target.value) || 3)}
+                                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                            <DollarSign size={14} /> Fine Per Day (₱)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min="0" max="1000"
+                                                            value={librarySettings.fine_per_day || 5}
+                                                            onChange={(e) => updateSetting('fine_per_day', parseInt(e.target.value) || 5)}
+                                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                                                    <Clock size={14} /> Default Loan Period (days)
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    min="1" max="365"
-                                                    value={librarySettings.default_loan_days || 7}
-                                                    onChange={(e) => updateSetting('default_loan_days', parseInt(e.target.value) || 7)}
-                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                                />
-                                                <p className="text-xs text-gray-500 dark:text-slate-400">Default borrowing period for all courses</p>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                                                    <BookOpen size={14} /> Max Loans Per Student
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    min="1" max="20"
-                                                    value={librarySettings.max_loans_per_student || 3}
-                                                    onChange={(e) => updateSetting('max_loans_per_student', parseInt(e.target.value) || 3)}
-                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                                />
-                                                <p className="text-xs text-gray-500 dark:text-slate-400">Students cannot borrow more than this limit</p>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
-                                                    <DollarSign size={14} /> Fine Per Day (₱)
-                                                </label>
-                                                <input
-                                                    type="number"
-                                                    min="0" max="1000"
-                                                    value={librarySettings.fine_per_day || 5}
-                                                    onChange={(e) => updateSetting('fine_per_day', parseInt(e.target.value) || 5)}
-                                                    className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                                                />
-                                                <p className="text-xs text-gray-500 dark:text-slate-400">Penalty charged per day for late returns</p>
+                                            {/* Faculty Settings */}
+                                            <div className="p-5 bg-gradient-to-br from-purple-50 to-fuchsia-50 dark:from-purple-900/20 dark:to-fuchsia-900/20 rounded-xl border border-purple-200 dark:border-purple-800/50">
+                                                <h4 className="font-bold text-purple-800 dark:text-purple-300 mb-4 flex items-center gap-2">
+                                                    <Users size={18} />
+                                                    Faculty Settings
+                                                </h4>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                            <Clock size={14} /> Loan Period (days)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min="1" max="365"
+                                                            value={librarySettings.faculty_loan_days || 14}
+                                                            onChange={(e) => updateSetting('faculty_loan_days', parseInt(e.target.value) || 14)}
+                                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+                                                            <BookOpen size={14} /> Max Loans
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min="1" max="20"
+                                                            value={librarySettings.max_loans_per_faculty || 5}
+                                                            onChange={(e) => updateSetting('max_loans_per_faculty', parseInt(e.target.value) || 5)}
+                                                            className="w-full px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -556,30 +699,42 @@ export default function Settings() {
                                                 <CheckCircle size={16} />
                                                 Active Settings Summary
                                             </h4>
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                                                    <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                                                        {librarySettings.default_loan_days || 7}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Days Loan</div>
-                                                </div>
-                                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                                                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                                        {librarySettings.max_loans_per_student || 3}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Max Books</div>
-                                                </div>
-                                                <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
-                                                    <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                                                        ₱{librarySettings.fine_per_day || 5}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Fine/Day</div>
-                                                </div>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 text-center">
                                                 <div className="p-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm">
                                                     <div className="text-xs font-bold text-gray-600 dark:text-gray-300 truncate">
                                                         {librarySettings.library_name || 'Library'}
                                                     </div>
                                                     <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Library</div>
+                                                </div>
+                                                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg shadow-sm">
+                                                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                                        {librarySettings.default_loan_days || 7}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Student Days</div>
+                                                </div>
+                                                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg shadow-sm">
+                                                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                                        {librarySettings.max_loans_per_student || 3}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Student Max</div>
+                                                </div>
+                                                <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg shadow-sm">
+                                                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                                        ₱{librarySettings.fine_per_day || 5}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Student Fine</div>
+                                                </div>
+                                                <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg shadow-sm">
+                                                    <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                                                        {librarySettings.faculty_loan_days || 14}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Faculty Days</div>
+                                                </div>
+                                                <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg shadow-sm">
+                                                    <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                                                        {librarySettings.max_loans_per_faculty || 5}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 mt-1">Faculty Max</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -613,6 +768,146 @@ export default function Settings() {
                                         </div>
                                     </>
                                 )}
+                            </div>
+                        )}
+
+                        {/* STATISTICS RANGES CONFIG */}
+                        {activeSection === "statistics" && (
+                            <div className="space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                                        <BarChart3 size={20} className="text-primary-500" />
+                                        Statistics Ranges
+                                    </h3>
+                                    {settingsChanged && (
+                                        <span className="text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-3 py-1 rounded-full font-medium animate-pulse">
+                                            Unsaved changes
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Info Banner */}
+                                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800/50 rounded-xl">
+                                    <div className="flex items-start gap-3">
+                                        <Info size={18} className="text-purple-600 mt-0.5 flex-shrink-0" />
+                                        <div className="text-sm text-purple-800 dark:text-purple-200">
+                                            <p className="font-medium">Configure call number ranges for reports</p>
+                                            <p className="text-purple-600 dark:text-purple-300 mt-1">
+                                                Define how borrowed books are categorized in the "Borrowing Trends" report.
+                                                Ranges should not overlap. Example: 0-99, 100-199, etc.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Add New Range */}
+                                <div className="bg-gray-50 dark:bg-slate-700/50 p-4 rounded-xl border border-gray-200 dark:border-slate-600">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">Add New Range</h4>
+                                        <button
+                                            onClick={handleQuickAdd}
+                                            className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+                                        >
+                                            <TrendingUp size={14} />
+                                            Quick Add Next
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                        <input
+                                            type="number"
+                                            placeholder="Start (e.g. 1000)"
+                                            value={newRange.start}
+                                            onChange={handleStartChange}
+                                            className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 text-sm"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="End (e.g. 1099)"
+                                            value={newRange.end}
+                                            onChange={(e) => setNewRange({ ...newRange, end: e.target.value })}
+                                            className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 text-sm"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Label (e.g. 1000-1099)"
+                                            value={newRange.label}
+                                            onChange={(e) => setNewRange({ ...newRange, label: e.target.value })}
+                                            className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 text-sm"
+                                        />
+                                        <button
+                                            onClick={handleAddRange}
+                                            className="px-3 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-sm font-medium"
+                                        >
+                                            Add Range
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Range List */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300">Active Ranges</h4>
+
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {(librarySettings.statistics_ranges || [])
+                                            .slice((statsPage - 1) * statsPerPage, statsPage * statsPerPage)
+                                            .map((range, index) => {
+                                                // Calculate actual index in the full array for deletion
+                                                const actualIndex = (statsPage - 1) * statsPerPage + index;
+                                                return (
+                                                    <div key={actualIndex} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-sm group">
+                                                        <div>
+                                                            <p className="font-bold text-gray-800 dark:text-white">{range.label}</p>
+                                                            <p className="text-xs text-gray-500 dark:text-slate-400">
+                                                                Call Numbers: {range.start} - {range.end}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleRemoveRange(actualIndex)}
+                                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <AlertCircle size={16} className="rotate-45" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+
+                                    {(librarySettings.statistics_ranges || []).length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500 dark:text-slate-400 italic">
+                                            No ranges configured. Reports will be empty.
+                                        </div>
+                                    ) : (
+                                        <Pagination
+                                            currentPage={statsPage}
+                                            totalItems={(librarySettings.statistics_ranges || []).length}
+                                            itemsPerPage={statsPerPage}
+                                            onPageChange={setStatsPage}
+                                        />
+                                    )}
+                                </div>
+
+                                <div className="pt-4 border-t border-gray-200 dark:border-slate-700 flex flex-wrap items-center gap-3">
+                                    <Button
+                                        onClick={handleSaveSettings}
+                                        icon={settingsSaving ? Loader2 : Save}
+                                        disabled={settingsSaving || !settingsChanged}
+                                        className={settingsSaving ? 'opacity-75' : ''}
+                                    >
+                                        {settingsSaving ? 'Saving...' : 'Save Configuration'}
+                                    </Button>
+                                    {settingsChanged && (
+                                        <button
+                                            onClick={handleCancelChanges}
+                                            disabled={settingsSaving}
+                                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors border border-gray-200 dark:border-slate-600"
+                                        >
+                                            Cancel
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         )}
 
@@ -669,6 +964,16 @@ export default function Settings() {
                     </div>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={deleteModal.isOpen}
+                onClose={() => setDeleteModal({ isOpen: false, index: null })}
+                onConfirm={confirmDeleteRange}
+                title="Delete Statistic Range"
+                message="Are you sure you want to delete this range? This will affect how future reports are categorized."
+                confirmText="Delete Range"
+                isDanger={true}
+            />
         </div>
     );
 }

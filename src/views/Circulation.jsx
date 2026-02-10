@@ -849,9 +849,13 @@ export default function Circulation({ onNavigateToBooks }) {
                     )}
                   </div>
                 </div>
-                {clearance.pending_fines > 0 && (
+                {(clearance.pending_fines > 0 || (clearance.block_reason && clearance.block_reason.includes('LOST BOOK'))) && (
                   <div className="mt-2 flex justify-between items-center bg-red-100 dark:bg-red-900/50 p-2 rounded">
-                    <span className="text-red-700 dark:text-red-300 font-bold text-sm">Unpaid Fines: ₱{parseFloat(clearance.pending_fines).toFixed(2)}</span>
+                    <span className="text-red-700 dark:text-red-300 font-bold text-sm">
+                      {clearance.pending_fines > 0
+                        ? `Unpaid Fines: ₱${parseFloat(clearance.pending_fines).toFixed(2)}`
+                        : 'Lost Book - Payment Required'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setShowFineModal(true)}

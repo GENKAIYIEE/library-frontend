@@ -3,6 +3,7 @@ import KioskLayout from "./KioskLayout";
 import FlipBookCard from "../components/FlipBookCard";
 import ShelfMapModal from "../components/ShelfMapModal";
 import axiosClient from "../axios-client";
+import { useToast } from "../components/ui/Toast";
 import { Search, Loader2, BookOpen, MapPin, Library, BookMarked, X, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -17,6 +18,7 @@ const GlassCard = ({ children, className = "", onClick }) => (
 );
 
 export default function PublicCatalog() {
+    const toast = useToast();
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -73,10 +75,13 @@ export default function PublicCatalog() {
         axiosClient.get(`/public/books/${book.id}`)
             .then(({ data }) => {
                 const asset = data.assets && data.assets.length > 0 ? data.assets[0] : null;
-                if (asset) setSelectedBook({ ...book, location: asset });
-                else alert("Sorry, no physical copy location found.");
+                if (asset) setSelectedBook({ ...book, foundAsset: asset });
+                else toast.error("Sorry, no physical copy location found.");
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error(err);
+                toast.error("Failed to locate book details.");
+            });
     };
 
     // Count stats
@@ -335,7 +340,7 @@ export default function PublicCatalog() {
                 {selectedBook && (
                     <ShelfMapModal
                         book={selectedBook}
-                        location={selectedBook.location}
+                        location={selectedBook.foundAsset}
                         onClose={() => setSelectedBook(null)}
                     />
                 )}

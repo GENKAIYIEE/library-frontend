@@ -9,6 +9,10 @@ export default function AssetForm({ book, onClose, onSuccess }) {
     book_title_id: book.id,
     building: "Main Library",
     aisle: "",
+    book_title_id: book.id,
+    accession_no: "", // Optional manual accession
+    building: "Main Library",
+    aisle: "",
     shelf: ""
   });
   const [loading, setLoading] = useState(false);
@@ -61,6 +65,15 @@ export default function AssetForm({ book, onClose, onSuccess }) {
               <span className="text-primary-800 font-medium">{book.title}</span> by {book.author}
             </p>
           </div>
+
+          {/* Accession Number / Barcode (Optional) */}
+          <FloatingInput
+            label="Accession No. / Barcode (Optional)"
+            value={asset.accession_no}
+            onChange={e => setAsset({ ...asset, accession_no: e.target.value })}
+            icon={Layers}
+            placeholder="Leave blank to auto-generate"
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <FloatingInput

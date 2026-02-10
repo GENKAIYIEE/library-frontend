@@ -295,19 +295,9 @@ export default function FacultyCirculation() {
           </div>
         `;
 
-                if (data.penalty > 0) {
-                    message += `
-            <div class="mt-3 p-3 bg-red-50 rounded-lg text-left">
-              <p class="text-red-700 font-bold">Late Return Penalty</p>
-              <p class="text-red-600">Days Late: ${data.days_late}</p>
-              <p class="text-red-600 text-lg font-bold">Fine: ₱${data.penalty.toFixed(2)}</p>
-            </div>
-          `;
-                }
-
                 Swal.fire({
-                    icon: data.penalty > 0 ? "warning" : "success",
-                    title: data.penalty > 0 ? "Book Returned (Late)" : "Book Returned!",
+                    icon: "success",
+                    title: "Book Returned!",
                     html: message,
                     confirmButtonColor: "#7c3aed"
                 });
@@ -417,8 +407,8 @@ export default function FacultyCirculation() {
                 <button
                     onClick={() => setActiveTab("borrow")}
                     className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === "borrow"
-                            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg"
-                            : "bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700"
+                        ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg"
+                        : "bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700"
                         }`}
                 >
                     <BookOpen size={20} />
@@ -427,8 +417,8 @@ export default function FacultyCirculation() {
                 <button
                     onClick={() => setActiveTab("return")}
                     className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === "return"
-                            ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg"
-                            : "bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700"
+                        ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg"
+                        : "bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700"
                         }`}
                 >
                     <RotateCcw size={20} />
@@ -575,7 +565,7 @@ export default function FacultyCirculation() {
                             <Button
                                 type="submit"
                                 disabled={borrowLoading || !selectedFaculty || !assetCode}
-                                isLoading={borrowLoading}
+                                loading={borrowLoading}
                                 icon={BookOpen}
                                 className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
                             >
@@ -656,7 +646,7 @@ export default function FacultyCirculation() {
                             <Button
                                 type="submit"
                                 disabled={returnLoading || !returnAssetCode}
-                                isLoading={returnLoading}
+                                loading={returnLoading}
                                 icon={CheckCircle}
                                 className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
                             >
@@ -688,8 +678,8 @@ export default function FacultyCirculation() {
                                     <div
                                         key={book.id}
                                         className={`flex items-center justify-between p-4 rounded-xl border ${book.is_overdue
-                                                ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                                                : "bg-gray-50 dark:bg-slate-700/50 border-gray-100 dark:border-slate-600"
+                                            ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                                            : "bg-gray-50 dark:bg-slate-700/50 border-gray-100 dark:border-slate-600"
                                             }`}
                                     >
                                         <div className="flex-1">

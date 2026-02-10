@@ -290,7 +290,7 @@ export default function AttendanceLog() {
                         align-items: center;
                         margin-bottom: 20px;
                         padding-bottom: 10px;
-                        border-bottom: 2px solid #1e3a8a;
+                        border-bottom: 2px solid #000;
                     }
                     .header-logo img {
                         width: 80px;
@@ -301,11 +301,10 @@ export default function AttendanceLog() {
                         text-align: center; 
                         padding: 0 10px;
                     }
-                    .header-text h1 { font-size: 16px; color: #1e3a8a; font-weight: bold; margin-bottom: 2px; }
-                    .header-text p { font-size: 11px; color: #334155; margin-top: 1px; }
+                    .header-text h1 { font-size: 16px; color: #000; font-weight: bold; margin-bottom: 2px; }
+                    .header-text p { font-size: 11px; color: #000; margin-top: 1px; }
                     
                     .iso-badge {
-                        border: 2px solid #1e3a8a;
                         padding: 2px 4px;
                         text-align: center;
                         min-width: 60px;
@@ -388,16 +387,10 @@ export default function AttendanceLog() {
                         <p>https://www.facebook.com/PCLUOfficialpage</p>
                         <p>Member: Philippine Association of Colleges & Universities</p>
                     </div>
-                    <div class="iso-badge" style="min-width: 100px; border: 1px solid #999; padding: 2px; display: inline-flex; flex-direction: column; align-items: center; background: white;">
-                        <div style="background: #1e3a8a; width: 100%; padding: 4px; display: flex; flex-direction: column; align-items: center;">
-                            <div style="display: flex; align-items: center; justify-content: center; width: 100%; border-bottom: 1px solid #ffffff40; padding-bottom: 2px; margin-bottom: 2px;">
-                                <span style="font-size: 30px; font-weight: 900; line-height: 1; color: white; font-family: Arial, sans-serif;">ISO</span>
-                                <div style="display: flex; flex-direction: column; margin-left: 6px; border-left: 1px solid white; padding-left: 6px;">
-                                    <span style="font-size: 12px; font-weight: bold; line-height: 1; color: #22d3ee;">9001</span>
-                                    <span style="font-size: 12px; font-weight: bold; line-height: 1; color: #22d3ee;">2015</span>
-                                </div>
-                            </div>
-                            <span style="font-size: 11px; font-weight: 900; color: white; letter-spacing: 1px; font-family: Arial, sans-serif; width: 100%; text-align: center;">CERTIFIED</span>
+                    <div class="logo-container" style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                        <span style="font-size: 8px; font-weight: bold; color: #000;">PLIB 014 ISSUE 1 REV 0 061614</span>
+                        <div class="iso-badge" style="width: 100px; height: 60px; display: flex; align-items: center; justify-content: center;">
+                            <img src="${window.location.origin}/iso-logo.png" alt="GCL ISO Certified" style="width: 100%; height: 100%; object-fit: contain;" />
                         </div>
                     </div>
                 </div>
@@ -502,7 +495,7 @@ export default function AttendanceLog() {
                         align-items: center;
                         margin-bottom: 20px;
                         padding-bottom: 10px;
-                        border-bottom: 2px solid #1e3a8a;
+                        border-bottom: 2px solid #000;
                     }
                     .header-logo img {
                         width: 80px;
@@ -513,8 +506,8 @@ export default function AttendanceLog() {
                         text-align: center; 
                         padding: 0 10px;
                     }
-                    .header-text h1 { font-size: 16px; color: #1e3a8a; font-weight: bold; margin-bottom: 2px; }
-                    .header-text p { font-size: 11px; color: #334155; margin-top: 1px; }
+                    .header-text h1 { font-size: 16px; color: #000; font-weight: bold; margin-bottom: 2px; }
+                    .header-text p { font-size: 11px; color: #000; margin-top: 1px; }
 
                     .iso-badge {
                         border: 2px solid #1e3a8a;
@@ -744,29 +737,23 @@ export default function AttendanceLog() {
 
                                     {/* Report Header */}
                                     {/* Report Header */}
-                                    <div className="flex justify-between items-center border-b-2 border-blue-700 pb-4 mb-4">
+                                    <div className="flex justify-between items-center border-b-2 border-black pb-4 mb-4">
                                         <div className="w-[100px] h-[100px] flex items-center justify-center">
                                             <img src="/pclu-logo.png" alt="PCLU" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1 text-center px-4">
-                                            <h1 className="text-lg font-bold text-blue-800">POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
-                                            <p className="text-sm text-slate-600">(Formerly PAMETS COLLEGES)</p>
-                                            <p className="text-xs text-slate-500">Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
-                                            <p className="text-xs text-slate-500">Tel. No. (072) 2061761 Mobile No.09171623141/09260953781</p>
-                                            <p className="text-xs text-slate-500">Email: pclucollege@pclu.com.ph</p>
-                                            <p className="text-xs text-slate-500">https://www.facebook.com/PCLUOfficialpage</p>
-                                            <p className="text-xs text-slate-500 mt-1">Member: Philippine Association of Colleges & Universities</p>
+                                            <h1 className="text-[16px] font-bold text-black">POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
+                                            <p className="text-[11px] text-black">(Formerly PAMETS COLLEGES)</p>
+                                            <p className="text-[11px] text-black">Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
+                                            <p className="text-[11px] text-black">Tel. No. (072) 2061761 Mobile No.09171623141/09260953781</p>
+                                            <p className="text-[11px] text-black">Email: pclucollege@pclu.com.ph</p>
+                                            <p className="text-[11px] text-black">https://www.facebook.com/PCLUOfficialpage</p>
+                                            <p className="text-[11px] text-black mt-1">Member: Philippine Association of Colleges & Universities</p>
                                         </div>
-                                        <div className="isolate flex flex-col items-center justify-center border border-slate-400 bg-white p-0.5 min-w-[100px]">
-                                            <div className="bg-blue-900 w-full p-1 flex flex-col items-center">
-                                                <div className="flex w-full items-center justify-center border-b border-blue-800 pb-0.5 mb-0.5">
-                                                    <span className="text-4xl font-black leading-none text-white">ISO</span>
-                                                    <div className="ml-1.5 flex flex-col border-l border-white/50 pl-1.5">
-                                                        <span className="text-xs font-bold leading-none text-cyan-400">9001</span>
-                                                        <span className="text-xs font-bold leading-none text-cyan-400">2015</span>
-                                                    </div>
-                                                </div>
-                                                <span className="text-[11px] font-black leading-none tracking-widest text-white">CERTIFIED</span>
+                                        <div className="flex flex-col items-center gap-0.5">
+                                            <span className="text-[8px] font-bold text-black leading-none">PLIB 014 ISSUE 1 REV 0 061614</span>
+                                            <div className="w-[100px] h-[60px] flex items-center justify-center">
+                                                <img src="/iso-logo.png" alt="GCL ISO Certified" className="w-full h-full object-contain" />
                                             </div>
                                         </div>
                                     </div>
@@ -921,18 +908,18 @@ export default function AttendanceLog() {
                                 <div className="mx-auto max-w-3xl p-8 shadow-lg bg-white">
                                     {/* Header */}
                                     {/* Header */}
-                                    <div className="flex justify-between items-center border-b-2 border-blue-700 pb-4 mb-6">
+                                    <div className="flex justify-between items-center border-b-2 border-black pb-4 mb-6">
                                         <div className="w-[100px] h-[100px] flex items-center justify-center">
                                             <img src="/pclu-logo.png" alt="PCLU" className="w-full h-full object-contain" />
                                         </div>
                                         <div className="flex-1 text-center px-4">
-                                            <h1 className="text-lg font-bold text-blue-800">POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
-                                            <p className="text-sm text-slate-600">(Formerly PAMETS COLLEGES)</p>
-                                            <p className="text-xs text-slate-500">Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
-                                            <p className="text-xs text-slate-500">Tel. No. (072) 2061761 Mobile No.09171623141/09260953781</p>
-                                            <p className="text-xs text-slate-500">Email: pclucollege@pclu.com.ph</p>
-                                            <p className="text-xs text-slate-500">https://www.facebook.com/PCLUOfficialpage</p>
-                                            <p className="text-xs text-slate-500 mt-1">Member: Philippine Association of Colleges & Universities</p>
+                                            <h1 className="text-[16px] font-bold text-black">POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
+                                            <p className="text-[11px] text-black">(Formerly PAMETS COLLEGES)</p>
+                                            <p className="text-[11px] text-black">Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
+                                            <p className="text-[11px] text-black">Tel. No. (072) 2061761 Mobile No.09171623141/09260953781</p>
+                                            <p className="text-[11px] text-black">Email: pclucollege@pclu.com.ph</p>
+                                            <p className="text-[11px] text-black">https://www.facebook.com/PCLUOfficialpage</p>
+                                            <p className="text-[11px] text-black mt-1">Member: Philippine Association of Colleges & Universities</p>
                                         </div>
                                         <div className="isolate flex flex-col items-center justify-center border border-slate-400 bg-white p-0.5 min-w-[100px]">
                                             <div className="bg-blue-900 w-full p-1 flex flex-col items-center">
