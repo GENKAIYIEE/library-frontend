@@ -96,7 +96,7 @@ export default function History() {
     setLoading(true);
     axiosClient.get("/transactions")
       .then(({ data }) => {
-        setTransactions(data);
+        setTransactions(data.data || data);
         setLoading(false);
       })
       .catch(() => {
@@ -114,7 +114,7 @@ export default function History() {
       // Silent Fetch
       axiosClient.get("/transactions")
         .then(({ data }) => {
-          setTransactions(data);
+          setTransactions(data.data || data);
         })
         .catch((err) => { console.warn('Silent poll failed:', err); });
     }, 5000); // 5 seconds
@@ -181,7 +181,7 @@ export default function History() {
   const filteredTransactions = transactions.filter(t => {
     // 1. apply Tab filter
     let matchesTab = true;
-    const isDeleted = !t.book_asset || !t.book_asset.book_title;
+    const isDeleted = t.book_asset?.deleted_at || t.book_asset?.book_title?.deleted_at;
 
     switch (activeTab) {
       case 'active':
@@ -353,7 +353,7 @@ export default function History() {
                   </th>
                 )}
                 <th className="p-4">Date Borrowed</th>
-                <th className="p-4">Student</th>
+                {activeTab !== 'deleted' && <th className="p-4">Student</th>}
                 <th className="p-4">Book</th>
                 <th className="p-4">Date Returned</th>
                 <th className="p-4">Fine</th>
@@ -364,7 +364,7 @@ export default function History() {
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
               {loading && (
                 <tr>
-                  <td colSpan={activeTab === 'deleted' ? "8" : "7"} className="p-8 text-center text-gray-500 dark:text-slate-400">
+                  <td colSpan="7" className="p-8 text-center text-gray-500 dark:text-slate-400">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
                       Loading logs...
@@ -375,7 +375,7 @@ export default function History() {
 
               {!loading && filteredTransactions.length === 0 && (
                 <tr>
-                  <td colSpan={activeTab === 'deleted' ? "8" : "7"} className="p-12 text-center text-gray-500 dark:text-slate-400">
+                  <td colSpan="7" className="p-12 text-center text-gray-500 dark:text-slate-400">
                     <HistoryIcon size={48} className="mx-auto mb-3 opacity-20" />
                     <p>{searchTerm ? `No records matching "${searchTerm}"` : 'No transaction records found.'}</p>
                   </td>
@@ -388,7 +388,7 @@ export default function History() {
                 const imageUrl = getImageUrl(imagePath);
 
                 // Re-calculate isDeleted for row-level actions
-                const isDeleted = !t.book_asset || !t.book_asset.book_title;
+                const isDeleted = t.book_asset?.deleted_at || t.book_asset?.book_title?.deleted_at;
 
                 return (
                   <tr key={t.id} className={`hover:bg-gray-50 dark:hover:bg-slate-700/50 transition ${selectedIds.has(t.id) ? 'bg-blue-50 dark:bg-slate-700/80' : ''}`}>
@@ -406,17 +406,19 @@ export default function History() {
                     <td className="p-4 text-gray-600 dark:text-slate-300 text-sm">
                       {new Date(t.borrowed_at).toLocaleDateString()}
                     </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-                          <User size={14} className="text-gray-400 dark:text-slate-400" />
+                    {activeTab !== 'deleted' && (
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
+                            <User size={14} className="text-gray-400 dark:text-slate-400" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-gray-800 dark:text-white text-sm">{t.user ? t.user.name : 'Unknown'}</p>
+                            <p className="text-xs text-gray-400 dark:text-slate-500">{t.user?.student_id || ''}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-bold text-gray-800 dark:text-white text-sm">{t.user ? t.user.name : 'Unknown'}</p>
-                          <p className="text-xs text-gray-400 dark:text-slate-500">{t.user?.student_id || ''}</p>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
+                    )}
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         {/* Book Thumbnail */}

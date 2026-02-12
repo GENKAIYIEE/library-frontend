@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "../components/ui/Toast";
 import axiosClient from "../axios-client";
 import PaymentModal from "./PaymentModal";
@@ -9,8 +9,9 @@ import CameraScanner from "../components/CameraScanner";
 import ScanModeSelector from "../components/ScanModeSelector";
 import StudentSearchModal from "../components/StudentSearchModal";
 import BookSelectorModal from "../components/BookSelectorModal";
-import { Search, ChevronDown, User, Book, Scan, Camera, Users, Library, AlertTriangle, Settings, Clock, DollarSign } from "lucide-react";
+import { Search, ChevronDown, User, Book, Scan, Camera, Users, Library, AlertTriangle, Settings, Clock, DollarSign, PlusCircle } from "lucide-react";
 import Swal from 'sweetalert2';
+import BookForm from "./BookForm";
 
 export default function Circulation({ onNavigateToBooks }) {
   // STATE FOR BORROWING
@@ -68,6 +69,10 @@ export default function Circulation({ onNavigateToBooks }) {
   const [showScanModal, setShowScanModal] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [showModeSelector, setShowModeSelector] = useState(false);
+
+  // Register Book State
+  const [showBookForm, setShowBookForm] = useState(false);
+  const [prefillBarcode, setPrefillBarcode] = useState("");
   const [scanMode, setScanMode] = useState(null); // 'borrow' | 'register' | 'return'
 
   // BOOK NOT FOUND MODAL STATE
@@ -153,8 +158,9 @@ export default function Circulation({ onNavigateToBooks }) {
 
   };
 
+  // Fetch borrowed books (Student Only)
   const fetchBorrowedBooks = () => {
-    axiosClient.get("/books/borrowed")
+    axiosClient.get("/books/borrowed?type=student")
       .then(({ data }) => {
         setBorrowedBooks(data);
         setFilteredBorrowedBooks(data);
@@ -292,7 +298,9 @@ export default function Circulation({ onNavigateToBooks }) {
         if (data.penalty > 0) {
           axiosClient.get("/transactions")
             .then(({ data: transactions }) => {
-              const transaction = transactions.find(t =>
+              // Fix: Handle paginated response structure
+              const transactionList = transactions.data || transactions;
+              const transaction = transactionList.find(t =>
                 t.penalty_amount == data.penalty &&
                 t.payment_status === 'pending'
               );
@@ -377,7 +385,9 @@ export default function Circulation({ onNavigateToBooks }) {
         if (data.penalty > 0) {
           axiosClient.get("/transactions")
             .then(({ data: transactions }) => {
-              const transaction = transactions.find(t =>
+              // Fix: Handle paginated response structure
+              const transactionList = transactions.data || transactions;
+              const transaction = transactionList.find(t =>
                 t.penalty_amount == data.penalty &&
                 t.payment_status === 'pending'
               );
@@ -469,9 +479,54 @@ export default function Circulation({ onNavigateToBooks }) {
           setShowNotFoundModal(true);
           setShowCameraScanner(false);
         } else if (result.status === 'borrowed') {
-          // ✅ SUCCESS: Book is borrowed, process return directly
+          // Check if borrowed by Faculty - REJECT if so
+          const borrowerType = result.borrower?.type;
+
+          if (borrowerType === 'Faculty') {
+            toast.error(`This book is borrowed by a Faculty member. Please use Faculty Circulation.`);
+            setShowCameraScanner(false);
+            return;
+          }
+
+          // ✅ SUCCESS: Confirm before processing
           setShowCameraScanner(false);
-          handleScanReturn(result.asset_code, result.title);
+
+          const borrower = result.borrower || {};
+          const borrowerName = borrower.name || 'Unknown Borrower';
+          const borrowerId = borrower.student_id || ''; // This field carries both student_id and faculty_id
+          const typeLabel = borrower.type || 'Borrower'; // 'Student' or 'Faculty'
+
+          Swal.fire({
+            title: 'Return Book?',
+            html: `
+              <div style="text-align: left; font-size: 0.95rem;">
+                <p style="color: #64748b; margin-bottom: 0.5rem;">Are you sure you want to return:</p>
+                <div style="background: #f1f5f9; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                  <p style="font-weight: 700; color: #1e293b; margin-bottom: 0.25rem;">${result.title}</p>
+                  <p style="font-family: monospace; color: #64748b; font-size: 0.8em;">${result.asset_code}</p>
+                </div>
+                
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                   <p style="text-transform: uppercase; font-size: 0.7rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.25rem;">Borrowed By</p>
+                   <p style="font-weight: 700; color: #0f172a; font-size: 1.1rem; margin-bottom: 0.25rem;">${borrowerName}</p>
+                   <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <span style="background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">${typeLabel}</span>
+                      <span style="color: #64748b; font-size: 0.9rem;">${borrowerId}</span>
+                   </div>
+                </div>
+              </div>
+            `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#10b981', // Emerald-500
+            cancelButtonColor: '#ef4444', // Red-500
+            confirmButtonText: 'Yes, Return it!',
+            focusCancel: true
+          }).then((swalResult) => {
+            if (swalResult.isConfirmed) {
+              handleScanReturn(result.asset_code, result.title);
+            }
+          });
         } else if (result.status === 'available') {
           // ❌ ERROR: Book is not currently borrowed
           toast.error(`Book "${result.title}" is not borrowed.`);
@@ -491,11 +546,10 @@ export default function Circulation({ onNavigateToBooks }) {
           toast.error(`Book already registered: "${result.title}"`);
           setShowCameraScanner(false);
         } else {
-          // ✅ SUCCESS: Book not found, navigate to register page with pre-filled code
+          // ✅ SUCCESS: Book not found, show BookForm with pre-filled code
           setShowCameraScanner(false);
-          if (onNavigateToBooks) {
-            onNavigateToBooks(scannedBarcode);
-          }
+          setPrefillBarcode(scannedBarcode);
+          setShowBookForm(true);
         }
         break;
 
@@ -520,9 +574,8 @@ export default function Circulation({ onNavigateToBooks }) {
     setShowNotFoundModal(false);
     setNotFoundBarcode("");
     // Navigate to Books page with the barcode to pre-fill
-    if (onNavigateToBooks) {
-      onNavigateToBooks(barcode);
-    }
+    setPrefillBarcode(barcode);
+    setShowBookForm(true);
   };
 
   const handleScanBorrow = (assetCode) => {
@@ -541,7 +594,9 @@ export default function Circulation({ onNavigateToBooks }) {
         if (data.penalty > 0) {
           axiosClient.get("/transactions")
             .then(({ data: transactions }) => {
-              const transaction = transactions.find(t =>
+              // Fix: Handle paginated response structure
+              const transactionList = transactions.data || transactions;
+              const transaction = transactionList.find(t =>
                 t.penalty_amount == data.penalty &&
                 t.payment_status === 'pending'
               );
@@ -1093,6 +1148,20 @@ export default function Circulation({ onNavigateToBooks }) {
           />
         )
       }
+      {/* Book Registration Form */}
+      {showBookForm && (
+        <BookForm
+          prefillBarcode={prefillBarcode}
+          onClose={() => {
+            setShowBookForm(false);
+            setPrefillBarcode("");
+          }}
+          onSuccess={() => {
+            fetchAvailableBooks(); // Refresh list to include new book
+            toast.success("Book registered successfully!");
+          }}
+        />
+      )}
     </div >
   );
 }

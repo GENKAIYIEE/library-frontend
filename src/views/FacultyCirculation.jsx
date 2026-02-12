@@ -142,6 +142,40 @@ export default function FacultyCirculation() {
     // CAMERA SCANNER HANDLERS
     // =========================================
 
+    // Handle Auto Return from Scanner
+    const handleScanReturnSubmit = (code) => {
+        setReturnLoading(true);
+
+        axiosClient.post("/faculty/return", {
+            asset_code: code.trim()
+        })
+            .then(({ data }) => {
+                let message = `
+          <div class="text-left">
+            <p><strong>Faculty:</strong> ${data.faculty_name}</p>
+            <p><strong>Book:</strong> ${data.book_title}</p>
+            <p><strong>Returned:</strong> ${new Date(data.returned_at).toLocaleDateString()}</p>
+          </div>
+        `;
+
+                Swal.fire({
+                    icon: "success",
+                    title: "Book Returned!",
+                    html: message,
+                    confirmButtonColor: "#7c3aed"
+                });
+
+                setReturnAssetCode("");
+                setReturnSelectedBook(null);
+                fetchAvailableBooks();
+                fetchBorrowedBooks();
+            })
+            .catch((err) => {
+                toast.error(err.response?.data?.message || "Failed to return book.");
+            })
+            .finally(() => setReturnLoading(false));
+    };
+
     // Handle camera scan result
     const handleScanResult = (result) => {
         const scannedBarcode = result.asset_code || result.scanned_code || "";
@@ -175,35 +209,69 @@ export default function FacultyCirculation() {
                 toast.error(`Book with barcode "${scannedBarcode}" not found in library.`);
                 setShowCameraScanner(false);
             } else if (result.status === 'borrowed') {
-                // Book is borrowed - can be returned
-                // Check if it's borrowed by faculty
-                axiosClient.get(`/faculty/borrowed`)
-                    .then(({ data }) => {
-                        const facultyBook = data.find(b => b.asset_code === result.asset_code);
-                        if (facultyBook) {
-                            setReturnAssetCode(result.asset_code);
-                            setReturnSelectedBook({
-                                asset_code: result.asset_code,
-                                title: result.title,
-                                borrower: facultyBook.faculty_name
-                            });
-                            setShowCameraScanner(false);
-                            toast.success(`Book "${result.title}" ready for return.`);
-                        } else {
-                            toast.error(`"${result.title}" is not borrowed by a faculty member.`);
-                            setShowCameraScanner(false);
-                        }
-                    })
-                    .catch(() => {
-                        // Fallback - just try to return
-                        setReturnAssetCode(result.asset_code);
-                        setReturnSelectedBook({
-                            asset_code: result.asset_code,
-                            title: result.title,
-                            borrower: "Unknown"
-                        });
-                        setShowCameraScanner(false);
-                    });
+                // Check if borrowed by Student - REJECT if so
+                const borrowerType = result.borrower?.type;
+
+                if (borrowerType === 'Student') {
+                    toast.error(`This book is borrowed by a Student. Please use Student Circulation.`);
+                    setShowCameraScanner(false);
+                    return;
+                }
+
+                // ✅ SUCCESS: Confirm before processing (Faculty)
+                setShowCameraScanner(false);
+
+                const borrower = result.borrower || {};
+                const borrowerName = borrower.name || 'Unknown Faculty';
+                const borrowerId = borrower.student_id || ''; // faculty_id
+                const typeLabel = borrower.type || 'Faculty';
+
+                Swal.fire({
+                    title: 'Return Book?',
+                    html: `
+              <div style="text-align: left; font-size: 0.95rem;">
+                <p style="color: #64748b; margin-bottom: 0.5rem;">Are you sure you want to return:</p>
+                <div style="background: #f1f5f9; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                  <p style="font-weight: 700; color: #1e293b; margin-bottom: 0.25rem;">${result.title}</p>
+                  <p style="font-family: monospace; color: #64748b; font-size: 0.8em;">${result.asset_code}</p>
+                </div>
+                
+                <div style="border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+                   <p style="text-transform: uppercase; font-size: 0.7rem; font-weight: 700; color: #94a3b8; margin-bottom: 0.25rem;">Borrowed By</p>
+                   <p style="font-weight: 700; color: #0f172a; font-size: 1.1rem; margin-bottom: 0.25rem;">${borrowerName}</p>
+                   <div style="display: flex; align-items: center; gap: 0.5rem;">
+                      <span style="background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-size: 0.75rem; font-weight: 600;">${typeLabel}</span>
+                      <span style="color: #64748b; font-size: 0.9rem;">${borrowerId}</span>
+                   </div>
+                </div>
+              </div>
+            `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#7c3aed', // Purple-600
+                    cancelButtonColor: '#ef4444', // Red-500
+                    confirmButtonText: 'Yes, Return it!',
+                    focusCancel: true
+                }).then((swalResult) => {
+                    if (swalResult.isConfirmed) {
+                        // Assuming handleReturn handles the actual API call, but FacultyCirculation uses state then manual submit or similar?
+                        // Checking existing code: handleReturn takes an 'e' event.
+                        // I should verify how to trigger return programmatically.
+                        // Existing handleScanReturn didn't exist in FacultyCirculation.
+                        // I need to implement a dedicated return handler or use the existing one differently.
+
+                        // The previous logic was: setReturnAssetCode -> setReturnSelectedBook -> User clicks "Return Book" manually?
+                        // Wait, previous logic (lines 184-191) set state and showed toast "Ready for return".
+                        // It DID NOT auto-submit.
+
+                        // The user request was "scanner will ask 1st the user to return this book".
+                        // Implies auto-submit after confirmation.
+
+                        // I need to create a helper to submit the return.
+                        handleScanReturnSubmit(result.asset_code);
+                    }
+                });
+
             } else if (result.status === 'available') {
                 toast.error(`"${result.title}" is not currently borrowed.`);
                 setShowCameraScanner(false);

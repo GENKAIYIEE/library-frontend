@@ -175,6 +175,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     setShowTitleForm(true);
   };
 
+
   // Get status badge
   const getStatusBadge = (book) => {
     const available = book.available_copies || 0;
