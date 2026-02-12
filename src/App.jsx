@@ -16,6 +16,7 @@ import { ToastProvider } from "./components/ui/Toast";
 import { ThemeProvider } from "./context/ThemeContext";
 import { LibrarySettingsProvider } from "./context/LibrarySettingsContext";
 import MainLayout from "./components/MainLayout";
+import axiosClient from "./axios-client";
 
 
 
@@ -55,8 +56,9 @@ export default function App() {
     return <PrintLibraryCard />;
   }
 
-  const token = localStorage.getItem("ACCESS_TOKEN");
-  const userName = localStorage.getItem("USER_NAME");
+  const [token, setToken] = useState(localStorage.getItem("ACCESS_TOKEN"));
+  const [userName, setUserName] = useState(localStorage.getItem("USER_NAME"));
+  const [verifying, setVerifying] = useState(!!localStorage.getItem("ACCESS_TOKEN"));
   const [activeTab, setActiveTab] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -66,6 +68,32 @@ export default function App() {
 
   // Notification count (can be connected to real data later)
   const [notificationCount, setNotificationCount] = useState(3);
+
+  // Verify token with the server on mount
+  useEffect(() => {
+    const storedToken = localStorage.getItem("ACCESS_TOKEN");
+    if (!storedToken) {
+      setVerifying(false);
+      return;
+    }
+
+    axiosClient.get('/user')
+      .then(({ data }) => {
+        // Token is valid — update state with server data
+        setToken(storedToken);
+        setUserName(data.name || localStorage.getItem("USER_NAME"));
+        setVerifying(false);
+      })
+      .catch(() => {
+        // Token is invalid or expired — clear and show login
+        localStorage.removeItem("ACCESS_TOKEN");
+        localStorage.removeItem("USER_NAME");
+        localStorage.removeItem("USER_ROLE");
+        setToken(null);
+        setUserName(null);
+        setVerifying(false);
+      });
+  }, []);
 
   const onLogout = () => {
     localStorage.clear();
@@ -87,6 +115,19 @@ export default function App() {
   const handleMenuToggle = () => {
     setMobileSidebarOpen(!mobileSidebarOpen);
   };
+
+  // SHOW LOADING WHILE VERIFYING TOKEN
+  if (verifying) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#f8fafc' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, border: '4px solid #e2e8f0', borderTop: '4px solid #3b82f6', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#64748b', fontSize: 14 }}>Verifying session...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   // IF NOT LOGGED IN -> SHOW LOGIN PAGE
   if (!token) {

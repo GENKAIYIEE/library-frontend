@@ -289,7 +289,7 @@ export default function Reports() {
                         align-items: center;
                         margin-bottom: 15px;
                         padding-bottom: 8px;
-                        border-bottom: 2px solid #1e3a8a;
+                        border-bottom: 2px solid #000;
                     }
                     .header-logo img {
                         width: 70px;
@@ -300,7 +300,7 @@ export default function Reports() {
                         text-align: center; 
                         padding: 0 10px;
                     }
-                    .header-text h1 { font-size: 14px; color: #1e3a8a; font-weight: bold; margin-bottom: 2px; }
+                    .header-text h1 { font-size: 14px; color: #000; font-weight: bold; margin-bottom: 2px; }
                     .header-text p { font-size: 10px; color: #334155; margin-top: 1px; }
                     
                     .title {

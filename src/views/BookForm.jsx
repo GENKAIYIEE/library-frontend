@@ -95,6 +95,19 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     }
   }, [prefillBarcode, bookToEdit]);
 
+  // Fetch Next Accession Number for New Books
+  useEffect(() => {
+    if (!bookToEdit) {
+      axiosClient.get('/books/next-accession')
+        .then(({ data }) => {
+          if (data.accession_number) {
+            setBook(prev => ({ ...prev, accession_no: data.accession_number }));
+          }
+        })
+        .catch(err => console.error("Failed to fetch next accession:", err));
+    }
+  }, [bookToEdit]);
+
   // Handle image selection
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -248,7 +261,8 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
             const errorMessages = Object.values(errors).flat().join('\n');
             toast.error("Validation Error: " + errorMessages);
           } else {
-            toast.error("Failed to create book. Please check your network connection.");
+            // Generic fallback
+            toast.error(response?.data?.message || "Failed to create book. Please check inputs.");
           }
         });
     }
