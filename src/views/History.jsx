@@ -25,11 +25,22 @@ export default function History() {
 
   // Status Badge Component
   const StatusBadge = ({ transaction }) => {
+    // 1. Check if Book or Title is Deleted
+    const isDeleted = transaction.book_asset?.deleted_at || transaction.book_asset?.book_title?.deleted_at;
+
+    if (isDeleted) {
+      return (
+        <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 flex items-center gap-1 w-fit mx-auto">
+          <Trash2 size={12} /> Deleted
+        </span>
+      );
+    }
+
     if (!transaction.returned_at) {
       // Check if currently overdue
       const isOverdue = new Date(transaction.due_date) < new Date();
       return (
-        <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 w-fit ml-auto ${isOverdue
+        <span className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1 w-fit mx-auto ${isOverdue
           ? 'bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
           : 'bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
           }`}>
@@ -48,7 +59,7 @@ export default function History() {
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
       return (
-        <div className="flex flex-col items-end">
+        <div className="flex flex-col items-center">
           <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800 flex items-center gap-1 w-fit">
             ⚠️ Returned Late
           </span>
@@ -62,7 +73,7 @@ export default function History() {
     }
 
     return (
-      <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 flex items-center gap-1 w-fit ml-auto">
+      <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800 flex items-center gap-1 w-fit mx-auto">
         ✓ Returned
       </span>
     );
@@ -352,13 +363,13 @@ export default function History() {
                     />
                   </th>
                 )}
-                <th className="p-4">Date Borrowed</th>
+                <th className="p-4 text-center">Date Borrowed</th>
                 {activeTab !== 'deleted' && <th className="p-4">Student</th>}
                 <th className="p-4">Book</th>
-                <th className="p-4">Date Returned</th>
-                <th className="p-4">Fine</th>
+                <th className="p-4 text-center">Date Returned</th>
+                <th className="p-4 text-right">Fine</th>
                 <th className="p-4">Payment</th>
-                <th className="p-4">Status</th>
+                <th className="p-4 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
@@ -403,7 +414,7 @@ export default function History() {
                         />
                       </td>
                     )}
-                    <td className="p-4 text-gray-600 dark:text-slate-300 text-sm">
+                    <td className="p-4 text-gray-600 dark:text-slate-300 text-sm text-center">
                       {new Date(t.borrowed_at).toLocaleDateString()}
                     </td>
                     {activeTab !== 'deleted' && (
@@ -449,10 +460,10 @@ export default function History() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-gray-600 dark:text-slate-300 text-sm">
+                    <td className="p-4 text-gray-600 dark:text-slate-300 text-sm text-center">
                       {t.returned_at ? new Date(t.returned_at).toLocaleDateString() : '-'}
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 text-right">
                       {t.penalty_amount && parseFloat(t.penalty_amount) > 0 ? (
                         <span className="font-bold text-red-600 dark:text-red-400">₱{parseFloat(t.penalty_amount).toFixed(2)}</span>
                       ) : (
@@ -519,7 +530,7 @@ export default function History() {
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 whitespace-nowrap text-right">
+                    <td className="p-4 whitespace-nowrap text-center">
                       <StatusBadge transaction={t} />
                     </td>
                   </tr>

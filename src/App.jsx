@@ -153,7 +153,7 @@ export default function App() {
             onLogout={onLogout}
             userName={userName}
           >
-            {activeTab === 'dashboard' && <Dashboard />}
+            {activeTab === 'dashboard' && <Dashboard setActiveTab={setActiveTab} />}
             {activeTab === 'students' && <Students />}
             {activeTab === 'faculty' && <Faculty />}
             {activeTab === 'faculty-circulation' && <FacultyCirculation />}
