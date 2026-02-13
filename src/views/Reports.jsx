@@ -799,7 +799,7 @@ export default function Reports() {
                                         <tr>
                                             <th className="p-6 font-medium">Rank</th>
                                             <th className="p-6 font-medium">Student</th>
-                                            <th className="p-6 font-medium">Course/Year</th> {/* NEW */}
+                                            <th className="p-6 font-medium">Course/Year</th>
                                             <th className="p-6 font-medium text-center">Active Loans</th>
                                             <th className="p-6 font-medium text-right">Total Reads</th>
                                         </tr>

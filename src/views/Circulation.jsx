@@ -663,25 +663,26 @@ export default function Circulation({ onNavigateToBooks }) {
       <BookSelectorModal
         isOpen={showBorrowBookModal}
         onClose={() => setShowBorrowBookModal(false)}
-        books={availableBooks}
         onSelect={(book) => {
           setBorrowBookCode(book.asset_code);
           setShowBorrowBookModal(false);
         }}
         title="Browse Library Catalog"
         mode="borrow"
+        apiEndpoint="/books/available/catalog"
       />
 
       <BookSelectorModal
         isOpen={showReturnBookModal}
         onClose={() => setShowReturnBookModal(false)}
-        books={borrowedBooks}
         onSelect={(book) => {
           setReturnBookCode(book.asset_code);
           setShowReturnBookModal(false);
         }}
         title="Select Book to Return"
         mode="return"
+        apiEndpoint="/books/borrowed/catalog"
+        apiParams={{ type: "student" }}
       />
 
       {/* SCANNER MODE HEADER - Deep Navy Blue Gradient */}

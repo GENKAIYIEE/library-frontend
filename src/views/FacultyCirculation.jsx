@@ -418,19 +418,20 @@ export default function FacultyCirculation() {
             <BookSelectorModal
                 isOpen={showBorrowBookModal}
                 onClose={() => setShowBorrowBookModal(false)}
-                books={availableBooks}
                 onSelect={handleSelectBorrowBook}
                 title="Browse Library Catalog"
                 mode="borrow"
+                apiEndpoint="/books/available/catalog"
             />
 
             <BookSelectorModal
                 isOpen={showReturnBookModal}
                 onClose={() => setShowReturnBookModal(false)}
-                books={borrowedBooksForModal}
                 onSelect={handleSelectReturnBook}
                 title="Select Book to Return"
                 mode="return"
+                apiEndpoint="/books/borrowed/catalog"
+                apiParams={{ type: "faculty" }}
             />
 
             {/* Header with Quick Scan */}

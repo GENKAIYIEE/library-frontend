@@ -19,7 +19,7 @@ import { getStorageUrl } from "../lib/utils";
 import PrintLabelModal from "../components/PrintLabelModal";
 import Button from "../components/ui/Button";
 import { useToast } from "../components/ui/Toast";
-import AssetForm from "./AssetForm";
+
 import BookForm from "./BookForm";
 import DamagedBooksModal from "./DamagedBooksModal";
 import LostBooksModal from "./LostBooksModal";
@@ -63,7 +63,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   const [showDamagedBooksModal, setShowDamagedBooksModal] = useState(false);
   const [editingBook, setEditingBook] = useState(null);
   const [prefillBarcode, setPrefillBarcode] = useState("");
-  const [selectedBookForCopy, setSelectedBookForCopy] = useState(null);
+
   const [selectedBookForLabel, setSelectedBookForLabel] = useState(null);
   const [imgErrors, setImgErrors] = useState({});
 
@@ -470,12 +470,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                             >
                               <Printer size={12} /> Label
                             </button>
-                            <button
-                              onClick={() => setSelectedBookForCopy(book)}
-                              className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition mr-1 font-medium"
-                            >
-                              + Copy
-                            </button>
+
                             <button onClick={() => onEdit(book)} className="text-slate-400 hover:text-[#020463] dark:hover:text-blue-400 p-2 rounded hover:bg-blue-50 dark:hover:bg-slate-700 transition" title="Edit">
                               <Edit size={16} />
                             </button>
@@ -522,18 +517,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         />
       )}
 
-      {selectedBookForCopy && (
-        <AssetForm
-          book={selectedBookForCopy}
-          onClose={() => setSelectedBookForCopy(null)}
-          onSuccess={() => {
-            if (selectedCategory) {
-              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
-            }
-            getCategories();
-          }}
-        />
-      )}
+
 
       {selectedBookForLabel && (
         <PrintLabelModal book={selectedBookForLabel} onClose={() => setSelectedBookForLabel(null)} />

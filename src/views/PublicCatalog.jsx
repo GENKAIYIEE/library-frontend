@@ -28,6 +28,11 @@ export default function PublicCatalog() {
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
 
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+
     useEffect(() => {
         // Fetch Categories
         setLoadingCategories(true);
@@ -42,33 +47,72 @@ export default function PublicCatalog() {
                 console.error("Failed to fetch categories:", err);
                 setLoadingCategories(false);
             });
+    }, []);
+
+    // Reset pagination when search or category changes
+    useEffect(() => {
+        setPage(1);
+        setHasMore(true);
+        setBooks([]); // Clear current books to show loading state or fresh results
 
         const delayDebounceFn = setTimeout(() => {
-            fetchBooks();
+            fetchBooks(1, true);
         }, 500);
         return () => clearTimeout(delayDebounceFn);
     }, [searchTerm, selectedCategory]);
 
-    const fetchBooks = () => {
-        setLoading(true);
-        const params = {};
+    const fetchBooks = (pageToFetch = 1, isFresh = false) => {
+        if (isFresh) setLoading(true);
+        else setLoadingMore(true);
+
+        const params = {
+            page: pageToFetch,
+            limit: 12
+        };
+
         if (selectedCategory !== "All") {
-            params.search = searchTerm ? `${selectedCategory} ${searchTerm}` : selectedCategory;
-        } else if (searchTerm) {
+            params.category = selectedCategory;
+        }
+
+        if (searchTerm) {
             params.search = searchTerm;
         }
 
         axiosClient.get('/public/books', { params })
             .then(({ data }) => {
-                if (data && data.data) setBooks(data.data);
-                else if (Array.isArray(data)) setBooks(data);
-                else setBooks([]);
+                const newBooks = data.data || [];
+                const meta = data; // Laravel pagination object usually has current_page, last_page, etc. at root or in meta
+
+                if (isFresh) {
+                    setBooks(newBooks);
+                } else {
+                    setBooks(prev => [...prev, ...newBooks]);
+                }
+
+                // Check if we have more pages
+                // Assuming standard Laravel pagination response structure: data, current_page, last_page
+                if (data.current_page >= data.last_page) {
+                    setHasMore(false);
+                } else {
+                    setHasMore(true);
+                }
+
                 setLoading(false);
+                setLoadingMore(false);
             })
             .catch(err => {
                 console.error(err);
                 setLoading(false);
+                setLoadingMore(false);
             });
+    };
+
+    const loadMore = () => {
+        if (!loadingMore && hasMore) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchBooks(nextPage, false);
+        }
     };
 
     const handleLocate = (book) => {
@@ -332,6 +376,33 @@ export default function PublicCatalog() {
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    {/* LOAD MORE BUTTON */}
+                    {hasMore && books.length > 0 && !loading && (
+                        <div className="flex justify-center mt-12 mb-8">
+                            <button
+                                onClick={loadMore}
+                                disabled={loadingMore}
+                                className="group relative px-8 py-3 rounded-2xl font-bold text-white transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-70 disabled:hover:scale-100 overflow-hidden"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient" />
+                                <div className="absolute inset-[1px] rounded-2xl bg-slate-900 group-hover:bg-slate-900/80 transition-colors" />
+                                <span className="relative flex items-center gap-2">
+                                    {loadingMore ? (
+                                        <>
+                                            <Loader2 size={18} className="animate-spin" />
+                                            Loading...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Load More Books
+                                            <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
+                                </span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

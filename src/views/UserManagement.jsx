@@ -113,7 +113,7 @@ export default function UserManagement() {
                         User Management
                     </h2>
                     <p className="text-gray-500 dark:text-slate-400 mt-1 ml-14">
-                        Manage administrators and view registered users
+                        Manage administrators and staff accounts
                     </p>
                 </div>
                 <button

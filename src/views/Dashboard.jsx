@@ -9,10 +9,13 @@ import CategoryPieChart from "../components/charts/CategoryPieChart";
 import GlassCard from "../components/ui/GlassCard";
 import Pagination from "../components/ui/Pagination";
 
+// ... (imports remain the same)
+
 export default function Dashboard({ setActiveTab }) {
   const [stats, setStats] = useState({
     titles: 0,
     copies: 0,
+    copies_breakdown: null, // Initialize breakdown
     loans: 0,
     students: 0,
     todayAttendance: 0
@@ -73,9 +76,9 @@ export default function Dashboard({ setActiveTab }) {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-8 p-8 min-h-screen pb-24" // Added padding-bottom for dock
+      className="space-y-8 p-8 min-h-screen pb-24"
     >
-      {/* Page Header */}
+      {/* Page Header is same */}
       <div className="flex items-center gap-4 mb-8">
         <div className="p-3 bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl shadow-lg shadow-primary-900/20">
           <LayoutDashboard size={28} className="text-white" />
@@ -91,7 +94,7 @@ export default function Dashboard({ setActiveTab }) {
       {/* STAT CARDS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <DashboardStatCard
-          title="Total Books"
+          title="Total Book Titles"
           value={stats.titles}
           icon={BookOpen}
           color="bg-blue-500"
@@ -103,6 +106,7 @@ export default function Dashboard({ setActiveTab }) {
           icon={Copy}
           color="bg-indigo-500"
           delay={0.1}
+          breakdown={stats.copies_breakdown} // Pass breakdown here
         />
         <DashboardStatCard
           title="Active Loans"
@@ -141,16 +145,12 @@ export default function Dashboard({ setActiveTab }) {
         />
       </div>
 
+      {/* ... (rest of main content grid remains same) ... */}
+
       {/* MAIN CONTENT GRID */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-
-        {/* LEFT COLUMN (2/3 width) */}
         <div className="xl:col-span-2 space-y-8">
-
-          {/* MOST POPULAR BOOKS */}
           <MostPopularBooks />
-
-          {/* RECENTLY AVAILABLE BOOKS */}
           <motion.div variants={itemVariants}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-slate-400">
@@ -174,7 +174,6 @@ export default function Dashboard({ setActiveTab }) {
               </div>
             )}
 
-            {/* Pagination for Recent Books */}
             {availableBooks.length > itemsPerPage && (
               <div className="mt-6 flex justify-center">
                 <Pagination
@@ -185,14 +184,9 @@ export default function Dashboard({ setActiveTab }) {
               </div>
             )}
           </motion.div>
-
-          {/* CHARTS SECTION (MOVED HERE) */}
-
         </div>
 
-        {/* RIGHT COLUMN (1/3 width) */}
         <div className="space-y-6">
-          {/* WELCOME BACK WIDGET */}
           <motion.div
             variants={itemVariants}
             className="relative overflow-hidden rounded-2xl shadow-xl bg-gradient-to-br from-primary-700 to-primary-900 p-6 text-white"
@@ -206,10 +200,8 @@ export default function Dashboard({ setActiveTab }) {
             <div className="absolute top-0 right-0 -mt-8 -mr-8 w-32 h-32 bg-white/10 rounded-full blur-2xl animate-pulse"></div>
           </motion.div>
 
-          {/* LEADERBOARD */}
           <Leaderboard />
 
-          {/* CATEGORIES PIE CHART */}
           <GlassCard className="p-6 h-80">
             <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Category Distribution</h3>
             <CategoryPieChart />
@@ -220,18 +212,44 @@ export default function Dashboard({ setActiveTab }) {
   );
 }
 
-function DashboardStatCard({ title, value, icon: Icon, color, delay }) {
+function DashboardStatCard({ title, value, icon: Icon, color, delay, breakdown }) {
   return (
-    <GlassCard className="p-6 flex items-center gap-4" delay={delay} hoverEffect={true}>
-      <div className={`p-4 rounded-xl ${color} bg-opacity-10 text-${color.replace('bg-', '')} shadow-sm`}>
-        <Icon size={24} className={color.replace('bg-', 'text-')} />
+    <GlassCard className="p-6 relative group overflow-hidden" delay={delay} hoverEffect={true}>
+      <div className="flex items-center gap-4 relative z-10">
+        <div className={`p-4 rounded-xl ${color} bg-opacity-10 text-${color.replace('bg-', '')} shadow-sm transition-transform group-hover:scale-110 duration-300`}>
+          <Icon size={24} className={color.replace('bg-', 'text-')} />
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">{title}</p>
+          <h3 className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
+            {value !== undefined ? value : "-"}
+          </h3>
+        </div>
       </div>
-      <div>
-        <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">{title}</p>
-        <h3 className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
-          {value !== undefined ? value : "-"}
-        </h3>
-      </div>
+
+      {/* Hover Breakdown - Only if breakdown data is provided */}
+      {breakdown && (
+        <div className="absolute inset-x-0 bottom-0 bg-gray-50/90 dark:bg-slate-800/90 backdrop-blur-sm p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out border-t border-gray-100 dark:border-slate-700">
+          <div className="flex justify-between items-center text-xs font-semibold px-2">
+            <div className="flex flex-col items-center">
+              <span className="text-emerald-500">Avail</span>
+              <span className="text-gray-700 dark:text-gray-200">{breakdown.available || 0}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-orange-500">Borr</span>
+              <span className="text-gray-700 dark:text-gray-200">{breakdown.borrowed || 0}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-red-500">Dmg</span>
+              <span className="text-gray-700 dark:text-gray-200">{breakdown.damaged || 0}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-gray-500">Lost</span>
+              <span className="text-gray-700 dark:text-gray-200">{breakdown.lost || 0}</span>
+            </div>
+          </div>
+        </div>
+      )}
     </GlassCard>
   );
 }

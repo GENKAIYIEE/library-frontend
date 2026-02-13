@@ -4,7 +4,7 @@ import axiosClient, { ASSET_URL } from "../axios-client";
 import Swal from "sweetalert2";
 import {
   Scan, X, BookOpen, User, Tag, Building2, Calendar,
-  Hash, FileText, Globe, MapPin, Image, Copy, Upload, Search, Loader2, CheckCircle
+  Hash, FileText, Globe, MapPin, Image, Copy, Upload, Search, Loader2, CheckCircle, AlertTriangle
 } from "lucide-react";
 import FloatingInput from "../components/ui/FloatingInput";
 import FloatingSelect from "../components/ui/FloatingSelect";
@@ -47,6 +47,12 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
+
+  // ── Accession Duplicate Check State ──
+  // status: 'idle' | 'checking' | 'available' | 'duplicate'
+  const [accessionStatus, setAccessionStatus] = useState('idle');
+  const [accessionConflicts, setAccessionConflicts] = useState([]); // codes that conflict
+  const accessionTimerRef = useRef(null);
 
   // Track if barcode was pre-filled from scanner
   const [isFromScanner, setIsFromScanner] = useState(false);
@@ -107,6 +113,74 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
         .catch(err => console.error("Failed to fetch next accession:", err));
     }
   }, [bookToEdit]);
+
+  // ── Debounced Accession Duplicate Check ──
+  useEffect(() => {
+    // Clear any pending timer
+    if (accessionTimerRef.current) clearTimeout(accessionTimerRef.current);
+
+    const base = book.accession_no?.trim();
+    if (!base) {
+      setAccessionStatus('idle');
+      setAccessionConflicts([]);
+      return;
+    }
+
+    setAccessionStatus('checking');
+
+    accessionTimerRef.current = setTimeout(() => {
+      const copies = parseInt(book.copies) || 0;
+      const excludeId = bookToEdit?.id || '';
+
+      // Determine which codes to check
+      let codesToCheck = [base];
+      if (!bookToEdit && copies > 1) {
+        // Generate all accession numbers that will be created
+        const match = base.match(/^(.*?)(\d+)$/);
+        if (match) {
+          const prefix = match[1];
+          const numStr = match[2];
+          const numLen = numStr.length;
+          const startNum = parseInt(numStr, 10);
+          codesToCheck = [];
+          for (let i = 0; i < copies; i++) {
+            codesToCheck.push(prefix + (startNum + i).toString().padStart(numLen, '0'));
+          }
+        } else {
+          codesToCheck = [base];
+          for (let i = 2; i <= copies; i++) {
+            codesToCheck.push(`${base}-${i}`);
+          }
+        }
+      }
+
+      // Use batch mode for efficiency
+      const params = new URLSearchParams();
+      params.set('batch', codesToCheck.join(','));
+      if (excludeId) params.set('exclude_book_id', excludeId);
+
+      axiosClient.get(`/books/check-accession?${params.toString()}`)
+        .then(({ data }) => {
+          const conflicts = [];
+          if (data.results) {
+            Object.entries(data.results).forEach(([code, info]) => {
+              if (!info.available) conflicts.push(code);
+            });
+          }
+          setAccessionConflicts(conflicts);
+          setAccessionStatus(conflicts.length > 0 ? 'duplicate' : 'available');
+        })
+        .catch(() => {
+          // Fail open — don't block form if check fails
+          setAccessionStatus('idle');
+          setAccessionConflicts([]);
+        });
+    }, 500);
+
+    return () => {
+      if (accessionTimerRef.current) clearTimeout(accessionTimerRef.current);
+    };
+  }, [book.accession_no, book.copies, bookToEdit]);
 
   // Handle image selection
   const handleImageChange = (e) => {
@@ -212,17 +286,41 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     if (bookToEdit) {
       // UPDATE MODE - Use POST with _method for Laravel
       formData.append("_method", "PUT");
+
+      // If user entered copies in edit mode, it means they want to ADD copies
+      if (book.copies && parseInt(book.copies) > 0) {
+        formData.append("added_copies", book.copies);
+
+        // Optional: sending is_damaged_copies if you had a UI for it, 
+        // but for now let's assume added copies status follows standard logic (available)
+        // or effectively reuse the is_damaged flag if you want:
+        if (isDamaged) {
+          formData.append("is_damaged_copies", "1");
+        }
+      }
+
       axiosClient.post(`/books/${bookToEdit.id}`, formData)
-        .then(() => {
+        .then((res) => {
           setLoading(false);
-          toast.success("Book updated successfully");
+          toast.success(res.data.message || "Book updated successfully");
           onSuccess(book); // Pass back updated data if needed, or just trigger refresh
           onClose();
         })
         .catch(err => {
           setLoading(false);
           console.error(err);
-          toast.error("Failed to update book");
+          const response = err.response;
+          if (response && response.status === 422) {
+            const errors = response.data.errors;
+            if (errors) {
+              const errorMessages = Object.values(errors).flat().join('\n');
+              toast.error("Validation Error: " + errorMessages);
+            } else {
+              toast.error(response.data.message || "Validation failed. Please check your inputs.");
+            }
+          } else {
+            toast.error(response?.data?.message || "Failed to update book");
+          }
         });
     } else {
       // CREATE MODE - Barcode auto-generated in backend
@@ -380,12 +478,47 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
 
               {/* 2. Accession No. & 3. Call Number */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FloatingInput
-                  label="Accession No."
-                  value={book.accession_no}
-                  onChange={e => setBook({ ...book, accession_no: e.target.value })}
-                  icon={Hash}
-                />
+                <div>
+                  <FloatingInput
+                    label="Accession No."
+                    value={book.accession_no}
+                    onChange={e => setBook({ ...book, accession_no: e.target.value })}
+                    icon={Hash}
+                    error={accessionStatus === 'duplicate' ? 'This accession number is already in use' : undefined}
+                  />
+                  {/* Real-time Status Indicator */}
+                  {book.accession_no?.trim() && accessionStatus === 'checking' && (
+                    <div className="flex items-center gap-1.5 mt-1.5 ml-1">
+                      <Loader2 size={14} className="animate-spin text-blue-500" />
+                      <span className="text-xs font-medium text-blue-500">Checking availability…</span>
+                    </div>
+                  )}
+                  {accessionStatus === 'available' && (
+                    <div className="flex items-center gap-1.5 mt-1.5 ml-1">
+                      <CheckCircle size={14} className="text-emerald-500" />
+                      <span className="text-xs font-medium text-emerald-600">Available</span>
+                    </div>
+                  )}
+                  {accessionStatus === 'duplicate' && accessionConflicts.length > 0 && (
+                    <div className="mt-1.5 ml-1">
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle size={14} className="text-red-500" />
+                        <span className="text-xs font-medium text-red-600">
+                          {accessionConflicts.length === 1
+                            ? 'Already in use'
+                            : `${accessionConflicts.length} conflicts found`}
+                        </span>
+                      </div>
+                      {accessionConflicts.length > 1 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {accessionConflicts.map(c => (
+                            <span key={c} className="px-1.5 py-0.5 bg-red-50 border border-red-200 rounded text-[10px] font-mono text-red-600">{c}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <FloatingInput
                   label="Call Number"
                   value={book.call_number}
@@ -545,15 +678,22 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
 
               {/* 18. Copy & 19. Volume */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FloatingInput
-                  label="Copies (Items)"
-                  value={book.copies} // Assuming 'copies' maps to 'Copy'
-                  onChange={e => setBook({ ...book, copies: e.target.value })}
-                  icon={Copy}
-                  type="number"
-                  min="1"
-                // disabled={!!bookToEdit} // Usually copies are handled separately on updates, but kept here for input match
-                />
+                <div className="relative">
+                  <FloatingInput
+                    label={bookToEdit ? "Add Copies (+)" : "Number of Copies"}
+                    value={book.copies}
+                    onChange={e => setBook({ ...book, copies: e.target.value })}
+                    icon={Copy}
+                    type="number"
+                    min="0"
+                    placeholder={bookToEdit ? "0" : "1"}
+                  />
+                  {bookToEdit && (
+                    <p className="text-xs text-slate-500 mt-1 ml-1">
+                      Enter number of <b>new</b> copies to add. Leave 0 to keep current.
+                    </p>
+                  )}
+                </div>
 
                 {/* Live Accession Preview */}
                 {!bookToEdit && book.accession_no && book.copies > 0 && (
@@ -627,6 +767,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 type="submit"
                 variant="form"
                 loading={loading}
+                disabled={accessionStatus === 'duplicate' || accessionStatus === 'checking'}
                 className="flex-1"
               >
                 {bookToEdit ? "Save Changes" : "Save Book"}

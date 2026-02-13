@@ -257,8 +257,8 @@ export default function History() {
       .then(({ data }) => {
         toast.success(data.message || "Records deleted successfully");
 
-        // Remove from local state
-        setTransactions(prev => prev.filter(t => !selectedIds.has(t.id)));
+        // Re-fetch from server to ensure UI matches database state
+        fetchTransactions();
 
         // Reset selection
         setSelectedIds(new Set());
