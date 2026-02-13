@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axiosClient from "../axios-client";
 import { Users, BookOpen, AlertCircle, Filter, PieChart } from "lucide-react";
+import Pagination from "../components/ui/Pagination";
 
 export default function DepartmentAnalytics() {
     const [stats, setStats] = useState({
@@ -12,6 +13,10 @@ export default function DepartmentAnalytics() {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
+
     // Filters
     const [course, setCourse] = useState("BSIT");
     const [yearLevel, setYearLevel] = useState("");
@@ -22,6 +27,7 @@ export default function DepartmentAnalytics() {
     ];
 
     useEffect(() => {
+        setCurrentPage(1); // Reset to page 1 on filter change
         fetchData();
     }, [course, yearLevel, section]);
 
@@ -37,6 +43,11 @@ export default function DepartmentAnalytics() {
             })
             .catch(() => setLoading(false));
     };
+
+    // Calculate Pagination
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentStudents = students.slice(indexOfFirstItem, indexOfLastItem);
 
     return (
         <div className="space-y-6 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
@@ -141,7 +152,7 @@ export default function DepartmentAnalytics() {
                                     </td>
                                 </tr>
                             ) : (
-                                students.map(s => (
+                                currentStudents.map(s => (
                                     <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition">
                                         <td className="p-4 font-medium text-gray-800 dark:text-gray-200">{s.name}</td>
                                         <td className="p-4">
@@ -177,6 +188,16 @@ export default function DepartmentAnalytics() {
                     </table>
                 </div>
             </div>
+
+            {/* Pagination Control */}
+            {!loading && students.length > 0 && (
+                <Pagination
+                    currentPage={currentPage}
+                    totalItems={students.length}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={setCurrentPage}
+                />
+            )}
         </div>
     );
 }

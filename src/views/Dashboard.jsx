@@ -168,19 +168,9 @@ export default function Dashboard({ setActiveTab }) {
               </GlassCard>
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
-                {availableBooks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((book, index) => (
+                {availableBooks.map((book, index) => (
                   <FlipBookCard key={book.id} book={book} index={index} />
                 ))}
-              </div>
-            )}
-
-            {availableBooks.length > itemsPerPage && (
-              <div className="mt-6 flex justify-center">
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={Math.ceil(availableBooks.length / itemsPerPage)}
-                  onPageChange={setCurrentPage}
-                />
               </div>
             )}
           </motion.div>
