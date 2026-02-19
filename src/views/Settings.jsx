@@ -275,14 +275,14 @@ export default function Settings() {
 
     const fetchDetailedStats = async () => {
         try {
-            const [booksRes, studentsRes, transactionsRes] = await Promise.all([
+            const [booksRes, studentsCountRes, transactionsRes] = await Promise.all([
                 axiosClient.get('/books').catch(() => ({ data: [] })),
-                axiosClient.get('/students').catch(() => ({ data: [] })),
+                axiosClient.get('/students/count').catch(() => ({ data: { count: 0 } })),
                 axiosClient.get('/transactions').catch(() => ({ data: [] }))
             ]);
 
             const books = booksRes.data || [];
-            const students = studentsRes.data || [];
+            const studentCount = studentsCountRes.data?.count || 0;
             const transactions = transactionsRes.data || [];
 
             const today = new Date().toDateString();
@@ -317,7 +317,7 @@ export default function Settings() {
                 totalCopies,
                 availableCopies,
                 borrowedCopies: totalCopies - availableCopies,
-                totalStudents: students.length,
+                totalStudents: studentCount,
                 activeLoans: activeLoans.length,
                 overdueLoans: overdueLoans.length,
                 pendingFines,
