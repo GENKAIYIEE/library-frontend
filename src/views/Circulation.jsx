@@ -296,20 +296,9 @@ export default function Circulation({ onNavigateToBooks }) {
         setReturnSearchQuery("");
 
         if (data.penalty > 0) {
-          axiosClient.get("/transactions")
-            .then(({ data: transactions }) => {
-              // Fix: Handle paginated response structure
-              const transactionList = transactions.data || transactions;
-              const transaction = transactionList.find(t =>
-                t.penalty_amount == data.penalty &&
-                t.payment_status === 'pending'
-              );
-              if (transaction) {
-                setPendingTransaction(transaction);
-                setIsLostBookPayment(false);
-                setShowPaymentModal(true);
-              }
-            });
+          setPendingTransaction({ ...data.transaction, fine_per_day: data.fine_per_day });
+          setIsLostBookPayment(false);
+          setShowPaymentModal(true);
           toast.warning(`Book "${bookTitle}" (${assetCode}) returned with Late Fee: ₱${data.penalty}.00 (${data.days_late} days late)`);
         } else {
           toast.success(`Success! Book "${bookTitle}" (${assetCode}) has been returned and is now available.`);
@@ -592,19 +581,8 @@ export default function Circulation({ onNavigateToBooks }) {
         const displayTitle = bookTitle || data.title || assetCode;
 
         if (data.penalty > 0) {
-          axiosClient.get("/transactions")
-            .then(({ data: transactions }) => {
-              // Fix: Handle paginated response structure
-              const transactionList = transactions.data || transactions;
-              const transaction = transactionList.find(t =>
-                t.penalty_amount == data.penalty &&
-                t.payment_status === 'pending'
-              );
-              if (transaction) {
-                setPendingTransaction(transaction);
-                setShowPaymentModal(true);
-              }
-            });
+          setPendingTransaction({ ...data.transaction, fine_per_day: data.fine_per_day });
+          setShowPaymentModal(true);
           toast.warning(`Book "${displayTitle}" returned with Late Fee: ₱${data.penalty}.00`);
         } else {
           toast.success(`Success! "${displayTitle}" has been returned.`);

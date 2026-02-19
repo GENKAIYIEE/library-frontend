@@ -102,7 +102,7 @@ export default function PaymentModal({ transaction, isLostBook = false, onClose,
                                 ₱{parseFloat(transaction.penalty_amount).toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500 mt-1">
-                                {isLostBook ? 'Book replacement price' : 'Rate: ₱5.00 per day late'}
+                                {isLostBook ? 'Book replacement price' : `Rate: ₱${parseFloat(transaction.fine_per_day || 5).toFixed(2)} per day late`}
                             </p>
                         </div>
 
