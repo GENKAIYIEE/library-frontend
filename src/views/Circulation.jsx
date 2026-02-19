@@ -29,11 +29,7 @@ export default function Circulation({ onNavigateToBooks }) {
   const [showBookDropdown, setShowBookDropdown] = useState(false);
   const [bookSearchQuery, setBookSearchQuery] = useState("");
 
-  // Students dropdown (kept for data but hidden)
-  const [students, setStudents] = useState([]);
-  const [filteredStudents, setFilteredStudents] = useState([]);
-  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
-  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  // Students
   const [showStudentSearchModal, setShowStudentSearchModal] = useState(false);
 
   // STATE FOR RETURNING
@@ -105,7 +101,6 @@ export default function Circulation({ onNavigateToBooks }) {
     fetchLibrarySettings();
     fetchAvailableBooks();
     fetchBorrowedBooks();
-    fetchStudents();
   }, []);
 
   // Filter available books
@@ -123,11 +118,7 @@ export default function Circulation({ onNavigateToBooks }) {
     }
   }, [bookSearchQuery, availableBooks]);
 
-  // Filter students
-  useEffect(() => {
-    // Keep this for future expansion or background searches
-    setFilteredStudents(students);
-  }, [students]);
+
 
   // Filter borrowed books
   useEffect(() => {
@@ -168,14 +159,6 @@ export default function Circulation({ onNavigateToBooks }) {
       .catch((err) => { console.warn('Failed to fetch borrowed books:', err); });
   };
 
-  const fetchStudents = () => {
-    axiosClient.get("/students")
-      .then(({ data }) => {
-        setStudents(data);
-        setFilteredStudents(data);
-      })
-      .catch((err) => { console.warn('Failed to fetch students:', err); });
-  };
 
   const handleSelectBook = (assetCode) => {
     setBorrowBookCode(assetCode);
@@ -245,7 +228,6 @@ export default function Circulation({ onNavigateToBooks }) {
           section: studentSection
         });
         toast.success("New student registered successfully!");
-        fetchStudents(); // Refresh local list
       } catch (err) {
         toast.error(err.response?.data?.message || "Failed to register new student.");
         return; // Stop if registration fails
@@ -656,7 +638,6 @@ export default function Circulation({ onNavigateToBooks }) {
       <StudentSearchModal
         isOpen={showStudentSearchModal}
         onClose={() => setShowStudentSearchModal(false)}
-        students={students}
         onSelect={handleSelectStudentFromModal}
       />
 
@@ -770,22 +751,33 @@ export default function Circulation({ onNavigateToBooks }) {
                     onChange={e => {
                       const val = e.target.value.toUpperCase();
                       setStudentId(val);
-                      // Smart Lookup
-                      const found = students.find(s => s.student_id === val);
-                      if (found) {
-                        setStudentName(found.name);
-                        setIsNewStudent(false);
-                        handleSelectStudent(found.student_id, found.course);
-                      } else {
-                        if (!isNewStudent) {
-                          setStudentName("");
-                          setStudentCourse("BSIT");
-                          setStudentYear("1");
-                          setStudentSection("");
-                        }
-                        setIsNewStudent(true);
-                        setClearance(null);
-                      }
+                      // Clear previous state immediately
+                      setStudentName("");
+                      setClearance(null);
+                      setIsNewStudent(true);
+                    }}
+                    onBlur={() => {
+                      // Server-side student lookup on blur (when user finishes typing)
+                      if (!studentId || studentId.length < 2) return;
+                      axiosClient.get(`/students/lookup/${encodeURIComponent(studentId)}`)
+                        .then(({ data }) => {
+                          if (data.found && data.student) {
+                            setStudentName(data.student.name);
+                            setIsNewStudent(false);
+                            handleSelectStudent(data.student.student_id, data.student.course);
+                          } else {
+                            setStudentName("");
+                            setStudentCourse("BSIT");
+                            setStudentYear("1");
+                            setStudentSection("");
+                            setIsNewStudent(true);
+                            setClearance(null);
+                          }
+                        })
+                        .catch(() => {
+                          setIsNewStudent(true);
+                          setClearance(null);
+                        });
                     }}
                     className="w-full border-2 border-gray-200 dark:border-slate-600 p-3 rounded-xl focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 outline-none transition-all bg-gray-50 dark:bg-slate-900 dark:text-white font-mono font-bold"
                     placeholder="ID No."
@@ -905,13 +897,39 @@ export default function Circulation({ onNavigateToBooks }) {
                     )}
                   </div>
                 </div>
-                {(clearance.pending_fines > 0 || (clearance.block_reason && clearance.block_reason.includes('LOST BOOK'))) && (
+
+                {/* Overdue Book Details */}
+                {clearance.overdue_count > 0 && clearance.overdue_details && (
+                  <div className="mt-2 bg-rose-100 dark:bg-rose-900/40 p-2 rounded border border-rose-200 dark:border-rose-800">
+                    <div className="text-xs font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wide mb-1">
+                      📚 {clearance.overdue_count} Overdue Book{clearance.overdue_count > 1 ? 's' : ''}
+                    </div>
+                    <div className="space-y-1">
+                      {clearance.overdue_details.map((book, i) => (
+                        <div key={i} className="flex justify-between items-center text-xs text-rose-700 dark:text-rose-300">
+                          <span className="truncate max-w-[60%] font-medium">{book.book_title} <span className="text-rose-500/60 font-mono">({book.asset_code})</span></span>
+                          <span className="font-bold whitespace-nowrap">{book.days_overdue}d late · ₱{parseFloat(book.accrued_fine).toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Total Owed Breakdown */}
+                {(clearance.total_owed > 0 || clearance.pending_fines > 0 || (clearance.block_reason && clearance.block_reason.includes('LOST BOOK'))) && (
                   <div className="mt-2 flex justify-between items-center bg-red-100 dark:bg-red-900/50 p-2 rounded">
-                    <span className="text-red-700 dark:text-red-300 font-bold text-sm">
-                      {clearance.pending_fines > 0
-                        ? `Unpaid Fines: ₱${parseFloat(clearance.pending_fines).toFixed(2)}`
-                        : 'Lost Book - Payment Required'}
-                    </span>
+                    <div className="text-sm">
+                      <span className="text-red-700 dark:text-red-300 font-bold">
+                        {clearance.total_owed > 0
+                          ? `Total Owed: ₱${parseFloat(clearance.total_owed).toFixed(2)}`
+                          : 'Lost Book - Payment Required'}
+                      </span>
+                      {clearance.pending_fines > 0 && clearance.accrued_fines > 0 && (
+                        <div className="text-[10px] text-red-600/80 dark:text-red-400/80 mt-0.5">
+                          Settled: ₱{parseFloat(clearance.pending_fines).toFixed(2)} + Accruing: ₱{parseFloat(clearance.accrued_fines).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setShowFineModal(true)}
@@ -921,6 +939,7 @@ export default function Circulation({ onNavigateToBooks }) {
                     </button>
                   </div>
                 )}
+
                 {clearance.block_reason && (
                   <div className="text-red-600 dark:text-red-400 text-sm mt-1">⚠️ {clearance.block_reason}</div>
                 )}
