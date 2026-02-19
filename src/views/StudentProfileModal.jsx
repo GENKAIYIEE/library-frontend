@@ -23,10 +23,7 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
         currentLoans: 0,
         overdueCount: 0,
         totalFines: 0,
-        pendingFines: 0,
-        accruedFines: 0,
-        totalOwed: 0,
-        finePerDay: 0
+        pendingFines: 0
     });
 
     useEffect(() => {
@@ -226,26 +223,10 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
                                 <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wide">Overdue</div>
                             </div>
 
-                            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-4 rounded-xl flex flex-col items-center justify-center text-center group hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-colors relative">
-                                <DollarSign className={cn("mb-2 group-hover:scale-110 transition-transform", stats.totalOwed > 0 ? "text-amber-500" : "text-gray-400")} size={24} />
-                                <div className={cn("text-2xl font-bold", stats.totalOwed > 0 ? "text-amber-600 dark:text-amber-200" : "text-gray-400")}>₱{formatCurrency(stats.totalOwed)}</div>
-                                <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">Total Owed</div>
-                                {(stats.pendingFines > 0 || stats.accruedFines > 0) && (
-                                    <div className="mt-2 w-full text-[10px] space-y-0.5">
-                                        {stats.pendingFines > 0 && (
-                                            <div className="flex justify-between text-amber-700 dark:text-amber-300">
-                                                <span>Settled fines</span>
-                                                <span className="font-bold">₱{formatCurrency(stats.pendingFines)}</span>
-                                            </div>
-                                        )}
-                                        {stats.accruedFines > 0 && (
-                                            <div className="flex justify-between text-rose-600 dark:text-rose-400">
-                                                <span>Overdue accruing</span>
-                                                <span className="font-bold animate-pulse">₱{formatCurrency(stats.accruedFines)}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
+                            <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 p-4 rounded-xl flex flex-col items-center justify-center text-center group hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-colors">
+                                <DollarSign className={cn("mb-2 group-hover:scale-110 transition-transform", stats.pendingFines > 0 ? "text-amber-500" : "text-gray-400")} size={24} />
+                                <div className={cn("text-2xl font-bold", stats.pendingFines > 0 ? "text-amber-600 dark:text-amber-200" : "text-gray-400")}>₱{formatCurrency(stats.pendingFines)}</div>
+                                <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">Unpaid Fines</div>
                             </div>
                         </div>
 
@@ -289,9 +270,7 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
                                                     <td className="p-4 text-center">
                                                         {!t.returned_at ? (
                                                             t.is_overdue ? (
-                                                                <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded text-xs font-bold">
-                                                                    Overdue{t.days_overdue > 0 ? ` · ${t.days_overdue}d` : ''}
-                                                                </span>
+                                                                <span className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded text-xs font-bold">Overdue</span>
                                                             ) : (
                                                                 <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs font-bold">Active</span>
                                                             )
@@ -300,22 +279,12 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
                                                         )}
                                                     </td>
                                                     <td className="p-4 pr-6 text-right">
-                                                        {/* Show accrued fine for overdue unreturned books, or penalty_amount for returned */}
-                                                        {t.is_overdue && !t.returned_at && t.accrued_fine > 0 ? (
-                                                            <div className="flex flex-col items-end">
-                                                                <span className="font-bold text-rose-600 dark:text-rose-400 animate-pulse">
-                                                                    ₱{formatCurrency(t.accrued_fine)}
-                                                                </span>
-                                                                <span className="text-[10px] text-rose-500 uppercase font-bold tracking-wider">Accruing</span>
-                                                            </div>
-                                                        ) : t.penalty_amount > 0 ? (
+                                                        {t.penalty_amount > 0 ? (
                                                             <div className="flex flex-col items-end">
                                                                 <span className={cn("font-bold", t.payment_status === 'paid' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
                                                                     ₱{formatCurrency(t.penalty_amount)}
                                                                 </span>
                                                                 {t.payment_status === 'paid' && <span className="text-[10px] text-green-500 uppercase font-bold tracking-wider">Paid</span>}
-                                                                {t.payment_status === 'pending' && <span className="text-[10px] text-red-500 uppercase font-bold tracking-wider">Unpaid</span>}
-                                                                {t.payment_status === 'waived' && <span className="text-[10px] text-blue-500 uppercase font-bold tracking-wider">Waived</span>}
                                                             </div>
                                                         ) : (
                                                             <span className="text-gray-300 dark:text-gray-600">-</span>
