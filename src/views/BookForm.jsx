@@ -54,17 +54,6 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
   const [accessionConflicts, setAccessionConflicts] = useState([]); // codes that conflict
   const accessionTimerRef = useRef(null);
 
-  // ── Edit-mode: accession number for new copies ──
-  // User can type their own or accept the auto-suggested value
-  const [newCopiesAccession, setNewCopiesAccession] = useState("");
-  const [editAccFetching, setEditAccFetching] = useState(false);
-  const [editAccUserTouched, setEditAccUserTouched] = useState(false);
-
-  // ── Edit-mode: duplicate check for new copies accession ──
-  const [editCopyAccStatus, setEditCopyAccStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'duplicate'
-  const [editCopyAccConflicts, setEditCopyAccConflicts] = useState([]);
-  const editCopyAccTimerRef = useRef(null);
-
   // Track if barcode was pre-filled from scanner
   const [isFromScanner, setIsFromScanner] = useState(false);
 
@@ -124,27 +113,6 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
         .catch(err => console.error("Failed to fetch next accession:", err));
     }
   }, [bookToEdit]);
-
-  // ── Auto-suggest accession when adding copies in edit mode ──
-  // Only auto-fill if the user hasn't manually typed a value
-  useEffect(() => {
-    if (!bookToEdit) return;
-    const copies = parseInt(book.copies) || 0;
-    if (copies > 0 && !editAccUserTouched) {
-      setEditAccFetching(true);
-      axiosClient.get('/books/next-accession')
-        .then(({ data }) => {
-          if (data.accession_number && !editAccUserTouched) {
-            setNewCopiesAccession(data.accession_number);
-          }
-        })
-        .catch(err => console.error('Failed to fetch next accession for copies:', err))
-        .finally(() => setEditAccFetching(false));
-    } else if (copies <= 0) {
-      setNewCopiesAccession("");
-      setEditAccUserTouched(false);
-    }
-  }, [bookToEdit, book.copies]);
 
   // ── Debounced Accession Duplicate Check ──
   useEffect(() => {
@@ -214,67 +182,6 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     };
   }, [book.accession_no, book.copies, bookToEdit]);
 
-  // ── Debounced Duplicate Check for Edit-Mode New Copies Accession ──
-  useEffect(() => {
-    if (editCopyAccTimerRef.current) clearTimeout(editCopyAccTimerRef.current);
-
-    const base = newCopiesAccession?.trim();
-    if (!base || !bookToEdit) {
-      setEditCopyAccStatus('idle');
-      setEditCopyAccConflicts([]);
-      return;
-    }
-
-    setEditCopyAccStatus('checking');
-
-    editCopyAccTimerRef.current = setTimeout(() => {
-      const copies = parseInt(book.copies) || 1;
-      const excludeId = bookToEdit?.id || '';
-
-      // Generate all accession numbers that will be created
-      let codesToCheck = [];
-      const match = base.match(/^(.*?)(\d+)$/);
-      if (match) {
-        const prefix = match[1];
-        const numStr = match[2];
-        const numLen = numStr.length;
-        const startNum = parseInt(numStr, 10);
-        for (let i = 0; i < copies; i++) {
-          codesToCheck.push(prefix + (startNum + i).toString().padStart(numLen, '0'));
-        }
-      } else {
-        codesToCheck = [base];
-        for (let i = 2; i <= copies; i++) {
-          codesToCheck.push(`${base}-${i}`);
-        }
-      }
-
-      const params = new URLSearchParams();
-      params.set('batch', codesToCheck.join(','));
-      if (excludeId) params.set('exclude_book_id', excludeId);
-
-      axiosClient.get(`/books/check-accession?${params.toString()}`)
-        .then(({ data }) => {
-          const conflicts = [];
-          if (data.results) {
-            Object.entries(data.results).forEach(([code, info]) => {
-              if (!info.available) conflicts.push(code);
-            });
-          }
-          setEditCopyAccConflicts(conflicts);
-          setEditCopyAccStatus(conflicts.length > 0 ? 'duplicate' : 'available');
-        })
-        .catch(() => {
-          setEditCopyAccStatus('idle');
-          setEditCopyAccConflicts([]);
-        });
-    }, 500);
-
-    return () => {
-      if (editCopyAccTimerRef.current) clearTimeout(editCopyAccTimerRef.current);
-    };
-  }, [newCopiesAccession, book.copies, bookToEdit]);
-
   // Handle image selection
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -330,38 +237,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     return previews;
   };
 
-  // Helper to generate preview of accession numbers for edit-mode copies
-  const getEditAccPreview = () => {
-    const base = newCopiesAccession?.trim();
-    if (!base) return [];
-    const count = parseInt(book.copies) || 0;
-    if (count < 1) return [];
-
-    const previews = [];
-    const match = base.match(/^(.*?)(\d+)$/);
-
-    if (match) {
-      const prefix = match[1];
-      const numberStr = match[2];
-      const numberLen = numberStr.length;
-      const startNum = parseInt(numberStr, 10);
-
-      for (let i = 0; i < count; i++) {
-        const nextNum = startNum + i;
-        const padded = nextNum.toString().padStart(numberLen, '0');
-        previews.push(`${prefix}${padded}`);
-      }
-    } else {
-      for (let i = 0; i < count; i++) {
-        if (i === 0) previews.push(base);
-        else previews.push(`${base}-${i + 1}`);
-      }
-    }
-    return previews;
-  };
-
   const accPreviews = getAccPreview();
-  const editAccPreviews = getEditAccPreview();
 
   const handleSubmit = (ev) => {
     ev.preventDefault();
@@ -415,11 +291,9 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
       if (book.copies && parseInt(book.copies) > 0) {
         formData.append("added_copies", book.copies);
 
-        // Send user-provided accession number for the new copies
-        if (newCopiesAccession?.trim()) {
-          formData.append("new_copies_accession", newCopiesAccession.trim());
-        }
-
+        // Optional: sending is_damaged_copies if you had a UI for it, 
+        // but for now let's assume added copies status follows standard logic (available)
+        // or effectively reuse the is_damaged flag if you want:
         if (isDamaged) {
           formData.append("is_damaged_copies", "1");
         }
@@ -428,14 +302,8 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
       axiosClient.post(`/books/${bookToEdit.id}`, formData)
         .then((res) => {
           setLoading(false);
-          const addedCount = res.data.added_copies || 0;
-          const accessions = res.data.assigned_accessions || [];
-          let msg = res.data.message || "Book updated successfully";
-          if (addedCount > 0 && accessions.length > 0) {
-            msg += `\nAccession Numbers: ${accessions.join(', ')}`;
-          }
-          toast.success(msg);
-          onSuccess(book);
+          toast.success(res.data.message || "Book updated successfully");
+          onSuccess(book); // Pass back updated data if needed, or just trigger refresh
           onClose();
         })
         .catch(err => {
@@ -853,106 +721,6 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                     )}
                   </div>
                 )}
-
-                {/* Edit-mode: Accession Input & Preview for New Copies */}
-                {bookToEdit && parseInt(book.copies) > 0 && (
-                  <div className="col-span-1 md:col-span-2 mt-2 space-y-3">
-                    {/* Accession Number Input for New Copies */}
-                    <div className="p-4 bg-emerald-50 border-2 border-emerald-200 rounded-xl">
-                      <label className="block text-sm font-bold text-emerald-800 mb-2 flex items-center gap-2">
-                        <Hash size={14} className="text-emerald-600" />
-                        Accession No. for New Copies
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={newCopiesAccession}
-                          onChange={e => {
-                            setNewCopiesAccession(e.target.value);
-                            setEditAccUserTouched(true);
-                          }}
-                          placeholder={editAccFetching ? "Loading suggestion..." : "e.g. LIB-2026-0042"}
-                          className="w-full px-4 py-2.5 border-2 border-emerald-300 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none transition-all text-gray-900 font-mono text-sm bg-white placeholder:text-emerald-400"
-                        />
-                        {editAccFetching && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <Loader2 size={16} className="animate-spin text-emerald-500" />
-                          </div>
-                        )}
-                        {!editAccFetching && editCopyAccStatus === 'checking' && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <Loader2 size={16} className="animate-spin text-blue-500" />
-                          </div>
-                        )}
-                        {!editAccFetching && editCopyAccStatus === 'available' && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <CheckCircle size={16} className="text-emerald-500" />
-                          </div>
-                        )}
-                        {!editAccFetching && editCopyAccStatus === 'duplicate' && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <AlertTriangle size={16} className="text-red-500" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Duplicate Warning */}
-                      {editCopyAccStatus === 'duplicate' && editCopyAccConflicts.length > 0 && (
-                        <div className="mt-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <AlertTriangle size={13} className="text-red-500" />
-                            <span className="text-xs font-bold text-red-700">
-                              {editCopyAccConflicts.length === 1
-                                ? 'This accession number is already in use'
-                                : `${editCopyAccConflicts.length} accession numbers already in use`}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {editCopyAccConflicts.map(c => (
-                              <span key={c} className="px-1.5 py-0.5 bg-red-100 border border-red-300 rounded text-[10px] font-mono text-red-700 font-semibold">{c}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Available Indicator */}
-                      {editCopyAccStatus === 'available' && (
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <CheckCircle size={13} className="text-emerald-500" />
-                          <span className="text-[11px] font-medium text-emerald-600">All accession numbers are available</span>
-                        </div>
-                      )}
-                      <p className="text-[11px] text-emerald-600/80 mt-1.5">
-                        {parseInt(book.copies) > 1
-                          ? `This is the starting number. ${parseInt(book.copies)} copies will be auto-incremented from this value.`
-                          : "This will be the accession number for the new copy."}
-                        {' '}Leave blank to auto-generate.
-                      </p>
-
-                      {/* Live Preview of Generated Accession Numbers */}
-                      {editAccPreviews.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-emerald-200">
-                          <p className="text-xs font-semibold text-emerald-700 mb-1.5 flex items-center gap-1.5">
-                            <CheckCircle size={12} className="text-emerald-500" />
-                            Will assign:
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {editAccPreviews.slice(0, 8).map(acc => (
-                              <span key={acc} className="px-2 py-1 bg-white border border-emerald-300 rounded text-xs font-mono text-emerald-700 font-semibold shadow-sm">
-                                {acc}
-                              </span>
-                            ))}
-                            {editAccPreviews.length > 8 && (
-                              <span className="px-2 py-1 text-xs text-gray-500 italic">
-                                ...and {editAccPreviews.length - 8} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
                 <FloatingInput
                   label="Volume"
                   value={book.volume}
@@ -999,10 +767,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 type="submit"
                 variant="form"
                 loading={loading}
-                disabled={
-                  accessionStatus === 'duplicate' || accessionStatus === 'checking' ||
-                  editCopyAccStatus === 'duplicate' || editCopyAccStatus === 'checking'
-                }
+                disabled={accessionStatus === 'duplicate' || accessionStatus === 'checking'}
                 className="flex-1"
               >
                 {bookToEdit ? "Save Changes" : "Save Book"}
