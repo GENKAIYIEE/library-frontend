@@ -1,9 +1,12 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { BarChart3, Calendar, ChevronLeft, ChevronRight, ClipboardList, Clock, FileText, Loader2, Printer, RefreshCw, Search, Users, X } from "lucide-react";
+import { BarChart3, Calendar, ChevronLeft, ChevronRight, ClipboardList, Clock, Download, FileText, Loader2, Printer, RefreshCw, Search, Users, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, LabelList } from "recharts";
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, WidthType, AlignmentType, TextRun, HeadingLevel, BorderStyle, ImageRun, VerticalAlign } from "docx";
+import { saveAs } from "file-saver";
 import axiosClient from "../axios-client";
 import { useLibrarySettings } from "../context/LibrarySettingsContext";
+import Swal from "sweetalert2";
 
 export default function AttendanceLog() {
     const { libraryName } = useLibrarySettings();
@@ -253,14 +256,14 @@ export default function AttendanceLog() {
 
             tableRows.push(`
                 <tr>
-                    <td class="date-col">${d}</td>
+    <td class="date-col">${d}</td>
                     ${isSunday ? `<td colspan="${courses.length + 1}" class="sunday">Sunday</td>` : `
                         ${facultyCell}
                         ${studentCells}
                         <td class="num-col total-col">${rowData.total || ''}</td>
                     `}
                 </tr>
-            `);
+    `);
         }
 
         const printContent = `
@@ -271,133 +274,154 @@ export default function AttendanceLog() {
                 <title>Monthly Statistics - ${monthLabel}</title>
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    @page { size: portrait; margin: 0.2in; }
-                    html, body { height: 99%; }
-                    body { 
-                        font-family: 'Times New Roman', serif; 
-                        padding: 20px; 
+                    @page { size: portrait; margin: 0.25in; }
+                    body {
+                        font-family: 'Times New Roman', serif;
+                        padding: 20px;
                         background: white;
                         color: #000;
                         font-size: 11px;
-                        display: flex;
-                        flex-direction: column;
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
                     .header {
                         display: flex;
-                        justify-content: space-between;
+                        justify-content: center;
                         align-items: center;
-                        margin-bottom: 20px;
-                        padding-bottom: 10px;
-                        border-bottom: 2px solid #000;
+                    }
+                    .header-logo {
+                        width: 80px;
+                        flex-shrink: 0;
+                        display: flex;
+                        justify-content: center;
                     }
                     .header-logo img {
-                        width: 80px;
-                        height: 80px;
+                        width: 60px;
+                        height: 60px;
                     }
-                    .header-text { 
-                        flex: 1; 
-                        text-align: center; 
-                        padding: 0 10px;
+                    .header-text {
+                        flex: 1;
+                        text-align: center;
                     }
-                    .header-text h1 { font-size: 16px; color: #000; font-weight: bold; margin-bottom: 2px; }
-                    .header-text p { font-size: 11px; color: #000; margin-top: 1px; }
+                    .header-text h1 { font-size: 14px; margin: 0; font-weight: bold; }
+                    .header-text p { font-size: 10px; margin: 1px 0; }
                     
+                    .iso-section {
+                        width: 80px;
+                        flex-shrink: 0;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                    }
+                    .iso-text {
+                        font-size: 6px;
+                        font-weight: bold;
+                        margin-bottom: 2px;
+                        white-space: nowrap;
+                    }
                     .iso-badge {
-                        padding: 2px 4px;
-                        text-align: center;
-                        min-width: 60px;
+                        width: 80px;
+                        height: auto;
                     }
-                    .iso-badge p { font-size: 9px; font-weight: bold; color: #1e3a8a; }
+                    
+                    .divider {
+                        border: 0;
+                        border-top: 2px solid black;
+                        margin: 5px 0 10px 0;
+                    }
 
-                    .title {
+                    .title-section {
                         text-align: center;
-                        background: #dbeafe;
-                        padding: 8px;
-                        margin: 15px 0;
-                        border-radius: 4px;
+                        margin-bottom: 10px;
+                        background-color: #DBEAFE;
+                        border: 1px solid #bfdbfe;
+                        padding: 10px;
                     }
-                    .title h2 { font-size: 16px; font-weight: bold; color: #1e3a8a; margin: 0; }
-                    .title p { font-size: 12px; margin-top: 2px; color: #334155; }
+                    .title-section h2 { 
+                        font-size: 16px; 
+                        margin: 0; 
+                        text-transform: uppercase; 
+                        color: #1e3a8a;
+                        font-weight: bold;
+                    }
+                    .title-section p { 
+                        font-size: 12px; 
+                        margin: 5px 0 0 0; 
+                        color: #000;
+                    }
+
 
                     table {
                         width: 100%;
                         border-collapse: collapse;
                         margin-bottom: 15px;
-                        flex: 1; /* Allow table to expand if needed, but margin-top auto on signatures is better */
                     }
                     th, td {
-                        border: 1px solid #333;
-                        padding: 4px 5px;
+                        border: 1px solid #000;
+                        padding: 2px;
                         text-align: center;
-                        font-size: 10px;
+                        font-size: 9px;
+                        height: 18px; 
                     }
                     th {
-                        background: #dbeafe;
-                        color: #1e3a8a;
+                        background: #DBEAFE;
                         font-weight: bold;
-                        padding: 6px 4px; /* Larger header padding */
-                        vertical-align: middle;
+                        height: auto;
                     }
-                    .date-col { width: 30px; font-weight: bold; color: #000; }
-                    .num-col { width: 45px; }
-                    .total-col { background: #dbeafe; font-weight: bold; color: #000; }
-                    .sunday { 
-                        text-align: center; 
-                        font-style: italic; 
-                        color: #94a3b8;
+                    .date-col { width: 40px; }
+                    .num-col { width: 50px; }
+                    .total-col { background: #DBEAFE; font-weight: bold; }
+                    .sunday {
+                        font-style: italic;
+                        color: #64748b;
                         background: #f8fafc;
-                        font-size: 10px;
                     }
-                    .grand-total { background: #dbeafe; font-weight: bold; }
-                    .grand-total td { border-top: 2px solid #1e3a8a; }
-                    
-                    .signatures {
+
+                    .signatures-row {
                         display: flex;
                         justify-content: space-between;
-                        margin-top: auto; /* Push to bottom */
-                        padding-top: 20px;
-                        padding-bottom: 10px;
-                        padding-left: 50px;
-                        padding-right: 50px;
+                        margin-top: 25px;
                     }
-                    .signature-box { text-align: center; }
-                    .signature-box p { font-size: 10px; margin-bottom: 40px; }
-                    .signature-line { 
-                        border-top: 1px solid #333; 
-                        padding-top: 5px; 
-                        width: 180px;
+                    .signature-box {
+                        width: 45%;
+                        text-align: center;
                     }
-                    .signature-line span { font-size: 10px; font-weight: bold; }
-                    .signature-line small { font-size: 9px; font-style: italic; display: block; }
+                    .sig-label { margin-bottom: 30px; font-size: 11px; }
+                    .sig-name {
+                        font-weight: bold;
+                        border-top: 1px solid black;
+                        display: inline-block;
+                        padding-top: 5px;
+                        width: 100%;
+                        font-size: 12px;
+                        text-transform: uppercase;
+                    }
+                    .sig-title { font-style: italic; font-size: 11px; color: #444; }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <div class="header-logo" style="width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;">
-                        <img src="${window.location.origin}/pclu-logo.png" alt="PCLU" style="width: 100%; height: 100%; object-fit: contain;" />
+                    <div class="header-logo">
+                        <img src="${window.location.origin}/pclu-logo.png" alt="PCLU" />
                     </div>
                     <div class="header-text">
                         <h1>POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
                         <p>(Formerly PAMETS COLLEGES)</p>
                         <p>Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
-                        <p>Tel. No. (072) 2061761 Mobile No.09171623141/09260953781
-                        Email: pclucollege@pclu.com.ph</p>
+                        <p>Tel. No. (072) 2061761 Mobile No. 09171623141/09260953781</p>
+                        <p>Email: pclucollege@pclu.com.ph</p>
                         <p>https://www.facebook.com/PCLUOfficialpage</p>
-                        <p>Member: Philippine Association of Colleges & Universities</p>
                     </div>
-                    <div class="logo-container" style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                        <span style="font-size: 8px; font-weight: bold; color: #000;">PLIB 014 ISSUE 1 REV 0 061614</span>
-                        <div class="iso-badge" style="width: 100px; height: 60px; display: flex; align-items: center; justify-content: center;">
-                            <img src="${window.location.origin}/iso-logo.png" alt="GCL ISO Certified" style="width: 100%; height: 100%; object-fit: contain;" />
-                        </div>
+                    <div class="iso-section">
+                        <span class="iso-text">PLIB 014 ISSUE 1 REV 0 061614</span>
+                        <img src="${window.location.origin}/iso-logo.png" class="iso-badge" alt="ISO Certified" />
                     </div>
                 </div>
+                <hr class="divider" />
 
-                <div class="title">
+                <div class="title-section">
                     <h2>MONTHLY STATISTICS</h2>
-                    <p>Month: <strong>${monthLabel.toUpperCase()}</strong></p>
+                    <p>Month: ${monthLabel.toUpperCase()}</p>
                 </div>
 
                 <table>
@@ -405,7 +429,7 @@ export default function AttendanceLog() {
                         <tr>
                             <th rowspan="2" class="date-col">DATE</th>
                             <th rowspan="2" class="num-col">FACULTY</th>
-                            <th colspan="${studentCourses.length}" class="num-col">STUDENTS</th>
+                            <th colspan="${studentCourses.length}">STUDENTS</th>
                             <th rowspan="2" class="num-col total-col">Grand TOTAL</th>
                         </tr>
                         <tr>
@@ -414,8 +438,8 @@ export default function AttendanceLog() {
                     </thead>
                     <tbody>
                         ${tableRows.join('')}
-                        <tr class="grand-total">
-                            <td><strong>TOTAL</strong></td>
+                        <tr style="background: #DBEAFE; font-weight: bold;">
+                            <td>TOTAL</td>
                             <td class="num-col">${facultyCourse ? (grandTotals[facultyCourse] || 0) : 0}</td>
                             ${studentCourses.map(c => `<td class="num-col">${grandTotals[c] || 0}</td>`).join('')}
                             <td class="total-col">${grandTotals.total || 0}</td>
@@ -423,20 +447,16 @@ export default function AttendanceLog() {
                     </tbody>
                 </table>
 
-                <div class="signatures">
+                <div class="signatures-row">
                     <div class="signature-box">
-                        <p>Prepared by:</p>
-                        <div class="signature-line">
-                            <span>_________________________</span>
-                            <small>Circulation Librarian/In-Charge</small>
-                        </div>
+                        <p class="sig-label" style="text-align: center;">Prepared by:</p>
+                        <p class="sig-name">PATRICIA NIKOLE C. MASILANG</p>
+                        <p class="sig-title">College Library Clerk</p>
                     </div>
                     <div class="signature-box">
-                        <p>Noted by:</p>
-                        <div class="signature-line">
-                            <span>_________________________</span>
-                            <small>Librarian</small>
-                        </div>
+                        <p class="sig-label" style="text-align: center;">Noted by:</p>
+                        <p class="sig-name">LEAH E. CAMSO.RL MLIS</p>
+                        <p class="sig-title">Chief Librarian</p>
                     </div>
                 </div>
             </body>
@@ -467,6 +487,737 @@ export default function AttendanceLog() {
         };
     };
 
+    const fetchImage = async (url) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            return await blob.arrayBuffer();
+        } catch (error) {
+            console.error("Error fetching image:", error);
+            return null;
+        }
+    };
+
+    // Function to generate ISO badge as a data URL (Pixel-Perfect Version)
+    // const generateIsoBadgeImage = (width, height) => { ... } // Removed as we use image file now
+
+    // Download Monthly Statistics Report as DOCX
+    const handleDownloadReportDocx = async () => {
+        if (!reportLogs?.monthlyData) return;
+
+        const { monthlyData, courses, daysInMonth, monthLabel } = reportLogs;
+        const pcluLogo = await fetchImage('/pclu-logo.png');
+        const isoLogo = await fetchImage('/iso-logo.png');
+
+        const date = new Date(selectedDate);
+        const year = date.getFullYear();
+        const month = date.getMonth();
+
+        // Identify Sundays
+        const sundays = [];
+        for (let d = 1; d <= daysInMonth; d++) {
+            if (new Date(year, month, d).getDay() === 0) sundays.push(d);
+        }
+
+        const facultyCourse = courses.find(c => c.toUpperCase() === 'FACULTY');
+        const studentCourses = courses.filter(c => c.toUpperCase() !== 'FACULTY');
+        const allColumns = [facultyCourse, ...studentCourses].filter(Boolean);
+
+        // Shared border style for all cells
+        const cellBorders = {
+            top: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+            left: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+            right: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+        };
+
+        // Helper to create a styled table cell
+        const makeCell = (text, opts = {}) => {
+            const { bold = false, shading, width, columnSpan } = opts;
+            const cellOpts = {
+                children: [
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [new TextRun({ text: String(text), bold, size: 18, font: 'Times New Roman' })],
+                    }),
+                ],
+                borders: cellBorders,
+                verticalAlign: 'center',
+            };
+            if (shading) cellOpts.shading = { fill: shading };
+            if (width) cellOpts.width = { size: width, type: WidthType.DXA };
+            if (columnSpan) cellOpts.columnSpan = columnSpan;
+            return new TableCell(cellOpts);
+        };
+
+        // Generate ISO badge dynamically - REMOVED
+        // const isoBadgeDataUrl = generateIsoBadgeImage(100, 60);
+        // const isoBadgeImageData = isoBadgeDataUrl ? isoBadgeDataUrl.split(',')[1] : null;
+
+        const NO_BORDER = {
+            top: { style: BorderStyle.NIL },
+            bottom: { style: BorderStyle.NIL },
+            left: { style: BorderStyle.NIL },
+            right: { style: BorderStyle.NIL },
+            insideVertical: { style: BorderStyle.NIL },
+            insideHorizontal: { style: BorderStyle.NIL },
+        };
+
+        // Header Table
+        const headerTable = new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: NO_BORDER,
+            rows: [
+                new TableRow({
+                    children: [
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    children: [
+                                        pcluLogo ? new ImageRun({
+                                            data: pcluLogo,
+                                            transformation: { width: 80, height: 80 },
+                                        }) : new TextRun(""),
+                                    ],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 15, type: WidthType.PERCENTAGE },
+                            verticalAlign: 'center',
+                        }),
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.', bold: true, size: 20, font: 'Times New Roman' })], // Reduced size to 10pt
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: '(Formerly PAMETS COLLEGES)', size: 16, font: 'Times New Roman' })], // Reduced size to 8pt
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504', size: 16, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'Tel. No. (072) 2061761 Mobile No. 09171623141/09260953781', size: 16, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'Email: pclucollege@pclu.com.ph', size: 16, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'https://www.facebook.com/PCLUOfficialpage', size: 16, font: 'Times New Roman' })],
+                                }),
+                            ],
+                            width: { size: 70, type: WidthType.PERCENTAGE },
+                            verticalAlign: 'center',
+                        }),
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    children: [new TextRun({ text: "PLIB 014 ISSUE 1 REV 0 061614", bold: true, size: 9, font: "Arial" })],
+                                    alignment: AlignmentType.CENTER,
+                                    spacing: { after: 50 }, // Small space after text
+                                }),
+                                new Paragraph({
+                                    children: [
+                                        isoLogo ? new ImageRun({
+                                            data: isoLogo,
+                                            transformation: { width: 80, height: 50 }, // Reverted size
+                                        }) : new TextRun(""),
+                                    ],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 15, type: WidthType.PERCENTAGE },
+                            verticalAlign: 'center',
+                        }),
+                    ],
+                }),
+            ],
+        });
+
+        // Signature Table - 2-column layout to avoid middle column border issue
+        const noBorderCell = {
+            top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        };
+        const signatureTable = new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            },
+            rows: [
+                new TableRow({
+                    children: [
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    children: [new TextRun({ text: "Prepared by:", size: 20, font: 'Times New Roman' })],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                                new Paragraph({ text: "", spacing: { before: 1000 } }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "PATRICIA NIKOLE C. MASILANG", bold: true, size: 20, font: 'Times New Roman' })],
+                                    alignment: AlignmentType.CENTER,
+                                    border: { top: { style: BorderStyle.SINGLE, size: 12, space: 1, color: "000000" } },
+                                }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "College Library Clerk", italics: true, size: 18, font: 'Times New Roman', color: "444444" })],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 40, type: WidthType.PERCENTAGE },
+                            borders: noBorderCell,
+                        }),
+                        new TableCell({
+                            children: [],
+                            width: { size: 20, type: WidthType.PERCENTAGE },
+                            borders: noBorderCell,
+                        }),
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    children: [new TextRun({ text: "Noted by:", size: 20, font: 'Times New Roman' })],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                                new Paragraph({ text: "", spacing: { before: 1000 } }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "LEAH E. CAMSO.RL MLIS", bold: true, size: 20, font: 'Times New Roman' })],
+                                    alignment: AlignmentType.CENTER,
+                                    border: { top: { style: BorderStyle.SINGLE, size: 12, space: 1, color: "000000" } },
+                                }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "Chief Librarian", italics: true, size: 18, font: 'Times New Roman', color: "444444" })],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 40, type: WidthType.PERCENTAGE },
+                            borders: noBorderCell,
+                        }),
+                    ],
+                }),
+            ],
+        });
+
+        // --- Build header rows ---
+        const headerRow1 = new TableRow({
+            children: [
+                makeCell('DATE', { bold: true, shading: 'DBEAFE', width: 600 }),
+                makeCell('FACULTY', { bold: true, shading: 'DBEAFE', width: 900 }),
+                new TableCell({
+                    children: [
+                        new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            children: [new TextRun({ text: 'STUDENTS', bold: true, size: 18, font: 'Times New Roman' })],
+                        }),
+                    ],
+                    borders: cellBorders,
+                    columnSpan: studentCourses.length,
+                    shading: { fill: 'DBEAFE' },
+                    verticalAlign: 'center',
+                }),
+                makeCell('Grand TOTAL', { bold: true, shading: 'DBEAFE', width: 1000 }),
+            ],
+        });
+
+        const headerRow2 = new TableRow({
+            children: [
+                // Empty cells for DATE and FACULTY (spanned from row above — docx doesn't merge rows, so we repeat)
+                makeCell('', { shading: 'DBEAFE', width: 600 }),
+                makeCell('', { shading: 'DBEAFE', width: 900 }),
+                ...studentCourses.map(c => makeCell(c, { bold: true, shading: 'DBEAFE', width: 900 })),
+                makeCell('', { shading: 'DBEAFE', width: 1000 }),
+            ],
+        });
+
+        // --- Build data rows ---
+        const dataRows = [];
+        const grandTotals = {};
+        courses.forEach(c => grandTotals[c] = 0);
+        grandTotals.total = 0;
+
+        for (let d = 1; d <= daysInMonth; d++) {
+            const isSunday = sundays.includes(d);
+            const rowData = monthlyData[d] || {};
+
+            // Accumulate grand totals
+            courses.forEach(c => grandTotals[c] += (rowData[c] || 0));
+            grandTotals.total += (rowData.total || 0);
+
+            if (isSunday) {
+                dataRows.push(
+                    new TableRow({
+                        children: [
+                            makeCell(String(d), { bold: true, width: 600 }),
+                            new TableCell({
+                                children: [
+                                    new Paragraph({
+                                        alignment: AlignmentType.CENTER,
+                                        children: [new TextRun({ text: 'Sunday', italics: true, color: '94A3B8', size: 18, font: 'Times New Roman' })],
+                                    }),
+                                ],
+                                borders: cellBorders,
+                                columnSpan: allColumns.length + 1,
+                                shading: { fill: 'F8FAFC' },
+                            }),
+                        ],
+                    })
+                );
+            } else {
+                dataRows.push(
+                    new TableRow({
+                        children: [
+                            makeCell(String(d), { bold: true, width: 600 }),
+                            makeCell(facultyCourse ? (rowData[facultyCourse] || '') : '', { width: 900 }),
+                            ...studentCourses.map(c => makeCell(rowData[c] || '', { width: 900 })),
+                            makeCell(rowData.total || '', { bold: true, shading: 'DBEAFE', width: 1000 }),
+                        ],
+                    })
+                );
+            }
+        }
+
+        // Grand total row
+        const grandTotalRow = new TableRow({
+            children: [
+                makeCell('TOTAL', { bold: true, shading: 'DBEAFE', width: 600 }),
+                makeCell(facultyCourse ? String(grandTotals[facultyCourse] || 0) : '0', { bold: true, shading: 'DBEAFE', width: 900 }),
+                ...studentCourses.map(c => makeCell(String(grandTotals[c] || 0), { bold: true, shading: 'DBEAFE', width: 900 })),
+                makeCell(String(grandTotals.total || 0), { bold: true, shading: 'DBEAFE', width: 1000 }),
+            ],
+        });
+
+        const table = new Table({
+            rows: [headerRow1, headerRow2, ...dataRows, grandTotalRow],
+            width: { size: 100, type: WidthType.PERCENTAGE },
+        });
+
+        // --- Build the Document ---
+        const doc = new Document({
+            sections: [
+                {
+                    properties: {
+                        page: {
+                            margin: { top: 400, bottom: 400, left: 600, right: 600 },
+                        },
+                    },
+                    children: [
+                        headerTable,
+
+                        // Thick Black Line
+                        new Paragraph({
+                            spacing: { before: 100, after: 300 },
+                            border: {
+                                bottom: { color: "000000", space: 1, style: BorderStyle.SINGLE, size: 24 },
+                            },
+                        }),
+
+                        // Title
+                        // Title Section (Blue Box)
+                        new Table({
+                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            borders: {
+                                top: { style: BorderStyle.SINGLE, size: 1, color: "1e3a8a" },
+                                bottom: { style: BorderStyle.SINGLE, size: 1, color: "1e3a8a" },
+                                left: { style: BorderStyle.SINGLE, size: 1, color: "1e3a8a" },
+                                right: { style: BorderStyle.SINGLE, size: 1, color: "1e3a8a" },
+                            },
+                            rows: [
+                                new TableRow({
+                                    children: [
+                                        new TableCell({
+                                            shading: { fill: "E0F2FE" }, // Light blue background
+                                            children: [
+                                                new Paragraph({
+                                                    alignment: AlignmentType.CENTER,
+                                                    spacing: { before: 100, after: 50 },
+                                                    children: [new TextRun({ text: "MONTHLY STATISTICS", bold: true, size: 28, font: 'Times New Roman', color: "1e3a8a" })],
+                                                }),
+                                                new Paragraph({
+                                                    alignment: AlignmentType.CENTER,
+                                                    spacing: { before: 50, after: 100 },
+                                                    children: [new TextRun({ text: "Month: " + monthLabel.toUpperCase(), bold: true, size: 20, font: 'Times New Roman' })],
+                                                }),
+                                            ],
+                                        }),
+                                    ],
+                                }),
+                            ],
+                        }),
+
+                        new Paragraph({ spacing: { before: 400 }, children: [] }),
+
+                        // Table
+                        table,
+
+                        // Spacer
+                        new Paragraph({ spacing: { before: 600 }, children: [] }),
+
+                        // Signatures
+                        signatureTable,
+                    ],
+                },
+            ],
+        });
+
+        try {
+            const blob = await Packer.toBlob(doc);
+            const defaultFilename = `Monthly_Statistics_${monthLabel.replace(/\s+/g, '_')}`;
+
+            const { value: filename } = await Swal.fire({
+                title: 'Enter Filename',
+                input: 'text',
+                inputLabel: 'Filename',
+                inputValue: defaultFilename,
+                showCancelButton: true,
+                confirmButtonText: 'Download',
+                cancelButtonText: 'Cancel',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'You need to write a filename!';
+                    }
+                }
+            });
+
+            if (filename) {
+                saveAs(blob, `${filename}.docx`);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Downloaded!',
+                    text: 'Your report has been downloaded successfully.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        } catch (err) {
+            console.error('Failed to generate DOCX:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'Something went wrong while generating the document!',
+            });
+        }
+    };
+
+    // Download Graph Statistics Report as DOCX
+    const handleDownloadGraphDocx = async () => {
+        if (!graphData || graphData.length === 0) return;
+
+        const pcluLogo = await fetchImage('/pclu-logo.png');
+        const isoLogo = await fetchImage('/iso-logo.png');
+
+        // SVG to Image conversion helper for Recharts
+        const getChartImage = async () => {
+            if (!graphRef.current) return null;
+            const svg = graphRef.current.querySelector('svg');
+            if (!svg) return null;
+
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            const img = new Image();
+
+            // Set higher resolution for printing
+            const scale = 2;
+            const width = svg.clientWidth || 800;
+            const height = svg.clientHeight || 400;
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+
+            return new Promise((resolve) => {
+                img.onload = () => {
+                    ctx.save();
+                    ctx.scale(scale, scale);
+                    ctx.fillStyle = "white"; // Add white background
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.drawImage(img, 0, 0, width, height);
+                    ctx.restore();
+                    resolve(canvas.toDataURL("image/png"));
+                };
+                img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+            });
+        };
+
+        const chartImageBase64 = await getChartImage();
+        const chartImageData = chartImageBase64 ? chartImageBase64.split(',')[1] : null;
+
+
+        // Shared border style
+        const cellBorders = {
+            top: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+            bottom: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+            left: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+            right: { style: BorderStyle.SINGLE, size: 1, color: '333333' },
+        };
+
+        // Header Table
+        const headerTable = new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+                top: { style: BorderStyle.NIL },
+                bottom: { style: BorderStyle.NIL },
+                left: { style: BorderStyle.NIL },
+                right: { style: BorderStyle.NIL },
+                insideVertical: { style: BorderStyle.NIL },
+                insideHorizontal: { style: BorderStyle.NIL },
+            },
+            rows: [
+                new TableRow({
+                    children: [
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    children: [
+                                        pcluLogo ? new ImageRun({
+                                            data: pcluLogo,
+                                            transformation: { width: 80, height: 80 },
+                                        }) : new TextRun(""),
+                                    ],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 15, type: WidthType.PERCENTAGE },
+                        }),
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.', bold: true, size: 24, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: '(Formerly PAMETS COLLEGES)', size: 18, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504', size: 18, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'Tel. No. (072) 2061761 Mobile No. 09171623141/09260953781', size: 18, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'Email: pclucollege@pclu.com.ph', size: 18, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'https://www.facebook.com/PCLUOfficialpage', size: 18, font: 'Times New Roman' })],
+                                }),
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [new TextRun({ text: 'Member: Philippine Association of Colleges & Universities', size: 18, font: 'Times New Roman' })],
+                                }),
+                            ],
+                            width: { size: 70, type: WidthType.PERCENTAGE },
+                        }),
+                        new TableCell({
+                            children: [
+                                new Paragraph({
+                                    children: [new TextRun({ text: "PLIB 014 ISSUE 1 REV 0 061614", bold: true, size: 9, font: "Arial" })],
+                                    alignment: AlignmentType.CENTER,
+                                    spacing: { after: 50 },
+                                }),
+                                new Paragraph({
+                                    children: [
+                                        isoLogo ? new ImageRun({
+                                            data: isoLogo,
+                                            transformation: { width: 80, height: 50 },
+                                        }) : new TextRun(""),
+                                    ],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 15, type: WidthType.PERCENTAGE },
+                            verticalAlign: 'center',
+                        }),
+                    ],
+                }),
+            ],
+        });
+
+        const noBorderCell = {
+            top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        };
+        const signatureTable = new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            },
+            rows: [
+                new TableRow({
+                    children: [
+                        new TableCell({
+                            children: [
+                                new Paragraph({ children: [new TextRun({ text: "Prepared by:", bold: false, size: 20, font: 'Times New Roman' })], alignment: AlignmentType.CENTER }),
+                                new Paragraph({ text: "", spacing: { before: 300 } }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "PATRICIA NIKOLE C. MASILANG", bold: true, size: 20, font: 'Times New Roman' })],
+                                    alignment: AlignmentType.CENTER,
+                                    border: { top: { style: BorderStyle.SINGLE, size: 12, space: 1, color: "000000" } },
+                                }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "College Library Clerk", italics: true, size: 18, font: 'Times New Roman', color: "444444" })],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 40, type: WidthType.PERCENTAGE },
+                            borders: noBorderCell,
+                        }),
+                        new TableCell({
+                            children: [],
+                            width: { size: 20, type: WidthType.PERCENTAGE },
+                            borders: noBorderCell,
+                        }),
+                        new TableCell({
+                            children: [
+                                new Paragraph({ children: [new TextRun({ text: "Noted by:", bold: false, size: 20, font: 'Times New Roman' })], alignment: AlignmentType.CENTER }),
+                                new Paragraph({ text: "", spacing: { before: 300 } }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "LEAH E. CAMSO.RL MLIS", bold: true, size: 20, font: 'Times New Roman' })],
+                                    alignment: AlignmentType.CENTER,
+                                    border: { top: { style: BorderStyle.SINGLE, size: 12, space: 1, color: "000000" } },
+                                }),
+                                new Paragraph({
+                                    children: [new TextRun({ text: "Chief Librarian", italics: true, size: 18, font: 'Times New Roman', color: "444444" })],
+                                    alignment: AlignmentType.CENTER,
+                                }),
+                            ],
+                            width: { size: 40, type: WidthType.PERCENTAGE },
+                            borders: noBorderCell,
+                        }),
+                    ],
+                }),
+            ],
+        });
+
+        const doc = new Document({
+            sections: [
+                {
+                    properties: {
+                        page: {
+                            margin: { top: 720, bottom: 720, left: 720, right: 720 },
+                        },
+                    },
+                    children: [
+                        headerTable,
+
+                        // Thick Black Line
+                        new Paragraph({
+                            spacing: { before: 100, after: 300 },
+                            border: {
+                                bottom: { color: "000000", space: 1, style: BorderStyle.SINGLE, size: 6 },
+                            },
+                        }),
+
+                        // Statistics Blue Bar (Consolidated Title)
+                        new Table({
+                            width: { size: 100, type: WidthType.PERCENTAGE },
+                            borders: {
+                                top: { style: BorderStyle.NIL },
+                                bottom: { style: BorderStyle.NIL },
+                                left: { style: BorderStyle.NIL },
+                                right: { style: BorderStyle.NIL },
+                                insideVertical: { style: BorderStyle.NIL },
+                                insideHorizontal: { style: BorderStyle.NIL },
+                            },
+                            rows: [
+                                new TableRow({
+                                    children: [
+                                        new TableCell({
+                                            shading: { fill: "DBEAFE" },
+                                            children: [
+                                                new Paragraph({
+                                                    alignment: AlignmentType.CENTER,
+                                                    children: [new TextRun({ text: `STATISTICS FOR THE MONTH OF ${graphMonthLabel.toUpperCase()}`, bold: true, size: 22, font: 'Arial', color: "1E3A8A" })],
+                                                }),
+                                            ],
+                                        }),
+                                    ],
+                                }),
+                            ],
+                        }),
+
+                        // Graph / Chart Image
+                        new Paragraph({
+                            alignment: AlignmentType.CENTER,
+                            spacing: { before: 600, after: 600 },
+                            children: [
+                                chartImageData ? new ImageRun({
+                                    data: Uint8Array.from(atob(chartImageData), c => c.charCodeAt(0)),
+                                    transformation: { width: 620, height: 450 },
+                                }) : new TextRun({ text: "Graph data not available for DOCX", italics: true, color: "666666" }),
+                            ],
+                        }),
+
+                        // Spacer
+                        new Paragraph({ spacing: { before: 200 }, children: [] }),
+
+                        // Signature Table
+                        signatureTable,
+                    ],
+                },
+            ],
+        });
+
+        try {
+            const blob = await Packer.toBlob(doc);
+            const defaultFilename = `Statistics_Graph_${graphMonthLabel.replace(/\s+/g, '_')}`;
+
+            const { value: filename } = await Swal.fire({
+                title: 'Enter Filename',
+                input: 'text',
+                inputLabel: 'Filename',
+                inputValue: defaultFilename,
+                showCancelButton: true,
+                confirmButtonText: 'Download',
+                cancelButtonText: 'Cancel',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'You need to write a filename!';
+                    }
+                }
+            });
+
+            if (filename) {
+                saveAs(blob, `${filename}.docx`);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Downloaded!',
+                    text: 'Your report has been downloaded successfully.',
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            }
+        } catch (err) {
+            console.error('Failed to generate DOCX:', err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: 'Something went wrong while generating the document!',
+            });
+        }
+    };
+
     // Print Graph Report
 
     const handlePrintGraphReport = () => {
@@ -478,161 +1229,163 @@ export default function AttendanceLog() {
                 <title>Statistics Report - ${graphMonthLabel}</title>
                 <style>
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    html, body { height: 99%; }
-                    body { 
-                        font-family: 'Times New Roman', serif; 
-                        padding: 20px; 
+                    body {
+                        font-family: 'Times New Roman', serif;
+                        padding: 20px;
                         background: white;
                         color: #000;
-                        display: flex;
-                        flex-direction: column;
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
                     .header {
                         display: flex;
-                        justify-content: space-between;
+                        justify-content: center;
                         align-items: center;
-                        margin-bottom: 20px;
-                        padding-bottom: 10px;
-                        border-bottom: 2px solid #000;
+                    }
+                    .header-logo {
+                        width: 80px;
+                        flex-shrink: 0;
+                        display: flex;
+                        justify-content: center;
                     }
                     .header-logo img {
                         width: 80px;
                         height: 80px;
                     }
-                    .header-text { 
-                        flex: 1; 
-                        text-align: center; 
-                        padding: 0 10px;
-                    }
-                    .header-text h1 { font-size: 16px; color: #000; font-weight: bold; margin-bottom: 2px; }
-                    .header-text p { font-size: 11px; color: #000; margin-top: 1px; }
-
-                    .iso-badge {
-                        border: 2px solid #1e3a8a;
-                        padding: 2px 4px;
+                    .header-text {
+                        flex: 1;
                         text-align: center;
-                        min-width: 60px;
                     }
-                    .iso-badge p { font-size: 9px; font-weight: bold; color: #1e3a8a; }
-                    .title { 
-                        text-align: center; 
-                        font-size: 16px; 
-                        font-weight: bold; 
-                        margin: 20px 0; 
-                    }
-                    .chart-container { 
-                        flex: 1;
+                    .header-text h1 { font-size: 16px; margin: 0; font-weight: bold; }
+                    .header-text p { font-size: 11px; margin: 2px 0; }
+                    
+                    .iso-badge {
+                        width: 80px;
+                        flex-shrink: 0;
+                        border: 1px solid #999;
+                        padding: 2px;
                         display: flex;
                         flex-direction: column;
+                        align-items: center;
                         background: white;
-                        padding: 0;
-                        margin-bottom: 10px;
                     }
-                    .chart-title { 
-                        text-align: center; 
-                        font-weight: bold; 
-                        background: #dbeafe; 
-                        padding: 8px; 
-                        margin-bottom: 15px; 
+                    
+                    .divider {
+                        border: 0;
+                        border-top: 3px solid black;
+                        margin: 10px 0 20px 0;
                     }
-                    .bar-chart {
-                        flex: 1;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
+
+                    .title-section {
+                        text-align: center;
+                        margin-bottom: 20px;
+                    }
+                    .title-section h2 { font-size: 16px; margin-bottom: 5px; text-transform: uppercase; }
+                    .title-section p { font-size: 14px; margin-bottom: 15px; }
+
+                    .stats-bar {
+                        background-color: #DBEAFE;
+                        padding: 6px;
+                        border: 1px solid #DBEAFE;
+                        margin-bottom: 20px;
+                        text-align: center;
+                    }
+                    .stats-bar h3 { margin: 0; font-size: 14px; letter-spacing: 2px; }
+
+                    .chart-container {
                         width: 100%;
+                        max-width: 800px;
+                        margin: 0 auto 30px auto;
                     }
-                    .signatures { 
-                        display: flex; 
-                        justify-content: space-between; 
-                        margin-top: auto; 
-                        padding: 20px 50px 0 50px;
-                    }
-                    .signature-box { text-align: center; }
-                    .signature-line { 
-                        border-top: 1px solid #333; 
-                        width: 200px; 
-                        margin-top: 50px; 
-                        padding-top: 8px; 
-                    }
-                    .signature-box p { font-size: 12px; font-weight: bold; }
-                    .signature-box span { font-size: 10px; font-style: italic; color: #666; }
                     
-                    /* SVG Styles for Print */
-                    .recharts-wrapper { width: 100% !important; height: 100% !important; min-height: 60vh; }
-                    .recharts-surface { overflow: visible; width: 100%; height: 100%; }
-                    
-                    @page { margin: 0.2in; }
+                    .signatures-row {
+                        display: flex;
+                        justify-content: space-between;
+                        margin-top: 50px;
+                    }
+                    .signature-box {
+                        width: 45%;
+                        text-align: center;
+                    }
+                    .sig-label { margin-bottom: 40px; font-size: 12px; }
+                    .sig-name {
+                        font-weight: bold;
+                        border-top: 1px solid black;
+                        display: inline-block;
+                        padding-top: 5px;
+                        width: 100%;
+                        font-size: 12px;
+                        text-transform: uppercase;
+                    }
+                    .sig-title { font-style: italic; font-size: 11px; color: #444; }
+
+                    @page { margin: 0.5in; }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <div class="header-logo" style="width: 100px; height: 100px; display: flex; align-items: center; justify-content: center;">
-                        <img src="${window.location.origin}/pclu-logo.png" alt="PCLU" style="width: 100%; height: 100%; object-fit: contain;" />
+                    <div class="header-logo">
+                        <img src="${window.location.origin}/pclu-logo.png" alt="PCLU" />
                     </div>
                     <div class="header-text">
                         <h1>POLYTECHNIC COLLEGE OF LA UNION (PCLU), INC.</h1>
                         <p>(Formerly PAMETS COLLEGES)</p>
                         <p>Don Pastor L. Panay Sr. Street, San Nicolas Sur, Agoo, La Union 2504</p>
-                        <p>Tel. No. (072) 2061761 Mobile No.09171623141/09260953781
-                        Email: pclucollege@pclu.com.ph</p>
+                        <p>Tel. No. (072) 2061761 Mobile No. 09171623141/09260953781</p>
+                        <p>Email: pclucollege@pclu.com.ph</p>
                         <p>https://www.facebook.com/PCLUOfficialpage</p>
-                        <p>Member: Philippine Association of Colleges & Universities</p>
                     </div>
-                    <div class="iso-badge" style="min-width: 100px; border: 1px solid #999; padding: 2px; display: inline-flex; flex-direction: column; align-items: center; background: white;">
+                    <div class="iso-badge">
                         <div style="background: #1e3a8a; width: 100%; padding: 4px; display: flex; flex-direction: column; align-items: center;">
                             <div style="display: flex; align-items: center; justify-content: center; width: 100%; border-bottom: 1px solid #ffffff40; padding-bottom: 2px; margin-bottom: 2px;">
-                                <span style="font-size: 30px; font-weight: 900; line-height: 1; color: white; font-family: Arial, sans-serif;">ISO</span>
-                                <div style="display: flex; flex-direction: column; margin-left: 6px; border-left: 1px solid white; padding-left: 6px;">
-                                    <span style="font-size: 12px; font-weight: bold; line-height: 1; color: #22d3ee;">9001</span>
-                                    <span style="font-size: 12px; font-weight: bold; line-height: 1; color: #22d3ee;">2015</span>
+                                <span style="font-size: 20px; font-weight: 900; line-height: 1; color: white; font-family: Arial, sans-serif;">ISO</span>
+                                <div style="display: flex; flex-direction: column; margin-left: 4px; border-left: 1px solid white; padding-left: 4px;">
+                                    <span style="font-size: 8px; font-weight: bold; line-height: 1; color: #22d3ee;">9001</span>
+                                    <span style="font-size: 8px; font-weight: bold; line-height: 1; color: #22d3ee;">2015</span>
                                 </div>
                             </div>
-                            <span style="font-size: 11px; font-weight: 900; color: white; letter-spacing: 1px; font-family: Arial, sans-serif; width: 100%; text-align: center;">CERTIFIED</span>
+                            <span style="font-size: 8px; font-weight: 900; color: white; letter-spacing: 1px; font-family: Arial, sans-serif;">CERTIFIED</span>
                         </div>
                     </div>
                 </div>
-                
-                <div class="title">STATISTICS FOR THE MONTH OF ${graphMonthLabel.toUpperCase()}</div>
-                
+                <hr class="divider" />
+
+                <div class="title-section">
+                    <h2>Library Attendance Statistics</h2>
+                    <p>FOR THE MONTH OF ${graphMonthLabel.toUpperCase()}</p>
+                </div>
+
+                <div class="stats-bar">
+                    <h3>STATISTICS</h3>
+                </div>
+
                 <div class="chart-container">
-                    <div class="chart-title">STATISTICS</div>
-                    <div class="bar-chart">
-                        ${(() => {
+                    ${(() => {
                 if (graphRef.current) {
                     const svg = graphRef.current.querySelector('svg');
                     if (svg) {
-                        // Clone and force dimensions
                         const clone = svg.cloneNode(true);
                         clone.setAttribute('width', '100%');
-                        clone.setAttribute('height', '100%');
+                        clone.setAttribute('height', '400px');
                         clone.style.width = '100%';
-                        clone.style.height = '100%';
+                        clone.style.height = '400px';
                         return clone.outerHTML;
                     }
                 }
                 return '<p>Graph not loaded</p>';
-            })()
-            }
-                    </div>
+            })()}
                 </div>
-                
-                <div class="signatures">
+
+                <div class="signatures-row">
                     <div class="signature-box">
-                        <p>Prepared by:</p>
-                        <div class="signature-line">
-                            <p style="text-decoration: underline; font-weight: bold;">PATRICIA NIKOLE C. MASILANG</p>
-                            <span>College Library Clerk</span>
-                        </div>
+                        <p class="sig-label">Prepared by:</p>
+                        <p class="sig-name">Patricia Nikole C. Masilang</p>
+                        <p class="sig-title">College Library Clerk</p>
                     </div>
                     <div class="signature-box">
-                        <p>Noted by:</p>
-                        <div class="signature-line">
-                            <p style="text-decoration: underline; font-weight: bold;">LEAH E. CAMSO.RL MLIS</p>
-                            <span>Chief Librarian</span>
-                        </div>
+                        <p class="sig-label">Noted by:</p>
+                        <p class="sig-name">Leah E. Camso.RL MLIS</p>
+                        <p class="sig-title">Chief Librarian</p>
                     </div>
                 </div>
             </body>
@@ -707,6 +1460,13 @@ export default function AttendanceLog() {
                                     <h2 className="text-xl font-bold text-slate-800">Attendance Report Preview</h2>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleDownloadReportDocx}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                                    >
+                                        <Download size={16} />
+                                        Save as DOCX
+                                    </button>
                                     <button
                                         onClick={handlePrintReport}
                                         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors"
@@ -888,6 +1648,12 @@ export default function AttendanceLog() {
                                     <h2 className="text-xl font-bold text-slate-800">Monthly Statistics Report</h2>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleDownloadGraphDocx}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-colors"
+                                    >
+                                        <Download size={16} /> Save as DOCX
+                                    </button>
                                     <button
                                         onClick={handlePrintGraphReport}
                                         className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-semibold text-sm transition-colors"

@@ -114,6 +114,7 @@ export default function Dashboard({ setActiveTab }) {
           icon={Repeat}
           color="bg-orange-500"
           delay={0.2}
+          breakdown={stats.loans_breakdown} // Pass breakdown here
         />
         <DashboardStatCard
           title="Overdue Books"
@@ -211,14 +212,31 @@ function DashboardStatCard({ title, value, icon: Icon, color, delay, breakdown }
         </div>
         <div>
           <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">{title}</p>
-          <h3 className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
-            {value !== undefined ? value : "-"}
-          </h3>
+
+          {/* Custom Display for Active Loans (Student / Faculty) */}
+          {breakdown && breakdown.student !== undefined && breakdown.faculty !== undefined ? (
+            <div className="flex items-baseline gap-3 mt-1">
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-gray-800 dark:text-white">{breakdown.student}</span>
+                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Student</span>
+              </div>
+              <div className="text-gray-300 text-xl font-light">/</div>
+              <div className="flex flex-col">
+                <span className="text-2xl font-bold text-gray-800 dark:text-white">{breakdown.faculty}</span>
+                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Faculty</span>
+              </div>
+            </div>
+          ) : (
+            /* Default Value Display */
+            <h3 className="text-3xl font-bold text-gray-800 dark:text-white mt-1">
+              {value !== undefined ? value : "-"}
+            </h3>
+          )}
         </div>
       </div>
 
-      {/* Hover Breakdown - Only if breakdown data is provided */}
-      {breakdown && (
+      {/* Hover Breakdown - Only for Physical Copies (where student/faculty is NOT defined) */}
+      {breakdown && breakdown.student === undefined && (
         <div className="absolute inset-x-0 bottom-0 bg-gray-50/90 dark:bg-slate-800/90 backdrop-blur-sm p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out border-t border-gray-100 dark:border-slate-700">
           <div className="flex justify-between items-center text-xs font-semibold px-2">
             <div className="flex flex-col items-center">
