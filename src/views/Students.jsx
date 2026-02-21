@@ -168,6 +168,12 @@ export default function Students() {
     setShowFormModal(true);
   };
 
+  // Update student in list (e.g. after photo upload)
+  const handleStudentUpdate = (updatedStudent) => {
+    setCourseStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+    setViewingStudent(updatedStudent);
+  };
+
   // Pagination controls
   const PaginationControls = () => {
     const pages = [];
@@ -206,8 +212,8 @@ export default function Students() {
               key={page}
               onClick={() => setCurrentPage(page)}
               className={`px-3 py-1 rounded-lg text-sm font-medium transition ${page === currentPage
-                  ? "bg-primary-600 text-white"
-                  : "hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300"
+                ? "bg-primary-600 text-white"
+                : "hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300"
                 }`}
             >
               {page}
@@ -465,6 +471,7 @@ export default function Students() {
         <StudentProfileModal
           student={viewingStudent}
           onClose={() => setViewingStudent(null)}
+          onUpdate={handleStudentUpdate}
         />
       )}
 

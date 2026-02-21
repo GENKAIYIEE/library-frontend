@@ -7,7 +7,7 @@ import LibraryCard from "../components/LibraryCard";
 import Pagination from "../components/ui/Pagination"; // Import Pagination
 import Swal from "sweetalert2";
 
-export default function StudentProfileModal({ student: initialStudent, onClose }) {
+export default function StudentProfileModal({ student: initialStudent, onClose, onUpdate }) {
     const [student, setStudent] = useState(initialStudent);
     const [transactions, setTransactions] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -98,6 +98,9 @@ export default function StudentProfileModal({ student: initialStudent, onClose }
             .then(({ data }) => {
                 setStudent(data); // specific update of student state
                 setUploading(false);
+                if (onUpdate) {
+                    onUpdate(data);
+                }
                 Swal.fire({
                     icon: 'success',
                     title: 'Photo Updated!',

@@ -251,7 +251,9 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
 
       const params = new URLSearchParams();
       params.set('batch', codesToCheck.join(','));
-      if (excludeId) params.set('exclude_book_id', excludeId);
+      // Do NOT exclude current book ID when checking new copies accession
+      // New copies must have unique accession numbers globally, distinct from existing ones 
+      // even within the same book title.
 
       axiosClient.get(`/books/check-accession?${params.toString()}`)
         .then(({ data }) => {

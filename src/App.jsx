@@ -24,9 +24,20 @@ import PublicCatalog from "./views/PublicCatalog";
 import PublicAttendance from "./views/PublicAttendance";
 import PrintLibraryCard from "./views/PrintLibraryCard";
 
+// Helper: normalize pathname by stripping the /app prefix (Docker serves SPA at /app/)
+function getAppPath() {
+  const path = window.location.pathname;
+  // Strip /app prefix if present (Docker), otherwise use as-is (dev)
+  if (path.startsWith('/app/')) return path.replace(/^\/app/, '');
+  if (path === '/app') return '/';
+  return path;
+}
+
 export default function App() {
+  const appPath = getAppPath();
+
   // PUBLIC KIOSK ROUTE - Bypass Auth
-  if (window.location.pathname === '/catalog') {
+  if (appPath === '/catalog') {
     return (
       <ThemeProvider>
         <LibrarySettingsProvider>
@@ -39,7 +50,7 @@ export default function App() {
   }
 
   // PUBLIC ATTENDANCE KIOSK - Bypass Auth
-  if (window.location.pathname === '/attendance') {
+  if (appPath === '/attendance') {
     return (
       <ThemeProvider>
         <LibrarySettingsProvider>
@@ -52,7 +63,7 @@ export default function App() {
   }
 
   // PRINT ROUTE - Bypass Main Layout
-  if (window.location.pathname === '/print/card') {
+  if (appPath === '/print/card') {
     return <PrintLibraryCard />;
   }
 
