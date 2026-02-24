@@ -75,7 +75,8 @@ export default function FacultyCirculation() {
         setLoadingAvailable(true);
         axiosClient.get("/books/available")
             .then(({ data }) => {
-                setAvailableBooks(data);
+                // Endpoint is now paginated — extract the items array from data.data
+                setAvailableBooks(data.data ?? data);
                 setLoadingAvailable(false);
             })
             .catch(() => {
@@ -88,7 +89,8 @@ export default function FacultyCirculation() {
         setLoadingBorrowed(true);
         axiosClient.get("/faculty/borrowed")
             .then(({ data }) => {
-                setBorrowedBooks(data);
+                // Endpoint is now paginated — extract the items array from data.data
+                setBorrowedBooks(data.data ?? data);
                 setLoadingBorrowed(false);
             })
             .catch(() => {

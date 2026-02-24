@@ -35,7 +35,8 @@ export default function DamagedBooksModal({ onClose, onSuccess }) {
     const fetchAvailableBooks = () => {
         axiosClient.get('/books/available')
             .then(({ data }) => {
-                setAvailableBooks(data);
+                // Endpoint is now paginated — extract the items array from data.data
+                setAvailableBooks(data.data ?? data);
             })
             .catch((err) => {
                 console.warn("Failed to load available books.");
@@ -120,8 +121,8 @@ export default function DamagedBooksModal({ onClose, onSuccess }) {
                     <button
                         onClick={() => setActiveTab('damaged')}
                         className={`flex-1 py-3 px-4 text-sm font-bold transition-all ${activeTab === 'damaged'
-                                ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50 dark:bg-rose-900/20'
-                                : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                            ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50 dark:bg-rose-900/20'
+                            : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700'
                             }`}
                     >
                         <span className="flex items-center justify-center gap-2">
@@ -132,8 +133,8 @@ export default function DamagedBooksModal({ onClose, onSuccess }) {
                     <button
                         onClick={() => setActiveTab('mark')}
                         className={`flex-1 py-3 px-4 text-sm font-bold transition-all ${activeTab === 'mark'
-                                ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50 dark:bg-rose-900/20'
-                                : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                            ? 'text-rose-600 border-b-2 border-rose-600 bg-rose-50 dark:bg-rose-900/20'
+                            : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700'
                             }`}
                     >
                         <span className="flex items-center justify-center gap-2">
