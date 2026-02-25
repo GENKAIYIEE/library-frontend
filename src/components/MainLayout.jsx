@@ -299,8 +299,15 @@ export default function MainLayout({ children, activeTab, setActiveTab, onLogout
                     </div>
 
                     <div className="w-full flex-1 overflow-auto p-6 scroll-smooth">
-                        <div className="max-w-7xl mx-auto w-full">
+                        <div className="max-w-7xl mx-auto w-full pb-16 relative">
                             {children}
+
+                            {/* System Developer Watermark */}
+                            <div className="absolute bottom-5 right-6 z-10 pointer-events-auto flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity duration-300 select-none">
+                                <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-widest">System Developers</span>
+                                <div className="w-px h-3 bg-gray-400 dark:bg-gray-600 rounded-full"></div>
+                                <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300 tracking-wider">MIKE CEDRICK DAÑOCUP &amp; JOHN VINCENT JOAQUIN</span>
+                            </div>
                         </div>
                     </div>
                 </main>
