@@ -139,12 +139,13 @@ export default function Circulation({ onNavigateToBooks }) {
   const fetchAvailableBooks = (course = "") => {
     axiosClient.get("/books/available", { params: { course } })
       .then(({ data }) => {
-        setAvailableBooks(data);
-        setFilteredBooks(data);
+        // Endpoint is now paginated — extract the items array from data.data
+        const books = data.data ?? data;
+        setAvailableBooks(books);
+        setFilteredBooks(books);
       })
       .catch(err => {
         console.error("Failed to fetch available books:", err);
-        // setError("Failed to load available books.");
       });
 
   };
@@ -153,8 +154,10 @@ export default function Circulation({ onNavigateToBooks }) {
   const fetchBorrowedBooks = () => {
     axiosClient.get("/books/borrowed?type=student")
       .then(({ data }) => {
-        setBorrowedBooks(data);
-        setFilteredBorrowedBooks(data);
+        // Endpoint is now paginated — extract the items array from data.data
+        const books = data.data ?? data;
+        setBorrowedBooks(books);
+        setFilteredBorrowedBooks(books);
       })
       .catch((err) => { console.warn('Failed to fetch borrowed books:', err); });
   };
