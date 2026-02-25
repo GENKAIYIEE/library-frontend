@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
 import KioskLayout from "./KioskLayout";
 import axiosClient from "../axios-client";
-import { Camera, CheckCircle, XCircle, Loader2, UserCheck, RotateCcw, ScanLine } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, ScanLine } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- Glass Card Helper ---
@@ -13,97 +12,45 @@ const GlassCard = ({ children, className = "" }) => (
 );
 
 export default function PublicAttendance() {
-    const [isScanning, setIsScanning] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState(null); // { success, message, student, logged_at }
-    const [error, setError] = useState(null);
-    const html5QrcodeRef = useRef(null);
     const isMounted = useRef(true);
     const lastScannedRef = useRef(null);
+    const hiddenInputRef = useRef(null);
 
+    // Keep hidden input focused at all times
     useEffect(() => {
         isMounted.current = true;
-        let ignore = false;
 
-        const initScanner = async () => {
-            // Wait for any pending cleanup or layout stability
-            await new Promise(r => setTimeout(r, 100));
-
-            if (!isMounted.current || ignore) return;
-
-            // 1. CLEANUP START: Force clear any existing DOM elements
-            const region = document.getElementById("attendance-scanner-region");
-            if (region) region.innerHTML = "";
-
-            // 2. CREATE INSTANCE
-            const html5Qrcode = new Html5Qrcode("attendance-scanner-region");
-            html5QrcodeRef.current = html5Qrcode;
-
-            const config = {
-                fps: 10,
-                qrbox: { width: 220, height: 220 },
-                // Allow library to determine best aspect ratio for camera, we crop with CSS
-                videoConstraints: {
-                    facingMode: "environment",
-                    aspectRatio: { ideal: 1.0 }
-                }
-            };
-
-            // 3. START SCANNING
-            try {
-                if (!isMounted.current || ignore) return;
-
-                await html5Qrcode.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    () => { }
-                );
-
-                if (isMounted.current && !ignore) {
-                    setIsScanning(true);
-                    setIsLoading(false);
-                } else {
-                    // Start finished but we unmounted/ignored
-                    await stopScannerInstance(html5Qrcode);
-                }
-            } catch (err) {
-                console.error("Environment camera failed, trying user camera:", err);
-                try {
-                    if (!isMounted.current || ignore) return;
-                    await html5Qrcode.start(
-                        { facingMode: "user" },
-                        config,
-                        onScanSuccess,
-                        () => { }
-                    );
-                    if (isMounted.current && !ignore) {
-                        setIsScanning(true);
-                        setIsLoading(false);
-                    } else {
-                        await stopScannerInstance(html5Qrcode);
-                    }
-                } catch (userErr) {
-                    console.error("All cameras failed:", userErr);
-                    if (isMounted.current) {
-                        setError("Camera access failed. Please ensure permission is granted.");
-                        setIsLoading(false);
-                    }
-                }
+        const focusInput = () => {
+            if (hiddenInputRef.current && !isLoading && !result) {
+                hiddenInputRef.current.focus();
             }
         };
 
-        initScanner();
+        // Initial focus
+        focusInput();
+
+        // Re-focus on any click anywhere on the page
+        const handleClick = () => focusInput();
+        const handleFocusOut = () => {
+            // Small delay to allow any intentional focus changes
+            setTimeout(focusInput, 50);
+        };
+
+        document.addEventListener("click", handleClick);
+        document.addEventListener("focusout", handleFocusOut);
+
+        // Also re-focus on an interval to be extra safe
+        const interval = setInterval(focusInput, 500);
 
         return () => {
             isMounted.current = false;
-            ignore = true;
-            // Immediate cleanup on unmount
-            if (html5QrcodeRef.current) {
-                stopScannerInstance(html5QrcodeRef.current);
-            }
+            document.removeEventListener("click", handleClick);
+            document.removeEventListener("focusout", handleFocusOut);
+            clearInterval(interval);
         };
-    }, []);
+    }, [isLoading, result]);
 
     // Auto-reset after scan
     useEffect(() => {
@@ -115,48 +62,25 @@ export default function PublicAttendance() {
         }
     }, [result]);
 
-    // Helper to stop a specific instance
-    const stopScannerInstance = async (instance) => {
-        try {
-            if (instance.isScanning) {
-                await instance.stop();
-            }
-            instance.clear();
-        } catch (e) { console.debug("Stop error:", e); }
-    };
-
-    // Kept for manual retry button
-    const startScanner = () => {
-        window.location.reload(); // Simplest way to full reset if manual retry needed
-    };
-
-    // Inject custom styles for the video element to force it to fill the container
-    // Inject custom styles for the video element and custom animations
+    // Inject custom animations
     useEffect(() => {
         const style = document.createElement('style');
         style.innerHTML = `
-            #attendance-scanner-region video { 
-                object-fit: cover !important; 
-                width: 100% !important; 
-                height: 100% !important; 
-                border-radius: 1.5rem !important;
-                filter: contrast(1.1) brightness(1.1);
+            @keyframes gentle-pulse {
+                0%, 100% { opacity: 0.6; transform: scale(1); }
+                50% { opacity: 1; transform: scale(1.05); }
             }
-            @keyframes scanner-line {
-                0% { top: 10%; opacity: 0; }
-                10% { opacity: 1; }
-                90% { opacity: 1; }
-                100% { top: 90%; opacity: 0; }
+            .animate-gentle-pulse {
+                animation: gentle-pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
             }
-            .animate-scanner-line {
-                animation: scanner-line 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            @keyframes scanner-sweep {
+                0% { top: 20%; opacity: 0; }
+                10% { opacity: 0.6; }
+                90% { opacity: 0.6; }
+                100% { top: 80%; opacity: 0; }
             }
-            @keyframes pulse-border {
-                0%, 100% { opacity: 0.6; box-shadow: 0 0 10px rgba(59,130,246,0.3); }
-                50% { opacity: 1; box-shadow: 0 0 20px rgba(59,130,246,0.6); }
-            }
-            .animate-pulse-border {
-                animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            .animate-scanner-sweep {
+                animation: scanner-sweep 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
             }
         `;
         document.head.appendChild(style);
@@ -165,21 +89,25 @@ export default function PublicAttendance() {
         };
     }, []);
 
-    const onScanSuccess = async (decodedText) => {
+    // Handle USB scanner input (keyboard emulation)
+    const handleKeyDown = async (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+
+        const scannedValue = event.target.value.trim();
+        event.target.value = ''; // Clear immediately for next scan
+
+        if (!scannedValue) return;
         if (!isMounted.current) return;
-        if (lastScannedRef.current === decodedText) return; // Prevent duplicate
-        lastScannedRef.current = decodedText;
+        if (lastScannedRef.current === scannedValue) return; // Prevent duplicate
+        lastScannedRef.current = scannedValue;
 
         if (navigator.vibrate) navigator.vibrate(200);
-
-        if (html5QrcodeRef.current) {
-            try { await html5QrcodeRef.current.pause(true); } catch (e) { console.warn('Scanner pause failed:', e); }
-        }
 
         setIsLoading(true);
 
         try {
-            const response = await axiosClient.post('/public/attendance', { student_id: decodedText });
+            const response = await axiosClient.post('/public/attendance', { student_id: scannedValue });
             if (isMounted.current) {
                 setResult(response.data);
                 playSound('success');
@@ -229,19 +157,10 @@ export default function PublicAttendance() {
         } catch (e) { console.warn('Audio playback failed:', e); }
     };
 
-    const resetScanner = async () => {
+    const resetScanner = () => {
         setResult(null);
         lastScannedRef.current = null;
-        if (html5QrcodeRef.current) {
-            try {
-                await html5QrcodeRef.current.resume();
-            } catch (err) {
-                console.warn("Scanner resume failed, refreshing...", err);
-                window.location.reload();
-            }
-        } else {
-            window.location.reload();
-        }
+        // Focus will be restored automatically by the useEffect
     };
 
     const getProfileImage = (student) => {
@@ -251,6 +170,17 @@ export default function PublicAttendance() {
 
     return (
         <KioskLayout>
+            {/* Hidden input for USB hardware scanner */}
+            <input
+                ref={hiddenInputRef}
+                type="text"
+                className="opacity-0 absolute -z-10 w-0 h-0"
+                onKeyDown={handleKeyDown}
+                autoFocus
+                tabIndex={-1}
+                aria-hidden="true"
+            />
+
             <div className="flex flex-col items-center justify-center min-h-[60vh] py-8">
                 {/* Header */}
                 <motion.div
@@ -274,47 +204,48 @@ export default function PublicAttendance() {
                     <div className="absolute inset-x-0 -bottom-px h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
 
                     <div className="relative p-1">
-                        {/* Scanner Layer */}
-                        <div className={`p-0 rounded-[2rem] overflow-hidden bg-black relative ${result ? 'invisible' : ''} shadow-2xl border-4 border-slate-800`}>
-                            <div id="attendance-scanner-region" className="w-full aspect-square bg-black" />
+                        {/* Static Scanner Ready Graphic */}
+                        <div className={`p-0 rounded-[2rem] overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 relative ${result ? 'invisible' : ''} shadow-2xl border-4 border-slate-800`}>
+                            <div className="w-full aspect-square flex flex-col items-center justify-center relative">
+                                {/* Decorative grid background */}
+                                <div className="absolute inset-0 opacity-[0.03]"
+                                    style={{
+                                        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                                        backgroundSize: '30px 30px'
+                                    }}
+                                />
 
-                            {/* Professional Viewfinder Overlay */}
-                            {!result && (
-                                <div className="absolute inset-0 pointer-events-none z-10 p-6">
-                                    {/* Corner Brackets */}
-                                    <div className="absolute top-6 left-6 w-16 h-16 border-t-[6px] border-l-[6px] border-blue-500 rounded-tl-2xl animate-pulse-border" />
-                                    <div className="absolute top-6 right-6 w-16 h-16 border-t-[6px] border-r-[6px] border-blue-500 rounded-tr-2xl animate-pulse-border" style={{ animationDelay: '0.1s' }} />
-                                    <div className="absolute bottom-6 left-6 w-16 h-16 border-b-[6px] border-l-[6px] border-blue-500 rounded-bl-2xl animate-pulse-border" style={{ animationDelay: '0.2s' }} />
-                                    <div className="absolute bottom-6 right-6 w-16 h-16 border-b-[6px] border-r-[6px] border-blue-500 rounded-br-2xl animate-pulse-border" style={{ animationDelay: '0.3s' }} />
+                                {/* Corner Brackets */}
+                                <div className="absolute top-6 left-6 w-16 h-16 border-t-[3px] border-l-[3px] border-blue-500/40 rounded-tl-2xl" />
+                                <div className="absolute top-6 right-6 w-16 h-16 border-t-[3px] border-r-[3px] border-blue-500/40 rounded-tr-2xl" />
+                                <div className="absolute bottom-6 left-6 w-16 h-16 border-b-[3px] border-l-[3px] border-blue-500/40 rounded-bl-2xl" />
+                                <div className="absolute bottom-6 right-6 w-16 h-16 border-b-[3px] border-r-[3px] border-blue-500/40 rounded-br-2xl" />
 
-                                    {/* Scanning Laser */}
-                                    {isScanning && !isLoading && !error && (
-                                        <div className="absolute left-6 right-6 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_20px_rgba(34,211,238,0.8)] animate-scanner-line" />
-                                    )}
+                                {/* Sweeping line */}
+                                {!isLoading && !result && (
+                                    <div className="absolute left-8 right-8 h-0.5 bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent shadow-[0_0_15px_rgba(34,211,238,0.4)] animate-scanner-sweep" />
+                                )}
 
-                                    {/* Status Badges */}
-                                    {isLoading && (
-                                        <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-sm rounded-[1.5rem]">
-                                            <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-3" />
-                                            <p className="text-blue-400 font-mono text-xs uppercase tracking-[0.2em] animate-pulse">Initializing Sensor</p>
-                                        </div>
-                                    )}
-
-                                    {error && (
-                                        <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-8 text-center backdrop-blur rounded-[1.5rem]">
-                                            <XCircle className="w-16 h-16 text-red-500 mb-4 opacity-80" />
-                                            <p className="text-white text-lg font-bold mb-2">Camera Offline</p>
-                                            <p className="text-slate-400 text-sm mb-6 max-w-[200px]">{error}</p>
-                                            <button
-                                                onClick={() => { setError(null); startScanner(); }}
-                                                className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-900/50"
-                                            >
-                                                Reconnect InfoLink
-                                            </button>
-                                        </div>
-                                    )}
+                                {/* Pulsing icon */}
+                                <div className="animate-gentle-pulse relative z-10">
+                                    <div className="w-28 h-28 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-[0_0_60px_rgba(59,130,246,0.15)]">
+                                        <ScanLine className="text-blue-400" size={56} />
+                                    </div>
                                 </div>
-                            )}
+
+                                <p className="mt-6 text-slate-300 text-base font-semibold tracking-wide relative z-10">Ready to Scan</p>
+                                <p className="mt-2 text-slate-500 text-sm max-w-[250px] text-center relative z-10">
+                                    Please tap your ID on the scanner below.
+                                </p>
+
+                                {/* Loading Overlay */}
+                                {isLoading && (
+                                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center backdrop-blur-sm rounded-[1.5rem] z-20">
+                                        <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-3" />
+                                        <p className="text-blue-400 font-mono text-xs uppercase tracking-[0.2em] animate-pulse">Processing...</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* Result Overlay */}
@@ -370,36 +301,6 @@ export default function PublicAttendance() {
                         </AnimatePresence>
                     </div>
                 </GlassCard>
-
-                {/* Footer Actions */}
-                <div className="mt-12">
-                    <div className="relative group">
-                        <input
-                            type="file"
-                            id="qr-file-input"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                                if (e.target.files.length === 0) return;
-                                const file = e.target.files[0];
-                                const html5Qm = new Html5Qrcode("attendance-scanner-region");
-                                html5Qm.scanFile(file, false)
-                                    .then(decodedText => onScanSuccess(decodedText))
-                                    .catch(err => {
-                                        console.error("File scan error", err);
-                                        setError("Could not read QR. Try a clearer photo.");
-                                        playSound('error');
-                                    });
-                            }}
-                        />
-                        <button
-                            onClick={() => document.getElementById('qr-file-input').click()}
-                            className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-2 px-6 py-3 rounded-full hover:bg-white/5 border border-transparent hover:border-white/10"
-                        >
-                            <Camera size={16} /> Scan from Image
-                        </button>
-                    </div>
-                </div>
             </div>
         </KioskLayout>
     );
