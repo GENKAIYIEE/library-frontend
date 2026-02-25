@@ -67,7 +67,7 @@ export default function PublicCatalog() {
 
         const params = {
             page: pageToFetch,
-            limit: 12
+            limit: 10
         };
 
         if (selectedCategory !== "All") {
@@ -288,94 +288,74 @@ export default function PublicCatalog() {
 
                 {/* BOOKS GRID */}
                 <div className="min-h-[400px]">
-                    <AnimatePresence mode="wait">
-                        {loading ? (
-                            <motion.div
-                                key="loading"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="flex flex-col items-center justify-center py-24"
-                            >
-                                <div className="relative">
-                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-                                        <Loader2 size={32} className="animate-spin text-blue-400" />
-                                    </div>
-                                    <div className="absolute inset-0 rounded-2xl bg-blue-500/20 animate-ping" />
+                    {loading ? (
+                        <motion.div
+                            key="loading"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex flex-col items-center justify-center py-24"
+                        >
+                            <div className="relative">
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                                    <Loader2 size={32} className="animate-spin text-blue-400" />
                                 </div>
-                                <p className="text-slate-500 mt-6 font-medium">Searching catalog...</p>
-                            </motion.div>
-                        ) : books.length > 0 ? (
-                            <motion.div
-                                key="books"
-                                initial="hidden"
-                                animate="visible"
-                                exit="hidden"
-                                variants={{
-                                    visible: {
-                                        transition: { staggerChildren: 0.04 }
-                                    },
-                                    hidden: {
-                                        transition: { staggerChildren: 0.02, staggerDirection: -1 }
-                                    }
-                                }}
-                                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5"
-                            >
-                                {books.map((book, i) => (
-                                    <motion.div
-                                        key={book.id}
-                                        variants={{
-                                            hidden: { opacity: 0, y: 20, scale: 0.95 },
-                                            visible: { opacity: 1, y: 0, scale: 1 }
-                                        }}
-                                        transition={{ duration: 0.3 }}
-                                        className="group"
-                                    >
-                                        <div className="relative">
-                                            <FlipBookCard book={book} index={i} />
+                                <div className="absolute inset-0 rounded-2xl bg-blue-500/20 animate-ping" />
+                            </div>
+                            <p className="text-slate-500 mt-6 font-medium">Searching catalog...</p>
+                        </motion.div>
+                    ) : books.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+                            {books.map((book, i) => (
+                                <motion.div
+                                    key={book.id}
+                                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ duration: 0.3, delay: i < 10 ? i * 0.04 : 0 }}
+                                    className="group"
+                                >
+                                    <div className="relative">
+                                        <FlipBookCard book={book} index={i} />
 
-                                            {/* Quick Locate Button Overlay */}
-                                            <motion.button
-                                                onClick={(e) => { e.stopPropagation(); handleLocate(book); }}
-                                                className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-[11px] font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-500/25 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-1.5 z-30 whitespace-nowrap"
-                                            >
-                                                <MapPin size={12} />
-                                                <span>Locate Book</span>
-                                                <ChevronRight size={12} className="opacity-60" />
-                                            </motion.button>
-                                        </div>
-                                    </motion.div>
-                                ))}
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                key="empty"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                                className="flex flex-col items-center justify-center py-24"
-                            >
-                                <div className="w-20 h-20 rounded-2xl bg-slate-800/50 border border-white/5 flex items-center justify-center mb-6">
-                                    <BookOpen size={40} className="text-slate-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-400 mb-2">No books found</h3>
-                                <p className="text-slate-500 text-center max-w-md">
-                                    {searchTerm
-                                        ? `No results for "${searchTerm}" in ${selectedCategory === "All" ? "all categories" : selectedCategory}.`
-                                        : `No books available in ${selectedCategory}.`
-                                    }
-                                </p>
-                                {searchTerm && (
-                                    <button
-                                        onClick={() => setSearchTerm('')}
-                                        className="mt-6 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-all border border-white/10"
-                                    >
-                                        Clear Search
-                                    </button>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                        {/* Quick Locate Button Overlay */}
+                                        <motion.button
+                                            onClick={(e) => { e.stopPropagation(); handleLocate(book); }}
+                                            className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white text-[11px] font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-500/25 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 flex items-center gap-1.5 z-30 whitespace-nowrap"
+                                        >
+                                            <MapPin size={12} />
+                                            <span>Locate Book</span>
+                                            <ChevronRight size={12} className="opacity-60" />
+                                        </motion.button>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    ) : (
+                        <motion.div
+                            key="empty"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex flex-col items-center justify-center py-24"
+                        >
+                            <div className="w-20 h-20 rounded-2xl bg-slate-800/50 border border-white/5 flex items-center justify-center mb-6">
+                                <BookOpen size={40} className="text-slate-600" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-400 mb-2">No books found</h3>
+                            <p className="text-slate-500 text-center max-w-md">
+                                {searchTerm
+                                    ? `No results for "${searchTerm}" in ${selectedCategory === "All" ? "all categories" : selectedCategory}.`
+                                    : `No books available in ${selectedCategory}.`
+                                }
+                            </p>
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="mt-6 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium transition-all border border-white/10"
+                                >
+                                    Clear Search
+                                </button>
+                            )}
+                        </motion.div>
+                    )}
 
                     {/* LOAD MORE BUTTON */}
                     {hasMore && books.length > 0 && !loading && (

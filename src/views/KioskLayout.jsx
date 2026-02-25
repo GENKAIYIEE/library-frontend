@@ -211,8 +211,15 @@ export default function KioskLayout({ children }) {
             </main>
 
             {/* GLASS FOOTER */}
-            <footer className="relative z-10 border-t border-white/5 bg-slate-900/40 backdrop-blur-md py-6 text-center text-slate-500 text-xs font-mono">
+            <footer className="relative z-10 border-t border-white/5 bg-slate-900/40 backdrop-blur-md py-6 flex flex-col items-center justify-center text-slate-500 text-xs font-mono">
                 <p>{libraryName} • Secure Kiosk Environment</p>
+
+                {/* System Developer Watermark */}
+                <div className="mt-5 flex items-center justify-center gap-3 opacity-40 hover:opacity-100 transition-opacity duration-300 select-none">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">System Developers</span>
+                    <div className="w-1 h-1 rounded-full bg-slate-500"></div>
+                    <span className="text-[10px] font-bold text-slate-300 tracking-[0.1em]">MIKE CEDRICK DAÑOCUP &amp; JOHN VINCENT JOAQUIN</span>
+                </div>
             </footer>
         </div>
     );
