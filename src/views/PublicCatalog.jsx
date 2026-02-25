@@ -4,7 +4,7 @@ import FlipBookCard from "../components/FlipBookCard";
 import ShelfMapModal from "../components/ShelfMapModal";
 import axiosClient from "../axios-client";
 import { useToast } from "../components/ui/Toast";
-import { Search, Loader2, BookOpen, MapPin, Library, BookMarked, X, ChevronRight } from "lucide-react";
+import { Search, Loader2, BookOpen, MapPin, Library, BookMarked, X, ChevronRight, ArrowUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- Glass Card Helper ---
@@ -32,6 +32,27 @@ export default function PublicCatalog() {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            if (window.scrollY > 400) {
+                setShowScrollTop(true);
+            } else {
+                setShowScrollTop(false);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    };
 
     useEffect(() => {
         // Fetch Categories
@@ -67,7 +88,7 @@ export default function PublicCatalog() {
 
         const params = {
             page: pageToFetch,
-            limit: 10
+            limit: 12
         };
 
         if (selectedCategory !== "All") {
@@ -385,6 +406,24 @@ export default function PublicCatalog() {
                     )}
                 </div>
             </div>
+
+            {/* SCROLL TO TOP BUTTON */}
+            <AnimatePresence>
+                {showScrollTop && (
+                    <motion.button
+                        initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 20, scale: 0.8 }}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={scrollToTop}
+                        className="fixed bottom-8 right-8 z-50 p-4 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] border border-white/20 flex items-center justify-center hover:shadow-[0_0_30px_rgba(147,51,234,0.6)] transition-shadow duration-300"
+                        title="Scroll to Top"
+                    >
+                        <ArrowUp size={24} strokeWidth={2.5} />
+                    </motion.button>
+                )}
+            </AnimatePresence>
 
             {/* MODAL */}
             <AnimatePresence>
