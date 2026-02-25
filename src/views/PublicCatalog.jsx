@@ -417,7 +417,7 @@ export default function PublicCatalog() {
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={scrollToTop}
-                        className="fixed bottom-8 right-8 z-50 p-4 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] border border-white/20 flex items-center justify-center hover:shadow-[0_0_30px_rgba(147,51,234,0.6)] transition-shadow duration-300"
+                        className="fixed top-1/2 -translate-y-1/2 left-8 z-50 p-4 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] border border-white/20 flex items-center justify-center hover:shadow-[0_0_30px_rgba(147,51,234,0.6)] transition-shadow duration-300"
                         title="Scroll to Top"
                     >
                         <ArrowUp size={24} strokeWidth={2.5} />
