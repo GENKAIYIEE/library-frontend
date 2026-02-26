@@ -244,7 +244,8 @@ export default function Settings() {
             tableCount = 8;
             healthScore += 35;
 
-            if (res.data && res.data.length > 0) {
+            const booksData = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+            if (booksData.length > 0) {
                 healthScore += 30;
             } else {
                 healthScore += 15;
@@ -281,9 +282,9 @@ export default function Settings() {
                 axiosClient.get('/transactions').catch(() => ({ data: [] }))
             ]);
 
-            const books = booksRes.data || [];
+            const books = Array.isArray(booksRes.data) ? booksRes.data : (booksRes.data?.data || []);
             const studentCount = studentsCountRes.data?.count || 0;
-            const transactions = transactionsRes.data || [];
+            const transactions = Array.isArray(transactionsRes.data) ? transactionsRes.data : (transactionsRes.data?.data || []);
 
             const today = new Date().toDateString();
 
@@ -333,7 +334,7 @@ export default function Settings() {
     const fetchRecentActivity = async () => {
         try {
             const res = await axiosClient.get('/transactions');
-            const transactions = res.data || [];
+            const transactions = Array.isArray(res.data) ? res.data : (res.data?.data || []);
 
             const recent = transactions
                 .sort((a, b) => new Date(b.updated_at || b.borrowed_at) - new Date(a.updated_at || a.borrowed_at))
@@ -410,40 +411,27 @@ export default function Settings() {
     const handleExportCSV = async (type) => {
         setLoading(true);
         try {
-            let filename = `${type}_export_${new Date().toISOString().split('T')[0]}.csv`;
-            const res = await axiosClient.get(`/${type}`);
-            const data = res.data;
+            const filename = `${type}_export_${new Date().toISOString().split('T')[0]}.csv`;
+            const res = await axiosClient.get(`/reports/export/${type}`, {
+                responseType: 'blob',
+            });
 
-            if (!data || data.length === 0) {
+            if (!res.data || res.data.size === 0) {
                 toast.warning('No data available to export');
                 setLoading(false);
                 return;
             }
 
-            const headers = Object.keys(data[0]);
-            const csvContent = [
-                headers.join(','),
-                ...data.map(row =>
-                    headers.map(h => {
-                        const val = row[h];
-                        if (val === null || val === undefined) return '';
-                        if (typeof val === 'object') return JSON.stringify(val).replace(/,/g, ';');
-                        return `"${String(val).replace(/"/g, '""')}"`;
-                    }).join(',')
-                )
-            ].join('\n');
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
+            const url = window.URL.createObjectURL(new Blob([res.data]));
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            window.URL.revokeObjectURL(url);
 
-            toast.success(`Exported ${data.length} ${type} records`);
+            toast.success(`${type} export downloaded successfully`);
         } catch (error) {
             toast.error(`Failed to export ${type}`);
         }
