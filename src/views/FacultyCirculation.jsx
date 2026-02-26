@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "../components/ui/Toast";
 import axiosClient from "../axios-client";
 import BookSelectorModal from "../components/BookSelectorModal";
-import CameraScanner from "../components/CameraScanner";
 import {
     Search,
     User,
@@ -18,7 +17,6 @@ import {
     Scan,
     X,
     Library,
-    Camera
 } from "lucide-react";
 import Swal from "sweetalert2";
 import Button from "../components/ui/Button";
@@ -52,9 +50,77 @@ export default function FacultyCirculation() {
     const [showBorrowBookModal, setShowBorrowBookModal] = useState(false);
     const [showReturnBookModal, setShowReturnBookModal] = useState(false);
 
-    // Camera Scanner States
-    const [showCameraScanner, setShowCameraScanner] = useState(false);
-    const [scanMode, setScanMode] = useState(null); // 'borrow' | 'return'
+    // =========================================
+    // HARDWARE USB SCANNER — Global Keydown Listener (Tab-Aware)
+    // =========================================
+    const scanBufferRef = useRef("");
+    const lastKeystrokeRef = useRef(0);
+    const scanProcessingRef = useRef(false);
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            // IGNORE if user is actively typing in an input, textarea, or select
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+            // IGNORE if a Swal modal is currently open
+            if (document.querySelector('.swal2-container')) return;
+
+            // IGNORE if already processing a scan
+            if (scanProcessingRef.current) return;
+
+            const now = Date.now();
+            const timeSinceLastKey = now - lastKeystrokeRef.current;
+
+            if (event.key === 'Enter') {
+                // Only process if we have buffered characters from rapid typing
+                if (scanBufferRef.current.length > 0) {
+                    event.preventDefault();
+                    const scannedCode = scanBufferRef.current.trim();
+                    scanBufferRef.current = "";
+                    lastKeystrokeRef.current = 0;
+
+                    if (scannedCode) {
+                        processHardwareScan(scannedCode);
+                    }
+                }
+                return;
+            }
+
+            // Only accept printable single characters
+            if (event.key.length !== 1) return;
+
+            // If time since last keystroke is > 80ms, this is likely human typing — reset buffer
+            if (timeSinceLastKey > 80) {
+                scanBufferRef.current = "";
+            }
+
+            scanBufferRef.current += event.key;
+            lastKeystrokeRef.current = now;
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Process barcode from hardware scanner
+    const processHardwareScan = async (scannedCode) => {
+        scanProcessingRef.current = true;
+
+        try {
+            const { data: result } = await axiosClient.get(`/books/lookup/${encodeURIComponent(scannedCode)}`);
+            handleScanResult(result);
+        } catch (err) {
+            console.error("Hardware scan lookup failed:", err);
+            if (err.response?.status === 404) {
+                toast.error(`Book with barcode "${scannedCode}" not found in library.`);
+            } else {
+                toast.error(`Scanner error: Could not look up code "${scannedCode}".`);
+            }
+        } finally {
+            scanProcessingRef.current = false;
+        }
+    };
 
     // Faculty Search
     useEffect(() => {
@@ -141,7 +207,7 @@ export default function FacultyCirculation() {
     };
 
     // =========================================
-    // CAMERA SCANNER HANDLERS
+    // SCAN RESULT HANDLER (Tab-Aware, Status-Based)
     // =========================================
 
     // Handle Auto Return from Scanner
@@ -178,17 +244,19 @@ export default function FacultyCirculation() {
             .finally(() => setReturnLoading(false));
     };
 
-    // Handle camera scan result
+    // Handle scan result — uses activeTab to determine action
     const handleScanResult = (result) => {
         const scannedBarcode = result.asset_code || result.scanned_code || "";
 
-        if (scanMode === 'borrow') {
-            // BORROW MODE
-            if (!result.found) {
-                toast.error(`Book with barcode "${scannedBarcode}" not found in library.`);
-                setShowCameraScanner(false);
-            } else if (result.status === 'available') {
-                // Book is available - select it
+        if (!result.found) {
+            toast.error(`Book with barcode "${scannedBarcode}" not found in library.`);
+            return;
+        }
+
+        if (activeTab === 'borrow') {
+            // BORROW TAB: Book must be 'available'
+            if (result.status === 'available') {
+                // ✅ Book is available — select it for borrowing
                 setAssetCode(result.asset_code);
                 setSelectedBook({
                     asset_code: result.asset_code,
@@ -196,36 +264,27 @@ export default function FacultyCirculation() {
                     author: result.author,
                     category: result.category
                 });
-                setShowCameraScanner(false);
                 toast.success(`Book "${result.title}" selected for borrowing.`);
             } else if (result.status === 'borrowed') {
                 toast.error(`"${result.title}" is currently borrowed and not available.`);
-                setShowCameraScanner(false);
             } else {
                 toast.error(`Cannot borrow. Book status: ${result.status || 'unknown'}`);
-                setShowCameraScanner(false);
             }
-        } else if (scanMode === 'return') {
-            // RETURN MODE
-            if (!result.found) {
-                toast.error(`Book with barcode "${scannedBarcode}" not found in library.`);
-                setShowCameraScanner(false);
-            } else if (result.status === 'borrowed') {
-                // Check if borrowed by Student - REJECT if so
+        } else if (activeTab === 'return') {
+            // RETURN TAB: Book must be 'borrowed'
+            if (result.status === 'borrowed') {
+                // Check if borrowed by Student — REJECT if so
                 const borrowerType = result.borrower?.type;
 
                 if (borrowerType === 'Student') {
                     toast.error(`This book is borrowed by a Student. Please use Student Circulation.`);
-                    setShowCameraScanner(false);
                     return;
                 }
 
-                // ✅ SUCCESS: Confirm before processing (Faculty)
-                setShowCameraScanner(false);
-
+                // ✅ Confirm before processing (Faculty)
                 const borrower = result.borrower || {};
                 const borrowerName = borrower.name || 'Unknown Faculty';
-                const borrowerId = borrower.student_id || ''; // faculty_id
+                const borrowerId = borrower.student_id || '';
                 const typeLabel = borrower.type || 'Faculty';
 
                 Swal.fire({
@@ -250,52 +309,21 @@ export default function FacultyCirculation() {
             `,
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonColor: '#7c3aed', // Purple-600
-                    cancelButtonColor: '#ef4444', // Red-500
+                    confirmButtonColor: '#7c3aed',
+                    cancelButtonColor: '#ef4444',
                     confirmButtonText: 'Yes, Return it!',
                     focusCancel: true
                 }).then((swalResult) => {
                     if (swalResult.isConfirmed) {
-                        // Assuming handleReturn handles the actual API call, but FacultyCirculation uses state then manual submit or similar?
-                        // Checking existing code: handleReturn takes an 'e' event.
-                        // I should verify how to trigger return programmatically.
-                        // Existing handleScanReturn didn't exist in FacultyCirculation.
-                        // I need to implement a dedicated return handler or use the existing one differently.
-
-                        // The previous logic was: setReturnAssetCode -> setReturnSelectedBook -> User clicks "Return Book" manually?
-                        // Wait, previous logic (lines 184-191) set state and showed toast "Ready for return".
-                        // It DID NOT auto-submit.
-
-                        // The user request was "scanner will ask 1st the user to return this book".
-                        // Implies auto-submit after confirmation.
-
-                        // I need to create a helper to submit the return.
                         handleScanReturnSubmit(result.asset_code);
                     }
                 });
-
             } else if (result.status === 'available') {
                 toast.error(`"${result.title}" is not currently borrowed.`);
-                setShowCameraScanner(false);
             } else {
                 toast.error(`Cannot return. Book status: ${result.status || 'unknown'}`);
-                setShowCameraScanner(false);
             }
         }
-
-        setScanMode(null);
-    };
-
-    // Start camera scan for borrow
-    const handleStartBorrowScan = () => {
-        setScanMode('borrow');
-        setShowCameraScanner(true);
-    };
-
-    // Start camera scan for return
-    const handleStartReturnScan = () => {
-        setScanMode('return');
-        setShowCameraScanner(true);
     };
 
     // Handle Borrow
@@ -405,17 +433,6 @@ export default function FacultyCirculation() {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6 transition-colors duration-300">
-            {/* Camera Scanner */}
-            {showCameraScanner && (
-                <CameraScanner
-                    onResult={handleScanResult}
-                    onClose={() => {
-                        setShowCameraScanner(false);
-                        setScanMode(null);
-                    }}
-                />
-            )}
-
             {/* Book Selector Modals */}
             <BookSelectorModal
                 isOpen={showBorrowBookModal}
@@ -436,7 +453,7 @@ export default function FacultyCirculation() {
                 apiParams={{ type: "faculty" }}
             />
 
-            {/* Header with Quick Scan */}
+            {/* Header with Hardware Scanner Status */}
             <div className="mb-6">
                 <div className="flex items-center justify-between flex-wrap gap-4">
                     <div className="flex items-center gap-4">
@@ -449,26 +466,19 @@ export default function FacultyCirculation() {
                         </div>
                     </div>
 
-                    {/* Quick Scan Header Button */}
+                    {/* Hardware Scanner Status Indicator */}
                     <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3">
                         <div className="flex items-center gap-2">
                             <Scan size={20} />
                             <span className="font-medium">Quick Scan:</span>
                         </div>
-                        <button
-                            onClick={handleStartBorrowScan}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition text-sm font-medium"
-                        >
-                            <Camera size={16} />
-                            Borrow
-                        </button>
-                        <button
-                            onClick={handleStartReturnScan}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg transition text-sm font-medium"
-                        >
-                            <Camera size={16} />
-                            Return
-                        </button>
+                        <div className="flex items-center gap-2.5 px-3 py-1.5 bg-white/15 rounded-lg">
+                            <span className="relative flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-sm font-medium text-emerald-100">Hardware Scanner Active</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -611,25 +621,15 @@ export default function FacultyCirculation() {
                                         />
                                     </div>
 
-                                    {/* Action Buttons */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={handleStartBorrowScan}
-                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition font-medium shadow-md"
-                                        >
-                                            <Camera size={18} />
-                                            Camera Scan
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowBorrowBookModal(true)}
-                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition font-medium"
-                                        >
-                                            <Library size={18} />
-                                            Browse Catalog
-                                        </button>
-                                    </div>
+                                    {/* Browse Catalog Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowBorrowBookModal(true)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition font-medium"
+                                    >
+                                        <Library size={18} />
+                                        Browse Catalog
+                                    </button>
                                 </>
                             )}
 
@@ -692,25 +692,15 @@ export default function FacultyCirculation() {
                                         />
                                     </div>
 
-                                    {/* Action Buttons */}
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={handleStartReturnScan}
-                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 transition font-medium shadow-md"
-                                        >
-                                            <Camera size={18} />
-                                            Camera Scan
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowReturnBookModal(true)}
-                                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition font-medium"
-                                        >
-                                            <BookOpen size={18} />
-                                            Browse Borrowed
-                                        </button>
-                                    </div>
+                                    {/* Browse Borrowed Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowReturnBookModal(true)}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition font-medium"
+                                    >
+                                        <BookOpen size={18} />
+                                        Browse Borrowed
+                                    </button>
                                 </>
                             )}
 

@@ -1,15 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "../components/ui/Toast";
 import axiosClient from "../axios-client";
 import PaymentModal from "./PaymentModal";
 import BookScanModal from "../components/BookScanModal";
 import BookNotFoundModal from "../components/BookNotFoundModal";
 import FineSettlementModal from "./FineSettlementModal";
-import CameraScanner from "../components/CameraScanner";
-import ScanModeSelector from "../components/ScanModeSelector";
 import StudentSearchModal from "../components/StudentSearchModal";
 import BookSelectorModal from "../components/BookSelectorModal";
-import { Search, ChevronDown, User, Book, Scan, Camera, Users, Library, AlertTriangle, Settings, Clock, DollarSign, PlusCircle } from "lucide-react";
+import { Search, ChevronDown, User, Book, Scan, Users, Library, AlertTriangle, Settings, Clock, DollarSign, PlusCircle } from "lucide-react";
 import Swal from 'sweetalert2';
 import BookForm from "./BookForm";
 
@@ -63,13 +61,10 @@ export default function Circulation({ onNavigateToBooks }) {
   // SCANNER MODE STATE
   const [scannedBook, setScannedBook] = useState(null);
   const [showScanModal, setShowScanModal] = useState(false);
-  const [showCameraScanner, setShowCameraScanner] = useState(false);
-  const [showModeSelector, setShowModeSelector] = useState(false);
 
   // Register Book State
   const [showBookForm, setShowBookForm] = useState(false);
   const [prefillBarcode, setPrefillBarcode] = useState("");
-  const [scanMode, setScanMode] = useState(null); // 'borrow' | 'register' | 'return'
 
   // BOOK NOT FOUND MODAL STATE
   const [showNotFoundModal, setShowNotFoundModal] = useState(false);
@@ -78,6 +73,79 @@ export default function Circulation({ onNavigateToBooks }) {
   // SMART BOOK SELECTOR MODAL STATE
   const [showBorrowBookModal, setShowBorrowBookModal] = useState(false);
   const [showReturnBookModal, setShowReturnBookModal] = useState(false);
+
+  // =========================================
+  // HARDWARE USB SCANNER — Global Keydown Listener
+  // =========================================
+  const scanBufferRef = useRef("");
+  const lastKeystrokeRef = useRef(0);
+  const scanProcessingRef = useRef(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // IGNORE if user is actively typing in an input, textarea, or select
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      // IGNORE if a Swal modal is currently open
+      if (document.querySelector('.swal2-container')) return;
+
+      // IGNORE if already processing a scan
+      if (scanProcessingRef.current) return;
+
+      const now = Date.now();
+      const timeSinceLastKey = now - lastKeystrokeRef.current;
+
+      if (event.key === 'Enter') {
+        // Only process if we have buffered characters from rapid typing
+        if (scanBufferRef.current.length > 0) {
+          event.preventDefault();
+          const scannedCode = scanBufferRef.current.trim();
+          scanBufferRef.current = "";
+          lastKeystrokeRef.current = 0;
+
+          if (scannedCode) {
+            processHardwareScan(scannedCode);
+          }
+        }
+        return;
+      }
+
+      // Only accept printable single characters
+      if (event.key.length !== 1) return;
+
+      // If time since last keystroke is > 80ms, this is likely human typing — reset buffer
+      if (timeSinceLastKey > 80) {
+        scanBufferRef.current = "";
+      }
+
+      scanBufferRef.current += event.key;
+      lastKeystrokeRef.current = now;
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Process barcode from hardware scanner
+  const processHardwareScan = async (scannedCode) => {
+    scanProcessingRef.current = true;
+
+    try {
+      const { data: result } = await axiosClient.get(`/books/lookup/${encodeURIComponent(scannedCode)}`);
+      handleScanResult(result);
+    } catch (err) {
+      console.error("Hardware scan lookup failed:", err);
+      if (err.response?.status === 404) {
+        setNotFoundBarcode(scannedCode);
+        setShowNotFoundModal(true);
+      } else {
+        toast.error(`Scanner error: Could not look up code "${scannedCode}".`);
+      }
+    } finally {
+      scanProcessingRef.current = false;
+    }
+  };
 
   // Fetch library settings on mount
   const fetchLibrarySettings = async () => {
@@ -405,74 +473,42 @@ export default function Circulation({ onNavigateToBooks }) {
     if (studentId) refreshClearance();
   };
 
-  // Handle mode selection from the pre-scan selector
-  const handleModeSelect = (mode) => {
-    setScanMode(mode);
-    setShowModeSelector(false);
-    setShowCameraScanner(true);
-  };
-
-  // BARCODE SCAN HANDLERS - Uses scanMode to determine action with proper validation
+  // =========================================
+  // SMART SCAN RESULT HANDLER (Status-based, no scanMode)
+  // =========================================
   const handleScanResult = (result) => {
     const scannedBarcode = result.asset_code || result.scanned_code || "";
 
-    // Clear any previous messages
+    if (!result.found) {
+      // Book not in database
+      setNotFoundBarcode(scannedBarcode);
+      setShowNotFoundModal(true);
+      return;
+    }
 
-    switch (scanMode) {
-      case 'borrow':
-        // BORROW MODE: Book must be 'available' to borrow
-        // Action: Pre-fill the borrow form with the scanned Book ID
-        if (!result.found) {
-          // Book not in database
-          setNotFoundBarcode(scannedBarcode);
-          setShowNotFoundModal(true);
-          setShowCameraScanner(false);
-        } else if (result.status === 'available') {
-          // ✅ SUCCESS: Book is available, pre-fill the borrow form
-          setShowCameraScanner(false);
-          setBorrowBookCode(result.asset_code);
-          setScannedBook(result); // Store for reference
-          toast.info(`Book "${result.title}" selected. Select a student to complete loan.`);
-        } else if (result.status === 'borrowed') {
-          // ❌ ERROR: Book is already checked out
-          toast.error(`Cannot borrow. "${result.title}" is currently borrowed.`);
-          setShowCameraScanner(false);
-        } else {
-          // Unknown status
-          toast.error(`Cannot borrow. Book status: ${result.status || 'unknown'}`);
-          setShowCameraScanner(false);
-        }
-        break;
+    if (result.status === 'available') {
+      // ✅ Book is available → route to BORROW flow
+      setBorrowBookCode(result.asset_code);
+      setScannedBook(result);
+      toast.info(`Book "${result.title}" selected. Select a student to complete loan.`);
+    } else if (result.status === 'borrowed') {
+      // Book is borrowed → route to RETURN flow
+      const borrowerType = result.borrower?.type;
 
-      case 'return':
-        // RETURN MODE: Book must be 'borrowed' to return
-        // Action: Direct database update - mark as returned immediately
-        if (!result.found) {
-          // Book not in database
-          setNotFoundBarcode(scannedBarcode);
-          setShowNotFoundModal(true);
-          setShowCameraScanner(false);
-        } else if (result.status === 'borrowed') {
-          // Check if borrowed by Faculty - REJECT if so
-          const borrowerType = result.borrower?.type;
+      if (borrowerType === 'Faculty') {
+        toast.error(`This book is borrowed by a Faculty member. Please use Faculty Circulation.`);
+        return;
+      }
 
-          if (borrowerType === 'Faculty') {
-            toast.error(`This book is borrowed by a Faculty member. Please use Faculty Circulation.`);
-            setShowCameraScanner(false);
-            return;
-          }
+      // ✅ Confirm before processing return
+      const borrower = result.borrower || {};
+      const borrowerName = borrower.name || 'Unknown Borrower';
+      const borrowerId = borrower.student_id || '';
+      const typeLabel = borrower.type || 'Borrower';
 
-          // ✅ SUCCESS: Confirm before processing
-          setShowCameraScanner(false);
-
-          const borrower = result.borrower || {};
-          const borrowerName = borrower.name || 'Unknown Borrower';
-          const borrowerId = borrower.student_id || ''; // This field carries both student_id and faculty_id
-          const typeLabel = borrower.type || 'Borrower'; // 'Student' or 'Faculty'
-
-          Swal.fire({
-            title: 'Return Book?',
-            html: `
+      Swal.fire({
+        title: 'Return Book?',
+        html: `
               <div style="text-align: left; font-size: 0.95rem;">
                 <p style="color: #64748b; margin-bottom: 0.5rem;">Are you sure you want to return:</p>
                 <div style="background: #f1f5f9; padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 1rem;">
@@ -490,57 +526,20 @@ export default function Circulation({ onNavigateToBooks }) {
                 </div>
               </div>
             `,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#10b981', // Emerald-500
-            cancelButtonColor: '#ef4444', // Red-500
-            confirmButtonText: 'Yes, Return it!',
-            focusCancel: true
-          }).then((swalResult) => {
-            if (swalResult.isConfirmed) {
-              handleScanReturn(result.asset_code, result.title);
-            }
-          });
-        } else if (result.status === 'available') {
-          // ❌ ERROR: Book is not currently borrowed
-          toast.error(`Book "${result.title}" is not borrowed.`);
-          setShowCameraScanner(false);
-        } else {
-          // Unknown status
-          toast.error(`Cannot return. Book status: ${result.status || 'unknown'}`);
-          setShowCameraScanner(false);
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Return it!',
+        focusCancel: true
+      }).then((swalResult) => {
+        if (swalResult.isConfirmed) {
+          handleScanReturn(result.asset_code, result.title);
         }
-        break;
-
-      case 'register':
-        // REGISTER MODE: Book should NOT already exist in database
-        // Action: Redirect to Inventory/Add Book page with pre-filled ISBN/ID
-        if (result.found) {
-          // ❌ ERROR: Book already exists
-          toast.error(`Book already registered: "${result.title}"`);
-          setShowCameraScanner(false);
-        } else {
-          // ✅ SUCCESS: Book not found, show BookForm with pre-filled code
-          setShowCameraScanner(false);
-          setPrefillBarcode(scannedBarcode);
-          setShowBookForm(true);
-        }
-        break;
-
-      default:
-        // No mode selected (shouldn't happen), fall back to showing scan modal
-        setShowCameraScanner(false);
-        if (result.found) {
-          setScannedBook(result);
-          setShowScanModal(true);
-        } else {
-          setNotFoundBarcode(scannedBarcode);
-          setShowNotFoundModal(true);
-        }
-        break;
+      });
+    } else {
+      toast.error(`Unknown book status: ${result.status || 'unknown'}`);
     }
-
-    setScanMode(null);
   };
 
   // Handle registering a new book from the Not Found modal
@@ -660,14 +659,14 @@ export default function Circulation({ onNavigateToBooks }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Camera Scanner Button */}
-            <button
-              onClick={() => setShowModeSelector(true)}
-              className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-all bg-white text-primary-600 hover:bg-white/90 hover:scale-105 shadow-lg"
-            >
-              <Camera size={20} />
-              Camera Scan
-            </button>
+            {/* Hardware Scanner Status Indicator */}
+            <div className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <span className="font-semibold text-sm text-emerald-100">Hardware Scanner Active & Ready</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1108,29 +1107,6 @@ export default function Circulation({ onNavigateToBooks }) {
             onClose={() => {
               setShowScanModal(false);
               setScannedBook(null);
-            }}
-          />
-        )
-      }
-
-      {/* SCAN MODE SELECTOR */}
-      {
-        showModeSelector && (
-          <ScanModeSelector
-            onSelectMode={handleModeSelect}
-            onClose={() => setShowModeSelector(false)}
-          />
-        )
-      }
-
-      {/* CAMERA SCANNER */}
-      {
-        showCameraScanner && (
-          <CameraScanner
-            onResult={handleScanResult}
-            onClose={() => {
-              setShowCameraScanner(false);
-              setScanMode(null);
             }}
           />
         )
