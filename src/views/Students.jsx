@@ -12,6 +12,7 @@ import {
   PlusCircle,
   Search,
   Trash2,
+  TrendingUp,
   Users,
   Award,
   Pencil,
@@ -61,6 +62,9 @@ export default function Students() {
   const [viewingStudent, setViewingStudent] = useState(null);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+
+  // Bulk Selection (Promotion)
+  const [selectedStudents, setSelectedStudents] = useState([]);
 
   // Debounce search
   useEffect(() => {
@@ -120,6 +124,7 @@ export default function Students() {
     setSearchTerm("");
     setDebouncedSearch("");
     setCurrentPage(1);
+    setSelectedStudents([]);
   };
 
   // Handle back to courses
@@ -129,6 +134,7 @@ export default function Students() {
     setSearchTerm("");
     setDebouncedSearch("");
     setCurrentPage(1);
+    setSelectedStudents([]);
     getCourses(); // Refresh courses when going back
   };
 
@@ -172,6 +178,85 @@ export default function Students() {
   const handleStudentUpdate = (updatedStudent) => {
     setCourseStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
     setViewingStudent(updatedStudent);
+  };
+
+  // ========================================
+  // PROMOTION LOGIC
+  // ========================================
+
+  // Single student promotion
+  const onPromote = (student) => {
+    const nextLevel = (student.year_level || 0) + 1;
+    Swal.fire({
+      title: 'Promote Student?',
+      text: `Promote "${student.name}" to Year ${nextLevel}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#16a34a',
+      confirmButtonText: 'Yes, promote!',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        axiosClient.post(`/students/${student.id}/promote`)
+          .then(({ data }) => {
+            toast.success(data.message);
+            if (selectedCourse) {
+              getStudentsByCourse(selectedCourse, currentPage, debouncedSearch);
+            }
+          })
+          .catch((err) => {
+            toast.error(err.response?.data?.message || 'Failed to promote student.');
+          });
+      }
+    });
+  };
+
+  // Bulk student promotion
+  const onBulkPromote = () => {
+    Swal.fire({
+      title: 'Bulk Promote Students?',
+      text: `Promote ${selectedStudents.length} selected student(s) to the next year level?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#16a34a',
+      confirmButtonText: 'Yes, promote all!',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        axiosClient.post('/students/bulk-promote', { student_ids: selectedStudents })
+          .then(({ data }) => {
+            toast.success(data.message);
+            if (data.skipped?.length > 0) {
+              toast.info(`Skipped (already Year 4): ${data.skipped.join(', ')}`);
+            }
+            setSelectedStudents([]);
+            if (selectedCourse) {
+              getStudentsByCourse(selectedCourse, currentPage, debouncedSearch);
+            }
+          })
+          .catch((err) => {
+            toast.error(err.response?.data?.message || 'Bulk promotion failed.');
+          });
+      }
+    });
+  };
+
+  // Select / deselect a single student
+  const toggleStudentSelection = (studentId) => {
+    setSelectedStudents(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  // Master checkbox: select all eligible (year_level < 4) visible students
+  const toggleSelectAll = () => {
+    const eligible = courseStudents.filter(s => (s.year_level || 0) < 4).map(s => s.id);
+    const allSelected = eligible.length > 0 && eligible.every(id => selectedStudents.includes(id));
+    if (allSelected) {
+      setSelectedStudents(prev => prev.filter(id => !eligible.includes(id)));
+    } else {
+      setSelectedStudents(prev => [...new Set([...prev, ...eligible])]);
+    }
   };
 
   // Pagination controls
@@ -337,17 +422,28 @@ export default function Students() {
       {/* STUDENT LIST VIEW (when course selected) */}
       {selectedCourse && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 overflow-hidden">
-          {/* Search Bar */}
+          {/* Search Bar + Bulk Action */}
           <div className="p-6 border-b border-gray-100 dark:border-slate-700">
-            <div className="relative max-w-md">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                type="text"
-                placeholder="Search by name, ID, email..."
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 outline-none text-sm transition-all bg-gray-50 dark:bg-slate-900 dark:text-white"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search by name, ID, email..."
+                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-slate-600 rounded-xl focus:ring-4 focus:ring-primary-100 dark:focus:ring-primary-900 focus:border-primary-600 outline-none text-sm transition-all bg-gray-50 dark:bg-slate-900 dark:text-white"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              {selectedStudents.length > 0 && (
+                <button
+                  onClick={onBulkPromote}
+                  className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all text-sm"
+                >
+                  <TrendingUp size={18} />
+                  Bulk Promote ({selectedStudents.length})
+                </button>
+              )}
             </div>
           </div>
 
@@ -369,6 +465,18 @@ export default function Students() {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50 dark:bg-slate-700 text-slate-500 dark:text-slate-300 uppercase text-xs font-bold tracking-wider">
                   <tr>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600 w-10">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        checked={
+                          courseStudents.filter(s => (s.year_level || 0) < 4).length > 0 &&
+                          courseStudents.filter(s => (s.year_level || 0) < 4).every(s => selectedStudents.includes(s.id))
+                        }
+                        onChange={toggleSelectAll}
+                        title="Select all eligible students"
+                      />
+                    </th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600">Student</th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600">Year & Section</th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600">Contact</th>
@@ -380,7 +488,16 @@ export default function Students() {
                   {courseStudents.map((student) => {
                     const colors = getCourseColors(selectedCourse);
                     return (
-                      <tr key={student.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group">
+                      <tr key={student.id} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 transition group ${selectedStudents.includes(student.id) ? 'bg-emerald-50/50 dark:bg-emerald-900/10' : ''}`}>
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            checked={selectedStudents.includes(student.id)}
+                            disabled={(student.year_level || 0) >= 4}
+                            onChange={() => toggleStudentSelection(student.id)}
+                          />
+                        </td>
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-gradient-to-br ${colors.gradient}`}>
@@ -426,6 +543,15 @@ export default function Students() {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex justify-end gap-1">
+                            {(student.year_level || 0) < 4 && (
+                              <button
+                                onClick={() => onPromote(student)}
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition"
+                                title={`Promote to Year ${(student.year_level || 0) + 1}`}
+                              >
+                                <TrendingUp size={18} />
+                              </button>
+                            )}
                             <button
                               onClick={() => setViewingStudent(student)}
                               className="p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition"
