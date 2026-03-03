@@ -151,7 +151,7 @@ export default function Login() {
 
           {/* Bottom Text/Quote */}
           <div className="p-12 text-center text-blue-200/60 text-sm font-medium tracking-wide uppercase">
-            Start your knowledge journey
+            Admin Access Only - Manage your library with ease and efficiency
           </div>
         </div>
       </div>
