@@ -418,6 +418,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600">Title</th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600">Author</th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600">Publisher</th>
+                    <th className="p-4 border-b border-slate-100 dark:border-slate-600">College</th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600">Call No.</th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-center">Status</th>
                     <th className="p-4 border-b border-slate-100 dark:border-slate-600 text-right">Actions</th>
@@ -455,6 +456,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
                         </td>
                         <td className="p-4 text-slate-600 dark:text-slate-300">{book.author}</td>
                         <td className="p-4 text-slate-500 dark:text-slate-400 text-sm">{book.publisher || '-'}</td>
+                        <td className="p-4 text-slate-500 dark:text-slate-400 text-sm">{book.college || '-'}</td>
                         <td className="p-4 font-mono text-xs text-slate-500 dark:text-slate-400">{book.call_number || '-'}</td>
                         <td className="p-4 text-center">
                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${badge.className}`}>

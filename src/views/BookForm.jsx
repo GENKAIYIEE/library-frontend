@@ -19,6 +19,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     subtitle: "",
     author: "",
     category: "Book",
+    college: "",
     isbn: "",
     accession_no: "",
     lccn: "",
@@ -76,6 +77,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
         subtitle: bookToEdit.subtitle || "",
         author: bookToEdit.author || "",
         category: bookToEdit.category || "",
+        college: bookToEdit.college || "",
         isbn: bookToEdit.isbn || "",
         accession_no: bookToEdit.accession_no || "",
         lccn: bookToEdit.lccn || "",
@@ -376,6 +378,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
     if (book.subtitle) formData.append("subtitle", book.subtitle);
     formData.append("author", book.author);
     formData.append("category", book.category);
+    if (book.college) formData.append("college", book.college);
 
     // Only append optional fields if they have values
     if (book.isbn) formData.append("isbn", book.isbn);
@@ -608,6 +611,20 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 <option value="Map">Map</option>
                 <option value="Thesis">Thesis</option>
                 <option value="Visual Materials">Visual Materials</option>
+              </FloatingSelect>
+
+              {/* 1b. College */}
+              <FloatingSelect
+                label="College"
+                value={book.college}
+                onChange={e => setBook({ ...book, college: e.target.value })}
+              >
+                <option value="COLLEGE OF CRIMINOLOGY">COLLEGE OF CRIMINOLOGY</option>
+                <option value="COLLEGE OF MARITIME">COLLEGE OF MARITIME</option>
+                <option value="COLLEGE OF INFORMATION TECHNOLOGY">COLLEGE OF INFORMATION TECHNOLOGY</option>
+                <option value="COLLEGE OF HOSPITALITY & TOURISM MANAGEMENT">COLLEGE OF HOSPITALITY & TOURISM MANAGEMENT</option>
+                <option value="COLLEGE OF BUSINESS ADMINISTRATION">COLLEGE OF BUSINESS ADMINISTRATION</option>
+                <option value="COLLEGE OF EDUCATION">COLLEGE OF EDUCATION</option>
               </FloatingSelect>
 
               {/* 2. Accession No. & 3. Call Number */}
@@ -1003,7 +1020,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 loading={loading}
                 disabled={
                   accessionStatus === 'duplicate' || accessionStatus === 'checking' ||
-                  editCopyAccStatus === 'duplicate' || editCopyAccStatus === 'checking'
+                  (parseInt(book.copies) > 0 && (editCopyAccStatus === 'duplicate' || editCopyAccStatus === 'checking'))
                 }
                 className="flex-1"
               >
