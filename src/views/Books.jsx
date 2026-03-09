@@ -2,10 +2,13 @@ import {
   AlertCircle,
   ArrowLeft,
   BookOpen,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Edit,
   Filter,
+  FolderOpen,
+  GraduationCap,
   Loader2,
   PlusCircle,
   Printer,
@@ -24,6 +27,18 @@ import BookForm from "./BookForm";
 import DamagedBooksModal from "./DamagedBooksModal";
 import LostBooksModal from "./LostBooksModal";
 
+// College color mapping for visual distinction
+const COLLEGE_COLORS = {
+  "COLLEGE OF CRIMINOLOGY": { bg: "bg-red-50", border: "border-red-200", text: "text-red-700", badge: "bg-red-100 text-red-700 border-red-200", icon: "text-red-500", gradient: "from-red-500 to-red-600" },
+  "COLLEGE OF MARITIME": { bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-700", badge: "bg-sky-100 text-sky-700 border-sky-200", icon: "text-sky-500", gradient: "from-sky-500 to-sky-600" },
+  "COLLEGE OF INFORMATION TECHNOLOGY": { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", badge: "bg-violet-100 text-violet-700 border-violet-200", icon: "text-violet-500", gradient: "from-violet-500 to-violet-600" },
+  "COLLEGE OF HOSPITALITY & TOURISM MANAGEMENT": { bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-700", badge: "bg-orange-100 text-orange-700 border-orange-200", icon: "text-orange-500", gradient: "from-orange-500 to-orange-600" },
+  "COLLEGE OF BUSINESS ADMINISTRATION": { bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700", badge: "bg-teal-100 text-teal-700 border-teal-200", icon: "text-teal-500", gradient: "from-teal-500 to-teal-600" },
+  "COLLEGE OF EDUCATION": { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-200", icon: "text-amber-500", gradient: "from-amber-500 to-amber-600" },
+  "GENERAL": { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-500", gradient: "from-slate-500 to-slate-600" },
+  "default": { bg: "bg-gray-50", border: "border-gray-200", text: "text-gray-700", badge: "bg-gray-100 text-gray-700 border-gray-200", icon: "text-gray-500", gradient: "from-gray-500 to-gray-600" }
+};
+
 // Category color mapping for visual distinction
 const CATEGORY_COLORS = {
   "Book": { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-700", badge: "bg-purple-100 text-purple-700 border-purple-200", icon: "text-purple-500", gradient: "from-purple-500 to-purple-600" },
@@ -35,15 +50,38 @@ const CATEGORY_COLORS = {
   "default": { bg: "bg-slate-50", border: "border-slate-200", text: "text-slate-700", badge: "bg-slate-100 text-slate-700 border-slate-200", icon: "text-slate-500", gradient: "from-slate-500 to-slate-600" }
 };
 
+const getCollegeColors = (college) => COLLEGE_COLORS[college] || COLLEGE_COLORS.default;
 const getCategoryColors = (category) => CATEGORY_COLORS[category] || CATEGORY_COLORS.default;
+
+// Short display name for college cards
+const getCollegeShortName = (college) => {
+  const map = {
+    "COLLEGE OF CRIMINOLOGY": "CRIMINOLOGY",
+    "COLLEGE OF MARITIME": "MARITIME",
+    "COLLEGE OF INFORMATION TECHNOLOGY": "INFORMATION TECHNOLOGY",
+    "COLLEGE OF HOSPITALITY & TOURISM MANAGEMENT": "HOSPITALITY & TOURISM",
+    "COLLEGE OF BUSINESS ADMINISTRATION": "BUSINESS ADMINISTRATION",
+    "COLLEGE OF EDUCATION": "EDUCATION",
+    "GENERAL": "GENERAL"
+  };
+  return map[college] || college;
+};
 
 export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   const toast = useToast();
 
-  // View Mode States
-  const [selectedCategory, setSelectedCategory] = useState(null); // null = category view, string = book list view
+  // 3-Level Navigation States
+  // Level 1: selectedCollege=null, selectedCategory=null  → College list
+  // Level 2: selectedCollege="X", selectedCategory=null   → Categories within college X
+  // Level 3: selectedCollege="X", selectedCategory="Y"    → Book list
+  const [selectedCollege, setSelectedCollege] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  // Data states
+  const [colleges, setColleges] = useState([]);
   const [categories, setCategories] = useState([]);
   const [categoryBooks, setCategoryBooks] = useState([]);
+  const [loadingColleges, setLoadingColleges] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingBooks, setLoadingBooks] = useState(false);
 
@@ -71,15 +109,28 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-      setCurrentPage(1); // Reset to first page on search
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Fetch categories
-  const getCategories = useCallback((silent = false) => {
+  // Fetch colleges (Level 1)
+  const getColleges = useCallback((silent = false) => {
+    if (!silent) setLoadingColleges(true);
+    axiosClient.get("/books/colleges/summary")
+      .then(({ data }) => {
+        setColleges(data);
+        setLoadingColleges(false);
+      })
+      .catch(() => {
+        setLoadingColleges(false);
+      });
+  }, []);
+
+  // Fetch categories by college (Level 2)
+  const getCategoriesByCollege = useCallback((college, silent = false) => {
     if (!silent) setLoadingCategories(true);
-    axiosClient.get("/books/categories/summary")
+    axiosClient.get(`/books/colleges/${encodeURIComponent(college)}/categories`)
       .then(({ data }) => {
         setCategories(data);
         setLoadingCategories(false);
@@ -89,11 +140,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       });
   }, []);
 
-  // Fetch books by category with pagination
-  const getBooksByCategory = useCallback((category, page = 1, search = "") => {
+  // Fetch books by category + college (Level 3)
+  const getBooksByCategory = useCallback((category, college, page = 1, search = "") => {
     setLoadingBooks(true);
     axiosClient.get(`/books/by-category/${encodeURIComponent(category)}`, {
-      params: { page, per_page: perPage, search }
+      params: { page, per_page: perPage, search, college }
     })
       .then(({ data }) => {
         setCategoryBooks(data.data);
@@ -107,19 +158,26 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       });
   }, [perPage]);
 
-  // Initial load - fetch categories
+  // Initial load - fetch colleges
   useEffect(() => {
-    getCategories();
-  }, [getCategories]);
+    getColleges();
+  }, [getColleges]);
 
-  // When category is selected, load its books
+  // When category is selected (Level 3), load its books
   useEffect(() => {
-    if (selectedCategory) {
-      getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+    if (selectedCategory && selectedCollege) {
+      getBooksByCategory(selectedCategory, selectedCollege, currentPage, debouncedSearch);
     }
-  }, [selectedCategory, currentPage, debouncedSearch, getBooksByCategory]);
+  }, [selectedCategory, selectedCollege, currentPage, debouncedSearch, getBooksByCategory]);
 
-  // Handle category card click
+  // Handle college card click (Level 1 → Level 2)
+  const handleCollegeClick = (college) => {
+    setSelectedCollege(college);
+    setSelectedCategory(null);
+    getCategoriesByCollege(college);
+  };
+
+  // Handle category card click (Level 2 → Level 3)
   const handleCategoryClick = (category) => {
     setSelectedCategory(category);
     setSearchTerm("");
@@ -127,14 +185,37 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     setCurrentPage(1);
   };
 
-  // Handle back to categories
+  // Handle back to categories (Level 3 → Level 2)
   const handleBackToCategories = () => {
     setSelectedCategory(null);
     setCategoryBooks([]);
     setSearchTerm("");
     setDebouncedSearch("");
     setCurrentPage(1);
-    getCategories(); // Refresh categories when going back
+    if (selectedCollege) {
+      getCategoriesByCollege(selectedCollege);
+    }
+  };
+
+  // Handle back to colleges (Level 2 → Level 1)
+  const handleBackToColleges = () => {
+    setSelectedCollege(null);
+    setSelectedCategory(null);
+    setCategories([]);
+    setCategoryBooks([]);
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setCurrentPage(1);
+    getColleges();
+  };
+
+  // Handle back button click — context-aware
+  const handleBack = () => {
+    if (selectedCategory) {
+      handleBackToCategories();
+    } else if (selectedCollege) {
+      handleBackToColleges();
+    }
   };
 
   // CRUD Operations
@@ -153,10 +234,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         axiosClient.delete(`/books/${book.id}`)
           .then(() => {
             toast.success('The book has been removed.');
-            if (selectedCategory) {
-              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            if (selectedCategory && selectedCollege) {
+              getBooksByCategory(selectedCategory, selectedCollege, currentPage, debouncedSearch);
             }
-            getCategories(); // Refresh category counts
+            if (selectedCollege) getCategoriesByCollege(selectedCollege, true);
+            getColleges(true);
           })
           .catch((err) => {
             toast.error(err.response?.data?.message || 'Failed to delete book.');
@@ -174,7 +256,6 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     setEditingBook(null);
     setShowTitleForm(true);
   };
-
 
   // Get status badge
   const getStatusBadge = (book) => {
@@ -265,7 +346,48 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     );
   };
 
-  // Category Card Component
+  // College Card Component (Level 1)
+  const CollegeCard = ({ college, totalBooks, availableTitles, categoryCount }) => {
+    const colors = getCollegeColors(college);
+    const shortName = getCollegeShortName(college);
+    return (
+      <button
+        onClick={() => handleCollegeClick(college)}
+        className={`group relative overflow-hidden rounded-3xl p-6 text-left transition-all duration-300 hover:scale-105 hover:shadow-2xl ${colors.bg} dark:bg-slate-800 border-2 ${colors.border} dark:border-slate-700`}
+      >
+        {/* Background gradient accent */}
+        <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${colors.gradient} opacity-10 rounded-full -translate-y-8 translate-x-8 group-hover:scale-150 transition-transform duration-500`} />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className={`p-3 rounded-xl bg-gradient-to-br ${colors.gradient} shadow-lg`}>
+              <GraduationCap size={24} className="text-white" />
+            </div>
+          </div>
+          <h3 className={`text-lg font-bold ${colors.text} dark:text-white mb-1 truncate`} title={college}>{shortName}</h3>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mb-3 truncate">{college}</p>
+          <div className="space-y-1">
+            <p className="text-3xl font-bold text-gray-800 dark:text-white">{totalBooks}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-500 dark:text-slate-400">
+                {availableTitles} available
+              </p>
+              <span className={`text-xs px-2 py-0.5 rounded-full ${colors.badge} border font-medium`}>
+                {categoryCount} {categoryCount === 1 ? "category" : "categories"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Arrow indicator */}
+        <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+          <ChevronRight size={24} className={colors.icon} />
+        </div>
+      </button>
+    );
+  };
+
+  // Category Card Component (Level 2)
   const CategoryCard = ({ category, totalBooks, availableTitles, totalCopies, availableCopies }) => {
     const colors = getCategoryColors(category);
     return (
@@ -279,7 +401,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-4">
             <div className={`p-3 rounded-xl bg-gradient-to-br ${colors.gradient} shadow-lg`}>
-              <BookOpen size={24} className="text-white" />
+              <FolderOpen size={24} className="text-white" />
             </div>
           </div>
           <h3 className={`text-lg font-bold ${colors.text} dark:text-white mb-2 truncate`}>{category}</h3>
@@ -299,31 +421,50 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     );
   };
 
+  // Determine current level
+  const currentLevel = selectedCategory ? 3 : selectedCollege ? 2 : 1;
+
+  // Build header text
+  const getHeaderTitle = () => {
+    if (currentLevel === 3) return selectedCategory;
+    if (currentLevel === 2) return getCollegeShortName(selectedCollege);
+    return "Book Inventory";
+  };
+
+  const getHeaderSubtext = () => {
+    if (currentLevel === 3) return `${totalBooks} titles in ${getCollegeShortName(selectedCollege)} • ${selectedCategory}`;
+    if (currentLevel === 2) return `${categories.length} categories in ${getCollegeShortName(selectedCollege)}`;
+    return `${colleges.length} college departments • Click to browse`;
+  };
+
   return (
     <div className="space-y-6 bg-gray-50 dark:bg-slate-900 p-8 min-h-screen transition-colors duration-300">
       {/* HEADER & CONTROLS */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
-          {selectedCategory && (
+          {currentLevel > 1 && (
             <button
-              onClick={handleBackToCategories}
+              onClick={handleBack}
               className="p-3 rounded-xl bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition shadow-sm"
             >
               <ArrowLeft size={24} className="text-gray-600 dark:text-slate-300" />
             </button>
           )}
-          <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
-            <BookOpen size={28} className="text-white" />
+          <div className={`p-3 rounded-xl shadow-lg ${currentLevel === 1 ? "bg-primary-600" : currentLevel === 2 ? `bg-gradient-to-br ${getCollegeColors(selectedCollege).gradient}` : `bg-gradient-to-br ${getCategoryColors(selectedCategory).gradient}`}`}>
+            {currentLevel === 1 ? (
+              <BookOpen size={28} className="text-white" />
+            ) : currentLevel === 2 ? (
+              <GraduationCap size={28} className="text-white" />
+            ) : (
+              <FolderOpen size={28} className="text-white" />
+            )}
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-              {selectedCategory ? selectedCategory : "Book Inventory"}
+              {getHeaderTitle()}
             </h2>
             <p className="text-gray-500 dark:text-slate-400 text-sm">
-              {selectedCategory
-                ? `${totalBooks} titles in this category`
-                : `${categories.length} categories • Click to browse`
-              }
+              {getHeaderSubtext()}
             </p>
           </div>
         </div>
@@ -349,8 +490,64 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         </div>
       </div>
 
-      {/* CATEGORY VIEW (when no category selected) */}
-      {!selectedCategory && (
+      {/* Breadcrumb */}
+      {currentLevel > 1 && (
+        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-slate-400">
+          <button onClick={handleBackToColleges} className="hover:text-primary-600 dark:hover:text-primary-400 transition font-medium">
+            Book Inventory
+          </button>
+          <ChevronRight size={14} />
+          {currentLevel >= 2 && (
+            <>
+              <button
+                onClick={currentLevel === 3 ? handleBackToCategories : undefined}
+                className={`font-medium ${currentLevel === 3 ? "hover:text-primary-600 dark:hover:text-primary-400 transition cursor-pointer" : "text-gray-700 dark:text-slate-200"}`}
+              >
+                {getCollegeShortName(selectedCollege)}
+              </button>
+            </>
+          )}
+          {currentLevel === 3 && (
+            <>
+              <ChevronRight size={14} />
+              <span className="text-gray-700 dark:text-slate-200 font-medium">{selectedCategory}</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* LEVEL 1: COLLEGE VIEW */}
+      {currentLevel === 1 && (
+        <>
+          {loadingColleges ? (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
+              <Loader2 className="animate-spin h-10 w-10 mx-auto mb-4 text-primary-600" />
+              <p>Loading college departments...</p>
+            </div>
+          ) : colleges.length === 0 ? (
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
+              <Building2 size={40} strokeWidth={1.5} className="mx-auto mb-4" />
+              <p className="text-lg font-medium">No college departments found</p>
+              <p className="text-sm">Add new books with a college assigned using the button above</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {colleges.map((col) => (
+                <CollegeCard
+                  key={col.college}
+                  college={col.college}
+                  totalBooks={col.total_books}
+                  availableTitles={col.available_titles}
+                  categoryCount={col.category_count}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* LEVEL 2: CATEGORY VIEW (within selected college) */}
+      {currentLevel === 2 && (
         <>
           {loadingCategories ? (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
@@ -360,8 +557,8 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
           ) : categories.length === 0 ? (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
               <Filter size={40} strokeWidth={1.5} className="mx-auto mb-4" />
-              <p className="text-lg font-medium">No categories found</p>
-              <p className="text-sm">Add new books using the button above</p>
+              <p className="text-lg font-medium">No categories found in {getCollegeShortName(selectedCollege)}</p>
+              <p className="text-sm">Add new books to this college using the button above</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -380,8 +577,8 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         </>
       )}
 
-      {/* BOOK LIST VIEW (when category selected) */}
-      {selectedCategory && (
+      {/* LEVEL 3: BOOK LIST VIEW */}
+      {currentLevel === 3 && (
         <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg border border-gray-100 dark:border-slate-700 overflow-hidden">
           {/* Search Bar */}
           <div className="p-6 border-b border-gray-100 dark:border-slate-700">
@@ -508,10 +705,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
             setPrefillBarcode("");
           }}
           onSuccess={(newBook) => {
-            if (selectedCategory) {
-              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            if (selectedCategory && selectedCollege) {
+              getBooksByCategory(selectedCategory, selectedCollege, currentPage, debouncedSearch);
             }
-            getCategories();
+            if (selectedCollege) getCategoriesByCollege(selectedCollege, true);
+            getColleges(true);
             if (newBook && newBook.id) {
               setSelectedBookForLabel(newBook);
             }
@@ -529,10 +727,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         <LostBooksModal
           onClose={() => setShowLostBooksModal(false)}
           onSuccess={() => {
-            if (selectedCategory) {
-              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            if (selectedCategory && selectedCollege) {
+              getBooksByCategory(selectedCategory, selectedCollege, currentPage, debouncedSearch);
             }
-            getCategories();
+            if (selectedCollege) getCategoriesByCollege(selectedCollege, true);
+            getColleges(true);
           }}
         />
       )}
@@ -541,10 +740,11 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         <DamagedBooksModal
           onClose={() => setShowDamagedBooksModal(false)}
           onSuccess={() => {
-            if (selectedCategory) {
-              getBooksByCategory(selectedCategory, currentPage, debouncedSearch);
+            if (selectedCategory && selectedCollege) {
+              getBooksByCategory(selectedCategory, selectedCollege, currentPage, debouncedSearch);
             }
-            getCategories();
+            if (selectedCollege) getCategoriesByCollege(selectedCollege, true);
+            getColleges(true);
           }}
         />
       )}

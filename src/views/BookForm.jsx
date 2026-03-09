@@ -49,6 +49,17 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Predefined lists
+  const COLLEGES = [
+    "GENERAL",
+    "COLLEGE OF CRIMINOLOGY",
+    "COLLEGE OF MARITIME",
+    "COLLEGE OF INFORMATION TECHNOLOGY",
+    "COLLEGE OF HOSPITALITY & TOURISM MANAGEMENT",
+    "COLLEGE OF BUSINESS ADMINISTRATION",
+    "COLLEGE OF EDUCATION"
+  ];
+
   // ── Accession Duplicate Check State ──
   // status: 'idle' | 'checking' | 'available' | 'duplicate'
   const [accessionStatus, setAccessionStatus] = useState('idle');
@@ -619,6 +630,7 @@ export default function BookForm({ onClose, onSuccess, bookToEdit, prefillBarcod
                 value={book.college}
                 onChange={e => setBook({ ...book, college: e.target.value })}
               >
+                <option value="GENERAL">GENERAL</option>
                 <option value="COLLEGE OF CRIMINOLOGY">COLLEGE OF CRIMINOLOGY</option>
                 <option value="COLLEGE OF MARITIME">COLLEGE OF MARITIME</option>
                 <option value="COLLEGE OF INFORMATION TECHNOLOGY">COLLEGE OF INFORMATION TECHNOLOGY</option>
