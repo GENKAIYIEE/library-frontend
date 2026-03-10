@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowRight, BookOpen, CheckCircle, ClipboardList, Copy, DollarSign, LayoutDashboard, Package, Repeat, Users } from "lucide-react";
+import { Activity, AlertTriangle, ArrowRight, BookOpen, CheckCircle, ClipboardList, Copy, DollarSign, LayoutDashboard, Package, Repeat, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import axiosClient from "../axios-client";
 import FlipBookCard from "../components/FlipBookCard";
@@ -306,7 +306,7 @@ function PhysicalCopiesSection({ breakdown }) {
       {/* Section Header */}
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-          <Copy size={20} className="text-indigo-600 dark:text-indigo-400" />
+          <Activity size={20} className="text-indigo-600 dark:text-indigo-400" />
         </div>
         <div>
           <h3 className="text-lg font-bold text-gray-800 dark:text-white">Physical Copies  Live Breakdown</h3>
