@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BookOpen,
   Building2,
+  Calendar,
   ChevronLeft,
   ChevronRight,
   Edit,
@@ -10,12 +11,13 @@ import {
   FolderOpen,
   GraduationCap,
   Loader2,
+  LibraryBig,
   PlusCircle,
   Printer,
   Search,
   Trash2
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
 import axiosClient from "../axios-client";
 import { getStorageUrl } from "../lib/utils";
@@ -95,6 +97,18 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // Year Classification filter (Level 1 global filter)
+  const [selectedYear, setSelectedYear] = useState("");
+
+  // Fetch year summaries (total books per year)
+  const [yearSummaries, setYearSummaries] = useState([]);
+
+  useEffect(() => {
+    axiosClient.get('/books/years/summary')
+      .then(({ data }) => setYearSummaries(data))
+      .catch(console.error);
+  }, []);
+
   // Modal states
   const [showTitleForm, setShowTitleForm] = useState(false);
   const [showLostBooksModal, setShowLostBooksModal] = useState(false);
@@ -115,9 +129,9 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   }, [searchTerm]);
 
   // Fetch colleges (Level 1)
-  const getColleges = useCallback((silent = false) => {
+  const getColleges = useCallback((silent = false, year = "") => {
     if (!silent) setLoadingColleges(true);
-    axiosClient.get("/books/colleges/summary")
+    axiosClient.get("/books/colleges/summary", { params: { year } })
       .then(({ data }) => {
         setColleges(data);
         setLoadingColleges(false);
@@ -128,9 +142,9 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   }, []);
 
   // Fetch categories by college (Level 2)
-  const getCategoriesByCollege = useCallback((college, silent = false) => {
+  const getCategoriesByCollege = useCallback((college, silent = false, year = "") => {
     if (!silent) setLoadingCategories(true);
-    axiosClient.get(`/books/colleges/${encodeURIComponent(college)}/categories`)
+    axiosClient.get(`/books/colleges/${encodeURIComponent(college)}/categories`, { params: { year } })
       .then(({ data }) => {
         setCategories(data);
         setLoadingCategories(false);
@@ -141,10 +155,10 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
   }, []);
 
   // Fetch books by category + college (Level 3)
-  const getBooksByCategory = useCallback((category, college, page = 1, search = "") => {
+  const getBooksByCategory = useCallback((category, college, page = 1, search = "", year = "") => {
     setLoadingBooks(true);
     axiosClient.get(`/books/by-category/${encodeURIComponent(category)}`, {
-      params: { page, per_page: perPage, search, college }
+      params: { page, per_page: perPage, search, college, year }
     })
       .then(({ data }) => {
         setCategoryBooks(data.data);
@@ -158,23 +172,29 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       });
   }, [perPage]);
 
-  // Initial load - fetch colleges
+  // Fetch colleges when selected year changes or initially
   useEffect(() => {
-    getColleges();
-  }, [getColleges]);
+    getColleges(false, selectedYear);
+  }, [selectedYear, getColleges]);
 
-  // When category is selected (Level 3), load its books
+  // When a college is selected or year changes (Level 2), load its categories
+  useEffect(() => {
+    if (selectedCollege) {
+      getCategoriesByCollege(selectedCollege, false, selectedYear);
+    }
+  }, [selectedCollege, selectedYear, getCategoriesByCollege]);
+
+  // When category is selected or search/page/year changes (Level 3), load its books
   useEffect(() => {
     if (selectedCategory && selectedCollege) {
-      getBooksByCategory(selectedCategory, selectedCollege, currentPage, debouncedSearch);
+      getBooksByCategory(selectedCategory, selectedCollege, currentPage, debouncedSearch, selectedYear);
     }
-  }, [selectedCategory, selectedCollege, currentPage, debouncedSearch, getBooksByCategory]);
+  }, [selectedCategory, selectedCollege, currentPage, debouncedSearch, selectedYear, getBooksByCategory]);
 
   // Handle college card click (Level 1 → Level 2)
   const handleCollegeClick = (college) => {
     setSelectedCollege(college);
     setSelectedCategory(null);
-    getCategoriesByCollege(college);
   };
 
   // Handle category card click (Level 2 → Level 3)
@@ -192,9 +212,6 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     setSearchTerm("");
     setDebouncedSearch("");
     setCurrentPage(1);
-    if (selectedCollege) {
-      getCategoriesByCollege(selectedCollege);
-    }
   };
 
   // Handle back to colleges (Level 2 → Level 1)
@@ -206,7 +223,14 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
     setSearchTerm("");
     setDebouncedSearch("");
     setCurrentPage(1);
-    getColleges();
+  };
+
+  // Handle year change (Level 1)
+  const handleYearChange = (year) => {
+    setSelectedYear(year);
+    setSearchTerm("");
+    setDebouncedSearch("");
+    setCurrentPage(1);
   };
 
   // Handle back button click — context-aware
@@ -442,10 +466,17 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
       {/* HEADER & CONTROLS */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-4">
-          {currentLevel > 1 && (
+          {(currentLevel > 1 || selectedYear) && (
             <button
-              onClick={handleBack}
+              onClick={() => {
+                if (currentLevel > 1) {
+                  handleBack();
+                } else {
+                  handleYearChange("");
+                }
+              }}
               className="p-3 rounded-xl bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition shadow-sm"
+              title={selectedYear && currentLevel === 1 ? "Clear Year Filter" : "Go Back"}
             >
               <ArrowLeft size={24} className="text-gray-600 dark:text-slate-300" />
             </button>
@@ -469,7 +500,23 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* Year Filter Dropdown - Level 1 Only */}
+          {currentLevel === 1 && (
+            <div className="relative w-[140px]">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <select
+                value={selectedYear}
+                onChange={(e) => handleYearChange(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 border-2 border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm transition-all appearance-none cursor-pointer dark:text-white"
+              >
+                <option value="">All Years</option>
+                {yearSummaries.map(ys => (
+                  <option key={ys.year} value={ys.year}>{ys.year}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <Button
             onClick={() => setShowDamagedBooksModal(true)}
             variant="outline"
@@ -516,9 +563,35 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
         </div>
       )}
 
-      {/* LEVEL 1: COLLEGE VIEW */}
+      {/* LEVEL 1: COLLEGE VIEW OR YEAR VIEW */}
       {currentLevel === 1 && (
-        <>
+        <div className="space-y-6">
+          {selectedYear && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gradient-to-br from-primary-600 to-indigo-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden flex items-center gap-6">
+                {/* Decorative background circle */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -translate-y-8 translate-x-8" />
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary-400 opacity-20 rounded-full translate-y-8 -translate-x-8" />
+
+                <div className="relative z-10 p-4 bg-white/20 rounded-xl backdrop-blur-sm shadow-inner">
+                  <LibraryBig size={36} className="text-white" />
+                </div>
+                <div className="relative z-10">
+                  <p className="text-primary-100 text-sm font-semibold mb-1 uppercase tracking-wider">
+                    Total Books ({selectedYear})
+                  </p>
+                  <div className="flex items-baseline gap-2">
+                    <h2 className="text-5xl font-extrabold drop-shadow-md">
+                      {yearSummaries.find(ys => String(ys.year) === String(selectedYear))?.total_books || 0}
+                    </h2>
+                    <span className="text-primary-200 text-sm font-medium">titles found</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* COLLEGE CARDS VIEW */}
           {loadingColleges ? (
             <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-12 text-center text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-700">
               <Loader2 className="animate-spin h-10 w-10 mx-auto mb-4 text-primary-600" />
@@ -543,7 +616,7 @@ export default function Books({ pendingBarcode = "", onClearPendingBarcode }) {
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* LEVEL 2: CATEGORY VIEW (within selected college) */}
