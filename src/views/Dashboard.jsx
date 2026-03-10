@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowRight, BookOpen, ClipboardList, Copy, DollarSign, LayoutDashboard, Repeat, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, BookOpen, CheckCircle, ClipboardList, Copy, DollarSign, LayoutDashboard, Package, Repeat, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import axiosClient from "../axios-client";
 import FlipBookCard from "../components/FlipBookCard";
@@ -106,7 +106,6 @@ export default function Dashboard({ setActiveTab }) {
           icon={Copy}
           color="bg-indigo-500"
           delay={0.1}
-          breakdown={stats.copies_breakdown} // Pass breakdown here
         />
         <DashboardStatCard
           title="Active Loans"
@@ -145,6 +144,9 @@ export default function Dashboard({ setActiveTab }) {
           delay={0.4}
         />
       </div>
+
+      {/* PHYSICAL COPIES  BREAKDOWN — 4 Separate Status Boxes */}
+      <PhysicalCopiesSection breakdown={stats.copies_breakdown} />
 
       {/* ... (rest of main content grid remains same) ... */}
 
@@ -204,6 +206,9 @@ export default function Dashboard({ setActiveTab }) {
 }
 
 function DashboardStatCard({ title, value, icon: Icon, color, delay, breakdown }) {
+  // Check if this is the Active Loans card (has student/faculty breakdown)
+  const isActiveLoans = breakdown && breakdown.student !== undefined && breakdown.faculty !== undefined;
+
   return (
     <GlassCard className="p-6 relative group overflow-hidden" delay={delay} hoverEffect={true}>
       <div className="flex items-center gap-4 relative z-10">
@@ -214,7 +219,7 @@ function DashboardStatCard({ title, value, icon: Icon, color, delay, breakdown }
           <p className="text-sm text-gray-500 dark:text-slate-400 font-medium">{title}</p>
 
           {/* Custom Display for Active Loans (Student / Faculty) */}
-          {breakdown && breakdown.student !== undefined && breakdown.faculty !== undefined ? (
+          {isActiveLoans ? (
             <div className="flex items-baseline gap-3 mt-1">
               <div className="flex flex-col">
                 <span className="text-2xl font-bold text-gray-800 dark:text-white">{breakdown.student}</span>
@@ -234,34 +239,122 @@ function DashboardStatCard({ title, value, icon: Icon, color, delay, breakdown }
           )}
         </div>
       </div>
-
-      {/* Hover Breakdown - Only for Physical Copies (where student/faculty is NOT defined) */}
-      {breakdown && breakdown.student === undefined && (
-        <div className="absolute inset-x-0 bottom-0 bg-gray-50/90 dark:bg-slate-800/90 backdrop-blur-sm p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out border-t border-gray-100 dark:border-slate-700">
-          <div className="flex justify-between items-center text-xs font-semibold px-2">
-            <div className="flex flex-col items-center">
-              <span className="text-emerald-500">Avail</span>
-              <span className="text-gray-700 dark:text-gray-200">{breakdown.available || 0}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-orange-500">Borr</span>
-              <span className="text-gray-700 dark:text-gray-200">{breakdown.borrowed || 0}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-red-500">Dmg</span>
-              <span className="text-gray-700 dark:text-gray-200">{breakdown.damaged || 0}</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-gray-500">Lost</span>
-              <span className="text-gray-700 dark:text-gray-200">{breakdown.lost || 0}</span>
-            </div>
-          </div>
-        </div>
-      )}
     </GlassCard>
   );
 }
 
+/**
+ * Physical Copies Section — 4 dedicated status boxes
+ * Separates AVAIL, BORROWED, DAMAGED, LOST into distinct cards.
+ */
+function PhysicalCopiesSection({ breakdown }) {
+  const bd = breakdown || {};
 
+  const statuses = [
+    {
+      key: 'available',
+      label: 'Available Copies',
+      count: bd.available || 0,
+      icon: CheckCircle,
+      borderColor: 'border-l-emerald-500',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-900/10',
+      iconColor: 'text-emerald-500',
+      countColor: 'text-emerald-700 dark:text-emerald-400',
+      headerColor: 'text-emerald-800 dark:text-emerald-300',
+      emptyMsg: 'No copies currently available.',
+    },
+    {
+      key: 'borrowed',
+      label: 'Currently Borrowed',
+      count: bd.borrowed || 0,
+      icon: Repeat,
+      borderColor: 'border-l-amber-500',
+      bgColor: 'bg-amber-50 dark:bg-amber-900/10',
+      iconColor: 'text-amber-500',
+      countColor: 'text-amber-700 dark:text-amber-400',
+      headerColor: 'text-amber-800 dark:text-amber-300',
+      emptyMsg: 'No copies are currently borrowed.',
+    },
+    {
+      key: 'damaged',
+      label: 'Damaged',
+      count: bd.damaged || 0,
+      icon: AlertTriangle,
+      borderColor: 'border-l-rose-500',
+      bgColor: 'bg-rose-50 dark:bg-rose-900/10',
+      iconColor: 'text-rose-500',
+      countColor: 'text-rose-700 dark:text-rose-400',
+      headerColor: 'text-rose-800 dark:text-rose-300',
+      emptyMsg: 'No damaged copies recorded.',
+    },
+    {
+      key: 'lost',
+      label: 'Lost',
+      count: bd.lost || 0,
+      icon: Package,
+      borderColor: 'border-l-slate-500',
+      bgColor: 'bg-slate-50 dark:bg-slate-800/40',
+      iconColor: 'text-slate-500',
+      countColor: 'text-slate-700 dark:text-slate-300',
+      headerColor: 'text-slate-800 dark:text-slate-300',
+      emptyMsg: 'No lost copies recorded.',
+    },
+  ];
 
+  return (
+    <div>
+      {/* Section Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+          <Copy size={20} className="text-indigo-600 dark:text-indigo-400" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white">Physical Copies  Live Breakdown</h3>
+          <p className="text-xs text-gray-500 dark:text-slate-400">Status overview of all physical copies in the library</p>
+        </div>
+      </div>
 
+      {/* 4-Column Status Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {statuses.map((s) => {
+          const StatusIcon = s.icon;
+          return (
+            <div
+              key={s.key}
+              className={`rounded-2xl border border-gray-100 dark:border-slate-700 border-l-4 ${s.borderColor} ${s.bgColor} p-5 shadow-sm hover:shadow-md transition-shadow duration-200`}
+            >
+              {/* Card Header */}
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className={`p-2 rounded-lg bg-white dark:bg-slate-800 shadow-sm`}>
+                  <StatusIcon size={18} className={s.iconColor} />
+                </div>
+                <h4 className={`text-sm font-bold ${s.headerColor} uppercase tracking-wide`}>
+                  {s.label}
+                </h4>
+              </div>
+
+              {/* Count */}
+              <p className={`text-4xl font-extrabold ${s.countColor} leading-none`}>
+                {s.count}
+              </p>
+
+              {/* Empty State Message */}
+              {s.count === 0 && (
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-3 italic">
+                  {s.emptyMsg}
+                </p>
+              )}
+
+              {/* Decorative count label */}
+              {s.count > 0 && (
+                <p className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider mt-2">
+                  {s.count === 1 ? 'copy' : 'copies'}
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
